@@ -44,5 +44,8 @@
 
 ## 发布
 
-代码在 GitHub `xeonstin/crateroid`，`main` 推送后由 GitHub Pages 自动构建（约 1 分钟）。
-线上无 `serve.py` 的 `/__save` 调试接口，其余功能一致；所有资源路径均为相对路径，子路径部署安全。
+代码在 GitHub `XeonStin/crateroid`，`main` 推送后由 GitHub Pages 自动构建（约 1 分钟）。
+- 推送方式：SSH over 443（`origin = ssh://git@ssh.github.com:443/XeonStin/crateroid.git` + 仓库 Deploy Key）——本网络直连 github.com 被拦，这是已验证可用的通道。
+- Pixi 以 12 个分片存在 `vendor/pixi/`，由 `vendor/pixi-loader.js` 运行时拼接（原因同上：大请求体上传受限）。
+- 线上无 `serve.py` 的 `/__save` 调试接口，其余功能一致；所有资源路径均为相对路径，子路径部署安全。
+- 已核验：Pages 状态 built，`https://xeonstin.github.io/crateroid/` 可加载出「弹坑星球 CRATEROID」界面（2026-11-07）。

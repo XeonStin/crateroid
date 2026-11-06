@@ -90,8 +90,10 @@ vendor/pixi.min.js              PixiJS v8（ESM，importmap 映射 'pixi.js'）
 ## 发布
 
 ```bash
-git add -A && git commit -m "..." && git push origin main
+git add -A && git commit -m "..." && git push origin main   # origin 已配为 SSH 443，见下
 ```
 
-GitHub Pages：仓库 `xeonstin/crateroid`，`main` 分支根目录。推送后约 1 分钟生效。
-线上环境无 `serve.py`：`screenshot()` 的 `POST /__save` 会 404（仅调试用，不影响游戏）。
+- 仓库：`XeonStin/crateroid`，GitHub Pages（legacy，`main` 根目录）→ https://xeonstin.github.io/crateroid/ ，推送后约 1 分钟生效。
+- **网络注意**：本机所在网络对 `github.com` 直连与 HTTPS 推送被拦截，`api.github.com` 可用但大请求体会被截断。当前推送走 **SSH over 443**：`origin = ssh://git@ssh.github.com:443/XeonStin/crateroid.git`，认证使用已添加到仓库的 **Deploy Key**（`~/.ssh/id_rsa`）。普通 `git push` 即可，无需额外参数。若换机器推送，需要新的 deploy key 或可用的代理。
+- **vendor 分片**：`vendor/pixi/*.bin`（12 片）+ `vendor/pixi-loader.js` 在运行时拼接并动态 import；不要合并回单个大文件——当前网络对大请求体上传不稳定。`.gitattributes` 已标记 `.bin` 为 binary。
+- 线上环境无 `serve.py`：`screenshot()` 的 `POST /__save` 会 404（仅调试用，不影响游戏）。
