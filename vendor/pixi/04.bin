@@ -1,0 +1,336 @@
+[^;]+);/g;for(;(e=s.exec(r))!==null;)t.push(e[1])}function to(r,t,e=!1){const s=[];ed(t,s),r.forEach(a=>{a.header&&ed(a.header,s)});const i=s;e&&i.sort();const n=i.map((a,l)=>`       @location(${l}) ${a},`).join(`
+`);let o=t.replace(/@in\s+[^;]+;\s*/g,"");return o=o.replace("{{in}}",`
+${n}
+`),o}function rd(r,t){let e;const s=/@out\s+([^;]+);/g;for(;(e=s.exec(r))!==null;)t.push(e[1])}function k0(r){const t=/\b(\w+)\s*:/g.exec(r);return t?t[1]:""}function $0(r){const t=/@.*?\s+/g;return r.replace(t,"")}function sd(r,t){const e=[];rd(t,e),r.forEach(l=>{l.header&&rd(l.header,e)});let s=0;const i=e.sort().map(l=>l.indexOf("builtin")>-1?l:`@location(${s++}) ${l}`).join(`,
+`),n=e.sort().map(l=>`       var ${$0(l)};`).join(`
+`),o=`return VSOutput(
+            ${e.sort().map(l=>` ${k0(l)}`).join(`,
+`)});`;let a=t.replace(/@out\s+[^;]+;\s*/g,"");return a=a.replace("{{struct}}",`
+${i}
+`),a=a.replace("{{start}}",`
+${n}
+`),a=a.replace("{{return}}",`
+${o}
+`),a}function eo(r,t){let e=r;for(const s in t){const i=t[s];i.join(`
+`).length?e=e.replace(`{{${s}}}`,`//-----${s} START-----//
+${i.join(`
+`)}
+//----${s} FINISH----//`):e=e.replace(`{{${s}}}`,"")}return e}const Se=Object.create(null),ro=new Map;let L0=0;function id({template:r,bits:t}){const e=od(r,t);if(Se[e])return Se[e];const{vertex:s,fragment:i}=N0(r,t);return Se[e]=ad(s,i,t),Se[e]}function nd({template:r,bits:t}){const e=od(r,t);return Se[e]||(Se[e]=ad(r.vertex,r.fragment,t)),Se[e]}function N0(r,t){const e=t.map(o=>o.vertex).filter(o=>!!o),s=t.map(o=>o.fragment).filter(o=>!!o);let i=to(e,r.vertex,!0);i=sd(e,i);const n=to(s,r.fragment,!0);return{vertex:i,fragment:n}}function od(r,t){return t.map(e=>(ro.has(e)||ro.set(e,L0++),ro.get(e))).sort((e,s)=>e-s).join("-")+r.vertex+r.fragment}function ad(r,t,e){const s=Jn(r),i=Jn(t);return e.forEach(n=>{Qn(n.vertex,s,n.name),Qn(n.fragment,i,n.name)}),{vertex:eo(r,s),fragment:eo(t,i)}}const ld=`
+    @in aPosition: vec2<f32>;
+    @in aUV: vec2<f32>;
+
+    @out @builtin(position) vPosition: vec4<f32>;
+    @out vUV : vec2<f32>;
+    @out vColor : vec4<f32>;
+
+    {{header}}
+
+    struct VSOutput {
+        {{struct}}
+    };
+
+    @vertex
+    fn main( {{in}} ) -> VSOutput {
+
+        var worldTransformMatrix = globalUniforms.uWorldTransformMatrix;
+        var modelMatrix = mat3x3<f32>(
+            1.0, 0.0, 0.0,
+            0.0, 1.0, 0.0,
+            0.0, 0.0, 1.0
+          );
+        var position = aPosition;
+        var uv = aUV;
+
+        {{start}}
+        
+        vColor = vec4<f32>(1., 1., 1., 1.);
+
+        {{main}}
+
+        vUV = uv;
+
+        var modelViewProjectionMatrix = globalUniforms.uProjectionMatrix * worldTransformMatrix * modelMatrix;
+
+        vPosition =  vec4<f32>((modelViewProjectionMatrix *  vec3<f32>(position, 1.0)).xy, 0.0, 1.0);
+       
+        vColor *= globalUniforms.uWorldColorAlpha;
+
+        {{end}}
+
+        {{return}}
+    };
+`,ud=`
+    @in vUV : vec2<f32>;
+    @in vColor : vec4<f32>;
+   
+    {{header}}
+
+    @fragment
+    fn main(
+        {{in}}
+      ) -> @location(0) vec4<f32> {
+        
+        {{start}}
+
+        var outColor:vec4<f32>;
+      
+        {{main}}
+        
+        var finalColor:vec4<f32> = outColor * vColor;
+
+        {{end}}
+
+        return finalColor;
+      };
+`,hd=`
+    in vec2 aPosition;
+    in vec2 aUV;
+
+    out vec4 vColor;
+    out vec2 vUV;
+
+    {{header}}
+
+    void main(void){
+
+        mat3 worldTransformMatrix = uWorldTransformMatrix;
+        mat3 modelMatrix = mat3(
+            1.0, 0.0, 0.0,
+            0.0, 1.0, 0.0,
+            0.0, 0.0, 1.0
+          );
+        vec2 position = aPosition;
+        vec2 uv = aUV;
+        
+        {{start}}
+        
+        vColor = vec4(1.);
+        
+        {{main}}
+        
+        vUV = uv;
+        
+        mat3 modelViewProjectionMatrix = uProjectionMatrix * worldTransformMatrix * modelMatrix;
+
+        gl_Position = vec4((modelViewProjectionMatrix * vec3(position, 1.0)).xy, 0.0, 1.0);
+
+        vColor *= uWorldColorAlpha;
+
+        {{end}}
+    }
+`,cd=`
+   
+    in vec4 vColor;
+    in vec2 vUV;
+
+    out vec4 finalColor;
+
+    {{header}}
+
+    void main(void) {
+        
+        {{start}}
+
+        vec4 outColor;
+      
+        {{main}}
+        
+        finalColor = outColor * vColor;
+        
+        {{end}}
+    }
+`,dd={name:"global-uniforms-bit",vertex:{header:`
+        struct GlobalUniforms {
+            uProjectionMatrix:mat3x3<f32>,
+            uWorldTransformMatrix:mat3x3<f32>,
+            uWorldColorAlpha: vec4<f32>,
+            uResolution: vec2<f32>,
+        }
+
+        @group(0) @binding(0) var<uniform> globalUniforms : GlobalUniforms;
+        `}},H0={name:"global-uniforms-ubo-bit",vertex:{header:`
+          uniform globalUniforms {
+            mat3 uProjectionMatrix;
+            mat3 uWorldTransformMatrix;
+            vec4 uWorldColorAlpha;
+            vec2 uResolution;
+          };
+        `}},pd={name:"global-uniforms-bit",vertex:{header:`
+          uniform mat3 uProjectionMatrix;
+          uniform mat3 uWorldTransformMatrix;
+          uniform vec4 uWorldColorAlpha;
+          uniform vec2 uResolution;
+        `}};var X0=Object.defineProperty,fd=Object.getOwnPropertySymbols,j0=Object.prototype.hasOwnProperty,z0=Object.prototype.propertyIsEnumerable,md=(r,t,e)=>t in r?X0(r,t,{enumerable:!0,configurable:!0,writable:!0,value:e}):r[t]=e,V0=(r,t)=>{for(var e in t||(t={}))j0.call(t,e)&&md(r,e,t[e]);if(fd)for(var e of fd(t))z0.call(t,e)&&md(r,e,t[e]);return r};function $e({bits:r,name:t}){const e=id({template:{fragment:ud,vertex:ld},bits:[dd,...r]});return bt.from({name:t,vertex:{source:e.vertex,entryPoint:"main"},fragment:{source:e.fragment,entryPoint:"main"}})}function Le({bits:r,name:t}){return new yt(V0({name:t},nd({template:{vertex:hd,fragment:cd},bits:[pd,...r]})))}const Gs={name:"color-bit",vertex:{header:`
+            @in aColor: vec4<f32>;
+        `,main:`
+            vColor *= vec4<f32>(aColor.rgb * aColor.a, aColor.a);
+        `}},Bs={name:"color-bit",vertex:{header:`
+            in vec4 aColor;
+        `,main:`
+            vColor *= vec4(aColor.rgb * aColor.a, aColor.a);
+        `}},so={};function W0(r){const t=[];if(r===1)t.push("@group(1) @binding(0) var textureSource1: texture_2d<f32>;"),t.push("@group(1) @binding(1) var textureSampler1: sampler;");else{let e=0;for(let s=0;s<r;s++)t.push(`@group(1) @binding(${e++}) var textureSource${s+1}: texture_2d<f32>;`),t.push(`@group(1) @binding(${e++}) var textureSampler${s+1}: sampler;`)}return t.join(`
+`)}function Y0(r){const t=[];if(r===1)t.push("outColor = textureSampleGrad(textureSource1, textureSampler1, vUV, uvDx, uvDy);");else{t.push("switch vTextureId {");for(let e=0;e<r;e++)e===r-1?t.push("  default:{"):t.push(`  case ${e}:{`),t.push(`      outColor = textureSampleGrad(textureSource${e+1}, textureSampler${e+1}, vUV, uvDx, uvDy);`),t.push("      break;}");t.push("}")}return t.join(`
+`)}function Is(r){return so[r]||(so[r]={name:"texture-batch-bit",vertex:{header:`
+                @in aTextureIdAndRound: vec2<u32>;
+                @out @interpolate(flat) vTextureId : u32;
+            `,main:`
+                vTextureId = aTextureIdAndRound.y;
+            `,end:`
+                if(aTextureIdAndRound.x == 1)
+                {
+                    vPosition = vec4<f32>(roundPixels(vPosition.xy, globalUniforms.uResolution), vPosition.zw);
+                }
+            `},fragment:{header:`
+                @in @interpolate(flat) vTextureId: u32;
+
+                ${W0(r)}
+            `,main:`
+                var uvDx = dpdx(vUV);
+                var uvDy = dpdy(vUV);
+
+                ${Y0(r)}
+            `}}),so[r]}const io={};function K0(r){const t=[];for(let e=0;e<r;e++)e>0&&t.push("else"),e<r-1&&t.push(`if(vTextureId < ${e}.5)`),t.push("{"),t.push(`	outColor = texture(uTextures[${e}], vUV);`),t.push("}");return t.join(`
+`)}function Fs(r){return io[r]||(io[r]={name:"texture-batch-bit",vertex:{header:`
+                in vec2 aTextureIdAndRound;
+                out float vTextureId;
+
+            `,main:`
+                vTextureId = aTextureIdAndRound.y;
+            `,end:`
+                if(aTextureIdAndRound.x == 1.)
+                {
+                    gl_Position.xy = roundPixels(gl_Position.xy, uResolution);
+                }
+            `},fragment:{header:`
+                in float vTextureId;
+
+                uniform sampler2D uTextures[${r}];
+
+            `,main:`
+
+                ${K0(r)}
+            `}}),io[r]}const Ne={name:"round-pixels-bit",vertex:{header:`
+            fn roundPixels(position: vec2<f32>, targetSize: vec2<f32>) -> vec2<f32> 
+            {
+                return (floor(((position * 0.5 + 0.5) * targetSize) + 0.5) / targetSize) * 2.0 - 1.0;
+            }
+        `}},He={name:"round-pixels-bit",vertex:{header:`   
+            vec2 roundPixels(vec2 position, vec2 targetSize)
+            {       
+                return (floor(((position * 0.5 + 0.5) * targetSize) + 0.5) / targetSize) * 2.0 - 1.0;
+            }
+        `}},no=["f32","i32","vec2<f32>","vec3<f32>","vec4<f32>","mat2x2<f32>","mat3x3<f32>","mat4x4<f32>","mat3x2<f32>","mat4x2<f32>","mat2x3<f32>","mat4x3<f32>","mat2x4<f32>","mat3x4<f32>","vec2<i32>","vec3<i32>","vec4<i32>"],gd=no.reduce((r,t)=>(r[t]=!0,r),{});function _d(r,t){switch(r){case"f32":return 0;case"vec2<f32>":return new Float32Array(2*t);case"vec3<f32>":return new Float32Array(3*t);case"vec4<f32>":return new Float32Array(4*t);case"mat2x2<f32>":return new Float32Array([1,0,0,1]);case"mat3x3<f32>":return new Float32Array([1,0,0,0,1,0,0,0,1]);case"mat4x4<f32>":return new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1])}return null}var q0=Object.defineProperty,xd=Object.getOwnPropertySymbols,Z0=Object.prototype.hasOwnProperty,Q0=Object.prototype.propertyIsEnumerable,bd=(r,t,e)=>t in r?q0(r,t,{enumerable:!0,configurable:!0,writable:!0,value:e}):r[t]=e,vd=(r,t)=>{for(var e in t||(t={}))Z0.call(t,e)&&bd(r,e,t[e]);if(xd)for(var e of xd(t))Q0.call(t,e)&&bd(r,e,t[e]);return r};const yd=class dv{constructor(t,e){this._touched=0,this.uid=K("uniform"),this._resourceType="uniformGroup",this._resourceId=K("resource"),this.isUniformGroup=!0,this._dirtyId=0,this.destroyed=!1;var s,i;e=vd(vd({},dv.defaultOptions),e),this.uniformStructures=t;const n={};for(const o in t){const a=t[o];if(a.name=o,a.size=(s=a.size)!=null?s:1,!gd[a.type])throw new Error(`Uniform type ${a.type} is not supported. Supported uniform types are: ${no.join(", ")}`);(i=a.value)!=null||(a.value=_d(a.type,a.size)),n[o]=a.value}this.uniforms=n,this._dirtyId=1,this.ubo=e.ubo,this.isStatic=e.isStatic,this._signature=Ue(Object.keys(n).map(o=>`${o}-${t[o].type}`).join("-"),"uniform-group")}update(){this._dirtyId++}};yd.defaultOptions={ubo:!1,isStatic:!1};let rt=yd;const Td={};function Ds(r){let t=Td[r];if(t)return t;const e=new Int32Array(r);for(let s=0;s<r;s++)e[s]=s;return t=Td[r]=new rt({uTextures:{value:e,type:"i32",size:r}},{isStatic:!0}),t}var mt=(r=>(r[r.WEBGL=1]="WEBGL",r[r.WEBGPU=2]="WEBGPU",r[r.BOTH=3]="BOTH",r))(mt||{}),J0=Object.defineProperty,Us=Object.getOwnPropertySymbols,Sd=Object.prototype.hasOwnProperty,Ed=Object.prototype.propertyIsEnumerable,Ad=(r,t,e)=>t in r?J0(r,t,{enumerable:!0,configurable:!0,writable:!0,value:e}):r[t]=e,t1=(r,t)=>{for(var e in t||(t={}))Sd.call(t,e)&&Ad(r,e,t[e]);if(Us)for(var e of Us(t))Ed.call(t,e)&&Ad(r,e,t[e]);return r},e1=(r,t)=>{var e={};for(var s in r)Sd.call(r,s)&&t.indexOf(s)<0&&(e[s]=r[s]);if(r!=null&&Us)for(var s of Us(r))t.indexOf(s)<0&&Ed.call(r,s)&&(e[s]=r[s]);return e};class Pt extends pt{constructor(t){super(),this._uniformBindMap=Object.create(null),this._ownedBindGroups=[];let{gpuProgram:e,glProgram:s,groups:i,resources:n,compatibleRenderers:o,groupMap:a}=t;this.gpuProgram=e,this.glProgram=s,o===void 0&&(o=0,e&&(o|=mt.WEBGPU),s&&(o|=mt.WEBGL)),this.compatibleRenderers=o;const l={};if(!n&&!i&&(n={}),n&&i)throw new Error("[Shader] Cannot have both resources and groups");if(!e&&i&&!a)throw new Error("[Shader] No group map or WebGPU shader provided - consider using resources instead.");if(!e&&i&&a)for(const u in a)for(const h in a[u]){const c=a[u][h];l[c]={group:u,binding:h,name:c}}else if(e&&i&&!a){const u=e.structsAndGroups.groups;a={},u.forEach(h=>{a[h.group]=a[h.group]||{},a[h.group][h.binding]=h.name,l[h.name]=h})}else if(n){i={},a={},e&&e.structsAndGroups.groups.forEach(h=>{a[h.group]=a[h.group]||{},a[h.group][h.binding]=h.name,l[h.name]=h});let u=0;for(const h in n)l[h]||(i[99]||(i[99]=new Ut,this._ownedBindGroups.push(i[99])),l[h]={group:99,binding:u,name:h},a[99]=a[99]||{},a[99][u]=h,u++);for(const h in n){const c=h;let d=n[h];!d.source&&!d._resourceType&&(d=new rt(d));const p=l[c];p&&(i[p.group]||(i[p.group]=new Ut,this._ownedBindGroups.push(i[p.group])),i[p.group].setResource(d,p.binding))}}this.groups=i,this._uniformBindMap=a,this.resources=this._buildResourceAccessor(i,l)}addResource(t,e,s){var i,n;(i=this._uniformBindMap)[e]||(i[e]={}),(n=this._uniformBindMap[e])[s]||(n[s]=t),this.groups[e]||(this.groups[e]=new Ut,this._ownedBindGroups.push(this.groups[e]))}_buildResourceAccessor(t,e){const s={};for(const i in e){const n=e[i];Object.defineProperty(s,n.name,{get(){return t[n.group].getResource(n.binding)},set(o){t[n.group].setResource(o,n.binding)}})}return s}destroy(t=!1){var e,s;this.emit("destroy",this),t&&((e=this.gpuProgram)==null||e.destroy(),(s=this.glProgram)==null||s.destroy()),this.gpuProgram=null,this.glProgram=null,this.removeAllListeners(),this._uniformBindMap=null,this._ownedBindGroups.forEach(i=>{i.destroy()}),this._ownedBindGroups=null,this.resources=null,this.groups=null}static from(t){const e=t,{gpu:s,gl:i}=e,n=e1(e,["gpu","gl"]);let o,a;return s&&(o=bt.from(s)),i&&(a=yt.from(i)),new Pt(t1({gpuProgram:o,glProgram:a},n))}}class Pd extends Pt{constructor(t){const e=Le({name:"batch",bits:[Bs,Fs(t),He]}),s=$e({name:"batch",bits:[Gs,Is(t),Ne]});super({glProgram:e,gpuProgram:s,resources:{batchSamplers:Ds(t)}})}}let wd=null;const Rd=class pv extends Fc{constructor(){super(...arguments),this.geometry=new Uc,this.shader=wd||(wd=new Pd(this.maxTextures)),this.name=pv.extension.name,this.vertexSize=6}packAttributes(t,e,s,i,n){const o=n<<16|t.roundPixels&65535,a=t.transform,l=a.a,u=a.b,h=a.c,c=a.d,d=a.tx,p=a.ty,{positions:f,uvs:g}=t,m=t.color,_=t.attributeOffset,v=_+t.attributeSize;for(let b=_;b<v;b++){const y=b*2,E=f[y],T=f[y+1];e[i++]=l*E+h*T+d,e[i++]=c*T+u*E+p,e[i++]=g[y],e[i++]=g[y+1],s[i++]=m,s[i++]=o}}packQuadAttributes(t,e,s,i,n){const o=t.texture,a=t.transform,l=a.a,u=a.b,h=a.c,c=a.d,d=a.tx,p=a.ty,f=t.bounds,g=f.maxX,m=f.minX,_=f.maxY,v=f.minY,b=o.uvs,y=t.color,E=n<<16|t.roundPixels&65535;e[i+0]=l*m+h*v+d,e[i+1]=c*v+u*m+p,e[i+2]=b.x0,e[i+3]=b.y0,s[i+4]=y,s[i+5]=E,e[i+6]=l*g+h*v+d,e[i+7]=c*v+u*g+p,e[i+8]=b.x1,e[i+9]=b.y1,s[i+10]=y,s[i+11]=E,e[i+12]=l*g+h*_+d,e[i+13]=c*_+u*g+p,e[i+14]=b.x2,e[i+15]=b.y2,s[i+16]=y,s[i+17]=E,e[i+18]=l*m+h*_+d,e[i+19]=c*_+u*m+p,e[i+20]=b.x3,e[i+21]=b.y3,s[i+22]=y,s[i+23]=E}};Rd.extension={type:[x.Batcher],name:"default"};let ks=Rd;function oo(r,t,e,s,i,n,o,a=null){let l=0;e*=t,i*=n;const u=a.a,h=a.b,c=a.c,d=a.d,p=a.tx,f=a.ty;for(;l<o;){const g=r[e],m=r[e+1];s[i]=u*g+c*m+p,s[i+1]=h*g+d*m+f,i+=n,e+=t,l++}}function ao(r,t,e,s){let i=0;for(t*=e;i<s;)r[t]=0,r[t+1]=0,t+=e,i++}function $s(r,t,e,s,i){const n=t.a,o=t.b,a=t.c,l=t.d,u=t.tx,h=t.ty;e||(e=0),s||(s=2),i||(i=r.length/s-e);let c=e*s;for(let d=0;d<i;d++){const p=r[c],f=r[c+1];r[c]=n*p+a*f+u,r[c+1]=o*p+l*f+h,c+=s}}const r1=new M;class Ls{constructor(){this.packAsQuad=!1,this.batcherName="default",this.topology="triangle-list",this.applyTransform=!0,this.roundPixels=0,this._batcher=null,this._batch=null}get uvs(){return this.geometryData.uvs}get positions(){return this.geometryData.vertices}get indices(){return this.geometryData.indices}get blendMode(){return this.applyTransform?this.renderable.groupBlendMode:"normal"}get color(){const t=this.baseColor,e=t>>16|t&65280|(t&255)<<16,s=this.renderable;return s?gn(e,s.groupColor)+(this.alpha*s.groupAlpha*255<<24):e+(this.alpha*255<<24)}get transform(){var t;return((t=this.renderable)==null?void 0:t.groupTransform)||r1}copyTo(t){t.indexOffset=this.indexOffset,t.indexSize=this.indexSize,t.attributeOffset=this.attributeOffset,t.attributeSize=this.attributeSize,t.baseColor=this.baseColor,t.alpha=this.alpha,t.texture=this.texture,t.geometryData=this.geometryData,t.topology=this.topology}reset(){this.applyTransform=!0,this.renderable=null,this.topology="triangle-list"}}var s1=Object.defineProperty,i1=Object.defineProperties,n1=Object.getOwnPropertyDescriptors,Md=Object.getOwnPropertySymbols,o1=Object.prototype.hasOwnProperty,a1=Object.prototype.propertyIsEnumerable,Cd=(r,t,e)=>t in r?s1(r,t,{enumerable:!0,configurable:!0,writable:!0,value:e}):r[t]=e,Ns=(r,t)=>{for(var e in t||(t={}))o1.call(t,e)&&Cd(r,e,t[e]);if(Md)for(var e of Md(t))a1.call(t,e)&&Cd(r,e,t[e]);return r},Hs=(r,t)=>i1(r,n1(t));const qt={extension:{type:x.ShapeBuilder,name:"circle"},build(r,t){let e,s,i,n,o,a;if(r.type==="circle"){const y=r;e=y.x,s=y.y,o=a=y.radius,i=n=0}else if(r.type==="ellipse"){const y=r;e=y.x,s=y.y,o=y.halfWidth,a=y.halfHeight,i=n=0}else{const y=r,E=y.width/2,T=y.height/2;e=y.x+E,s=y.y+T,o=a=Math.max(0,Math.min(y.radius,Math.min(E,T))),i=E-o,n=T-a}if(!(o>=0&&a>=0&&i>=0&&n>=0))return t;const l=Math.ceil(2.3*Math.sqrt(o+a)),u=l*8+(i?4:0)+(n?4:0);if(u===0)return t;if(l===0)return t[0]=t[6]=e+i,t[1]=t[3]=s+n,t[2]=t[4]=e-i,t[5]=t[7]=s-n,t;let h=0,c=l*4+(i?2:0)+2,d=c,p=u,f=i+o,g=n,m=e+f,_=e-f,v=s+g;if(t[h++]=m,t[h++]=v,t[--c]=v,t[--c]=_,n){const y=s-g;t[d++]=_,t[d++]=y,t[--p]=y,t[--p]=m}for(let y=1;y<l;y++){const E=Math.PI/2*(y/l),T=i+Math.cos(E)*o,S=n+Math.sin(E)*a,O=e+T,F=e-T,w=s+S,P=s-S;t[h++]=O,t[h++]=w,t[--c]=w,t[--c]=F,t[d++]=F,t[d++]=P,t[--p]=P,t[--p]=O}f=i,g=n+a,m=e+f,_=e-f,v=s+g;const b=s-g;return t[h++]=m,t[h++]=v,t[--p]=b,t[--p]=m,i&&(t[h++]=_,t[h++]=v,t[--p]=b,t[--p]=_),t},triangulate(r,t,e,s,i,n){if(r.length===0)return;let o=0,a=0;for(let h=0;h<r.length;h+=2)o+=r[h],a+=r[h+1];o/=r.length/2,a/=r.length/2;let l=s;t[l*e]=o,t[l*e+1]=a;const u=l++;for(let h=0;h<r.length;h+=2)t[l*e]=r[h],t[l*e+1]=r[h+1],h>0&&(i[n++]=l,i[n++]=u,i[n++]=l-1),l++;i[n++]=u+1,i[n++]=u,i[n++]=l-1}},Od=Hs(Ns({},qt),{extension:Hs(Ns({},qt.extension),{name:"ellipse"})}),Gd=Hs(Ns({},qt),{extension:Hs(Ns({},qt.extension),{name:"roundedRectangle"})}),lo=1e-4,uo=1e-4;function Bd(r){const t=r.length;if(t<6)return 1;let e=0;for(let s=0,i=r[t-2],n=r[t-1];s<t;s+=2){const o=r[s],a=r[s+1];e+=(o-i)*(a+n),i=o,n=a}return e<0?-1:1}function Id(r,t,e,s,i,n,o,a){const l=r-e*i,u=t-s*i,h=r+e*n,c=t+s*n;let d,p;o?(d=s,p=-e):(d=-s,p=e);const f=l+d,g=u+p,m=h+d,_=c+p;return a.push(f,g),a.push(m,_),2}function Ee(r,t,e,s,i,n,o,a){const l=e-r,u=s-t;let h=Math.atan2(l,u),c=Math.atan2(i-r,n-t);a&&h<c?h+=Math.PI*2:!a&&h>c&&(c+=Math.PI*2);let d=h;const p=c-h,f=Math.abs(p),g=Math.sqrt(l*l+u*u),m=(15*f*Math.sqrt(g)/Math.PI>>0)+1,_=p/m;if(d+=_,a){o.push(r,t),o.push(e,s);for(let v=1,b=d;v<m;v++,b+=_)o.push(r,t),o.push(r+Math.sin(b)*g,t+Math.cos(b)*g);o.push(r,t),o.push(i,n)}else{o.push(e,s),o.push(r,t);for(let v=1,b=d;v<m;v++,b+=_)o.push(r+Math.sin(b)*g,t+Math.cos(b)*g),o.push(r,t);o.push(i,n),o.push(r,t)}return m*2}function Fd(r,t,e,s,i,n){const o=lo;if(r.length===0)return;const a=t;let l=a.alignment;if(t.alignment!==.5){let W=Bd(r);e&&(W*=-1),l=(l-.5)*W+.5}const u=new z(r[0],r[1]),h=new z(r[r.length-2],r[r.length-1]),c=s,d=Math.abs(u.x-h.x)<o&&Math.abs(u.y-h.y)<o;if(c){r=r.slice(),d&&(r.pop(),r.pop(),h.set(r[r.length-2],r[r.length-1]));const W=(u.x+h.x)*.5,te=(h.y+u.y)*.5;r.unshift(W,te),r.push(W,te)}const p=i,f=r.length/2;let g=r.length;const m=p.length/2,_=a.width/2,v=_*_,b=a.miterLimit*a.miterLimit;let y=r[0],E=r[1],T=r[2],S=r[3],O=0,F=0,w=-(E-S),P=y-T,B=0,C=0,Z=Math.sqrt(w*w+P*P);w/=Z,P/=Z,w*=_,P*=_;const Ht=l,G=(1-Ht)*2,D=Ht*2;c||(a.cap==="round"?g+=Ee(y-w*(G-D)*.5,E-P*(G-D)*.5,y-w*G,E-P*G,y+w*D,E+P*D,p,!0)+2:a.cap==="square"&&(g+=Id(y,E,w,P,G,D,!0,p))),p.push(y-w*G,E-P*G),p.push(y+w*D,E+P*D);for(let W=1;W<f-1;++W){y=r[(W-1)*2],E=r[(W-1)*2+1],T=r[W*2],S=r[W*2+1],O=r[(W+1)*2],F=r[(W+1)*2+1],w=-(E-S),P=y-T,Z=Math.sqrt(w*w+P*P),w/=Z,P/=Z,w*=_,P*=_,B=-(S-F),C=T-O,Z=Math.sqrt(B*B+C*C),B/=Z,C/=Z,B*=_,C*=_;const te=T-y,ar=E-S,lr=T-O,ur=F-S,Bu=te*lr+ar*ur,os=ar*lr-ur*te,hr=os<0;if(Math.abs(os)<.001*Math.abs(Bu)){p.push(T-w*G,S-P*G),p.push(T+w*D,S+P*D),Bu>=0&&(a.join==="round"?g+=Ee(T,S,T-w*G,S-P*G,T-B*G,S-C*G,p,!1)+4:g+=2,p.push(T-B*D,S-C*D),p.push(T+B*G,S+C*G));continue}const Iu=(-w+y)*(-P+S)-(-w+T)*(-P+E),Fu=(-B+O)*(-C+S)-(-B+T)*(-C+F),as=(te*Fu-lr*Iu)/os,ls=(ur*Iu-ar*Fu)/os,nn=(as-T)*(as-T)+(ls-S)*(ls-S),ue=T+(as-T)*G,he=S+(ls-S)*G,ce=T-(as-T)*D,de=S-(ls-S)*D,kv=Math.min(te*te+ar*ar,lr*lr+ur*ur),Du=hr?G:D,$v=kv+Du*Du*v;nn<=$v?a.join==="bevel"||nn/v>b?(hr?(p.push(ue,he),p.push(T+w*D,S+P*D),p.push(ue,he),p.push(T+B*D,S+C*D)):(p.push(T-w*G,S-P*G),p.push(ce,de),p.push(T-B*G,S-C*G),p.push(ce,de)),g+=2):a.join==="round"?hr?(p.push(ue,he),p.push(T+w*D,S+P*D),g+=Ee(T,S,T+w*D,S+P*D,T+B*D,S+C*D,p,!0)+4,p.push(ue,he),p.push(T+B*D,S+C*D)):(p.push(T-w*G,S-P*G),p.push(ce,de),g+=Ee(T,S,T-w*G,S-P*G,T-B*G,S-C*G,p,!1)+4,p.push(T-B*G,S-C*G),p.push(ce,de)):(p.push(ue,he),p.push(ce,de)):(p.push(T-w*G,S-P*G),p.push(T+w*D,S+P*D),a.join==="round"?hr?g+=Ee(T,S,T+w*D,S+P*D,T+B*D,S+C*D,p,!0)+2:g+=Ee(T,S,T-w*G,S-P*G,T-B*G,S-C*G,p,!1)+2:a.join==="miter"&&nn/v<=b&&(hr?(p.push(ce,de),p.push(ce,de)):(p.push(ue,he),p.push(ue,he)),g+=2),p.push(T-B*G,S-C*G),p.push(T+B*D,S+C*D),g+=2)}y=r[(f-2)*2],E=r[(f-2)*2+1],T=r[(f-1)*2],S=r[(f-1)*2+1],w=-(E-S),P=y-T,Z=Math.sqrt(w*w+P*P),w/=Z,P/=Z,w*=_,P*=_,p.push(T-w*G,S-P*G),p.push(T+w*D,S+P*D),c||(a.cap==="round"?g+=Ee(T-w*(G-D)*.5,S-P*(G-D)*.5,T-w*G,S-P*G,T+w*D,S+P*D,p,!1)+2:a.cap==="square"&&(g+=Id(T,S,w,P,G,D,!1,p)));const Uv=uo*uo;for(let W=m;W<g+m-2;++W)y=p[W*2],E=p[W*2+1],T=p[(W+1)*2],S=p[(W+1)*2+1],O=p[(W+2)*2],F=p[(W+2)*2+1],!(Math.abs(y*(S-F)+T*(F-E)+O*(E-S))<Uv)&&n.push(W,W+1,W+2)}function Dd(r,t,e,s){const i=lo;if(r.length===0)return;const n=r[0],o=r[1],a=r[r.length-2],l=r[r.length-1],u=t||Math.abs(n-a)<i&&Math.abs(o-l)<i,h=e,c=r.length/2,d=h.length/2;for(let p=0;p<c;p++)h.push(r[p*2]),h.push(r[p*2+1]);for(let p=0;p<c-1;p++)s.push(d+p,d+p+1);u&&s.push(d+c-1,d)}var Xs={exports:{}},zR=Xs.exports;Xs.exports=js;var VR=Xs.exports.default=js;function js(r,t,e){e=e||2;var s=t&&t.length,i=s?t[0]*e:r.length,n=Ud(r,0,i,e,!0),o=[];if(!n||n.next===n.prev)return o;var a,l,u,h,c,d,p;if(s&&(n=d1(r,t,n,e)),r.length>80*e){a=u=r[0],l=h=r[1];for(var f=e;f<i;f+=e)c=r[f],d=r[f+1],c<a&&(a=c),d<l&&(l=d),c>u&&(u=c),d>h&&(h=d);p=Math.max(u-a,h-l),p=p!==0?32767/p:0}return Pr(n,o,e,a,l,p,0),o}function Ud(r,t,e,s,i){var n,o;if(i===po(r,t,e,s)>0)for(n=t;n<e;n+=s)o=Ld(n,r[n],r[n+1],o);else for(n=e-s;n>=t;n-=s)o=Ld(n,r[n],r[n+1],o);return o&&zs(o,o.next)&&(Rr(o),o=o.next),o}function Ae(r,t){if(!r)return r;t||(t=r);var e=r,s;do if(s=!1,!e.steiner&&(zs(e,e.next)||q(e.prev,e,e.next)===0)){if(Rr(e),e=t=e.prev,e===e.next)break;s=!0}else e=e.next;while(s||e!==t);return t}function Pr(r,t,e,s,i,n,o){if(r){!o&&n&&_1(r,s,i,n);for(var a=r,l,u;r.prev!==r.next;){if(l=r.prev,u=r.next,n?u1(r,s,i,n):l1(r)){t.push(l.i/e|0),t.push(r.i/e|0),t.push(u.i/e|0),Rr(r),r=u.next,a=u.next;continue}if(r=u,r===a){o?o===1?(r=h1(Ae(r),t,e),Pr(r,t,e,s,i,n,2)):o===2&&c1(r,t,e,s,i,n):Pr(Ae(r),t,e,s,i,n,1);break}}}}function l1(r){var t=r.prev,e=r,s=r.next;if(q(t,e,s)>=0)return!1;for(var i=t.x,n=e.x,o=s.x,a=t.y,l=e.y,u=s.y,h=i<n?i<o?i:o:n<o?n:o,c=a<l?a<u?a:u:l<u?l:u,d=i>n?i>o?i:o:n>o?n:o,p=a>l?a>u?a:u:l>u?l:u,f=s.next;f!==t;){if(f.x>=h&&f.x<=d&&f.y>=c&&f.y<=p&&Xe(i,a,n,l,o,u,f.x,f.y)&&q(f.prev,f,f.next)>=0)return!1;f=f.next}return!0}function u1(r,t,e,s){var i=r.prev,n=r,o=r.next;if(q(i,n,o)>=0)return!1;for(var a=i.x,l=n.x,u=o.x,h=i.y,c=n.y,d=o.y,p=a<l?a<u?a:u:l<u?l:u,f=h<c?h<d?h:d:c<d?c:d,g=a>l?a>u?a:u:l>u?l:u,m=h>c?h>d?h:d:c>d?c:d,_=ho(p,f,t,e,s),v=ho(g,m,t,e,s),b=r.prevZ,y=r.nextZ;b&&b.z>=_&&y&&y.z<=v;){if(b.x>=p&&b.x<=g&&b.y>=f&&b.y<=m&&b!==i&&b!==o&&Xe(a,h,l,c,u,d,b.x,b.y)&&q(b.prev,b,b.next)>=0||(b=b.prevZ,y.x>=p&&y.x<=g&&y.y>=f&&y.y<=m&&y!==i&&y!==o&&Xe(a,h,l,c,u,d,y.x,y.y)&&q(y.prev,y,y.next)>=0))return!1;y=y.nextZ}for(;b&&b.z>=_;){if(b.x>=p&&b.x<=g&&b.y>=f&&b.y<=m&&b!==i&&b!==o&&Xe(a,h,l,c,u,d,b.x,b.y)&&q(b.prev,b,b.next)>=0)return!1;b=b.prevZ}for(;y&&y.z<=v;){if(y.x>=p&&y.x<=g&&y.y>=f&&y.y<=m&&y!==i&&y!==o&&Xe(a,h,l,c,u,d,y.x,y.y)&&q(y.prev,y,y.next)>=0)return!1;y=y.nextZ}return!0}function h1(r,t,e){var s=r;do{var i=s.prev,n=s.next.next;!zs(i,n)&&kd(i,s,s.next,n)&&wr(i,n)&&wr(n,i)&&(t.push(i.i/e|0),t.push(s.i/e|0),t.push(n.i/e|0),Rr(s),Rr(s.next),s=r=n),s=s.next}while(s!==r);return Ae(s)}function c1(r,t,e,s,i,n){var o=r;do{for(var a=o.next.next;a!==o.prev;){if(o.i!==a.i&&v1(o,a)){var l=$d(o,a);o=Ae(o,o.next),l=Ae(l,l.next),Pr(o,t,e,s,i,n,0),Pr(l,t,e,s,i,n,0);return}a=a.next}o=o.next}while(o!==r)}function d1(r,t,e,s){var i=[],n,o,a,l,u;for(n=0,o=t.length;n<o;n++)a=t[n]*s,l=n<o-1?t[n+1]*s:r.length,u=Ud(r,a,l,s,!1),u===u.next&&(u.steiner=!0),i.push(b1(u));for(i.sort(p1),n=0;n<i.length;n++)e=f1(i[n],e);return e}function p1(r,t){return r.x-t.x}function f1(r,t){var e=m1(r,t);if(!e)return t;var s=$d(e,r);return Ae(s,s.next),Ae(e,e.next)}function m1(r,t){var e=t,s=r.x,i=r.y,n=-1/0,o;do{if(i<=e.y&&i>=e.next.y&&e.next.y!==e.y){var a=e.x+(i-e.y)*(e.next.x-e.x)/(e.next.y-e.y);if(a<=s&&a>n&&(n=a,o=e.x<e.next.x?e:e.next,a===s))return o}e=e.next}while(e!==t);if(!o)return null;var l=o,u=o.x,h=o.y,c=1/0,d;e=o;do s>=e.x&&e.x>=u&&s!==e.x&&Xe(i<h?s:n,i,u,h,i<h?n:s,i,e.x,e.y)&&(d=Math.abs(i-e.y)/(s-e.x),wr(e,r)&&(d<c||d===c&&(e.x>o.x||e.x===o.x&&g1(o,e)))&&(o=e,c=d)),e=e.next;while(e!==l);return o}function g1(r,t){return q(r.prev,r,t.prev)<0&&q(t.next,r,r.next)<0}function _1(r,t,e,s){var i=r;do i.z===0&&(i.z=ho(i.x,i.y,t,e,s)),i.prevZ=i.prev,i.nextZ=i.next,i=i.next;while(i!==r);i.prevZ.nextZ=null,i.prevZ=null,x1(i)}function x1(r){var t,e,s,i,n,o,a,l,u=1;do{for(e=r,r=null,n=null,o=0;e;){for(o++,s=e,a=0,t=0;t<u&&(a++,s=s.nextZ,!!s);t++);for(l=u;a>0||l>0&&s;)a!==0&&(l===0||!s||e.z<=s.z)?(i=e,e=e.nextZ,a--):(i=s,s=s.nextZ,l--),n?n.nextZ=i:r=i,i.prevZ=n,n=i;e=s}n.nextZ=null,u*=2}while(o>1);return r}function ho(r,t,e,s,i){return r=(r-e)*i|0,t=(t-s)*i|0,r=(r|r<<8)&16711935,r=(r|r<<4)&252645135,r=(r|r<<2)&858993459,r=(r|r<<1)&1431655765,t=(t|t<<8)&16711935,t=(t|t<<4)&252645135,t=(t|t<<2)&858993459,t=(t|t<<1)&1431655765,r|t<<1}function b1(r){var t=r,e=r;do(t.x<e.x||t.x===e.x&&t.y<e.y)&&(e=t),t=t.next;while(t!==r);return e}function Xe(r,t,e,s,i,n,o,a){return(i-o)*(t-a)>=(r-o)*(n-a)&&(r-o)*(s-a)>=(e-o)*(t-a)&&(e-o)*(n-a)>=(i-o)*(s-a)}function v1(r,t){return r.next.i!==t.i&&r.prev.i!==t.i&&!y1(r,t)&&(wr(r,t)&&wr(t,r)&&T1(r,t)&&(q(r.prev,r,t.prev)||q(r,t.prev,t))||zs(r,t)&&q(r.prev,r,r.next)>0&&q(t.prev,t,t.next)>0)}function q(r,t,e){return(t.y-r.y)*(e.x-t.x)-(t.x-r.x)*(e.y-t.y)}function zs(r,t){return r.x===t.x&&r.y===t.y}function kd(r,t,e,s){var i=Ws(q(r,t,e)),n=Ws(q(r,t,s)),o=Ws(q(e,s,r)),a=Ws(q(e,s,t));return!!(i!==n&&o!==a||i===0&&Vs(r,e,t)||n===0&&Vs(r,s,t)||o===0&&Vs(e,r,s)||a===0&&Vs(e,t,s))}function Vs(r,t,e){return t.x<=Math.max(r.x,e.x)&&t.x>=Math.min(r.x,e.x)&&t.y<=Math.max(r.y,e.y)&&t.y>=Math.min(r.y,e.y)}function Ws(r){return r>0?1:r<0?-1:0}function y1(r,t){var e=r;do{if(e.i!==r.i&&e.next.i!==r.i&&e.i!==t.i&&e.next.i!==t.i&&kd(e,e.next,r,t))return!0;e=e.next}while(e!==r);return!1}function wr(r,t){return q(r.prev,r,r.next)<0?q(r,t,r.next)>=0&&q(r,r.prev,t)>=0:q(r,t,r.prev)<0||q(r,r.next,t)<0}function T1(r,t){var e=r,s=!1,i=(r.x+t.x)/2,n=(r.y+t.y)/2;do e.y>n!=e.next.y>n&&e.next.y!==e.y&&i<(e.next.x-e.x)*(n-e.y)/(e.next.y-e.y)+e.x&&(s=!s),e=e.next;while(e!==r);return s}function $d(r,t){var e=new co(r.i,r.x,r.y),s=new co(t.i,t.x,t.y),i=r.next,n=t.prev;return r.next=t,t.prev=r,e.next=i,i.prev=e,s.next=e,e.prev=s,n.next=s,s.prev=n,s}function Ld(r,t,e,s){var i=new co(r,t,e);return s?(i.next=s.next,i.prev=s,s.next.prev=i,s.next=i):(i.prev=i,i.next=i),i}function Rr(r){r.next.prev=r.prev,r.prev.next=r.next,r.prevZ&&(r.prevZ.nextZ=r.nextZ),r.nextZ&&(r.nextZ.prevZ=r.prevZ)}function co(r,t,e){this.i=r,this.x=t,this.y=e,this.prev=null,this.next=null,this.z=0,this.prevZ=null,this.nextZ=null,this.steiner=!1}js.deviation=function(r,t,e,s){var i=t&&t.length,n=i?t[0]*e:r.length,o=Math.abs(po(r,0,n,e));if(i)for(var a=0,l=t.length;a<l;a++){var u=t[a]*e,h=a<l-1?t[a+1]*e:r.length;o-=Math.abs(po(r,u,h,e))}var c=0;for(a=0;a<s.length;a+=3){var d=s[a]*e,p=s[a+1]*e,f=s[a+2]*e;c+=Math.abs((r[d]-r[f])*(r[p+1]-r[d+1])-(r[d]-r[p])*(r[f+1]-r[d+1]))}return o===0&&c===0?0:Math.abs((c-o)/o)};function po(r,t,e,s){for(var i=0,n=t,o=e-s;n<e;n+=s)i+=(r[o]-r[n])*(r[n+1]+r[o+1]),o=n;return i}js.flatten=function(r){for(var t=r[0][0].length,e={vertices:[],holes:[],dimensions:t},s=0,i=0;i<r.length;i++){for(var n=0;n<r[i].length;n++)for(var o=0;o<t;o++)e.vertices.push(r[i][n][o]);i>0&&(s+=r[i-1].length,e.holes.push(s))}return e};var S1=Xs.exports,Nd=an(S1);function fo(r,t,e,s,i,n,o){const a=Nd(r,t,2);if(!a)return;for(let u=0;u<a.length;u+=3)n[o++]=a[u]+i,n[o++]=a[u+1]+i,n[o++]=a[u+2]+i;let l=i*s;for(let u=0;u<r.length;u+=2)e[l]=r[u],e[l+1]=r[u+1],l+=s}const E1=[],mo={extension:{type:x.ShapeBuilder,name:"polygon"},build(r,t){for(let e=0;e<r.points.length;e++)t[e]=r.points[e];return t},triangulate(r,t,e,s,i,n){fo(r,E1,t,e,s,i,n)}},go={extension:{type:x.ShapeBuilder,name:"rectangle"},build(r,t){const e=r,s=e.x,i=e.y,n=e.width,o=e.height;return n>=0&&o>=0&&(t[0]=s,t[1]=i,t[2]=s+n,t[3]=i,t[4]=s+n,t[5]=i+o,t[6]=s,t[7]=i+o),t},triangulate(r,t,e,s,i,n){let o=0;s*=e,t[s+o]=r[0],t[s+o+1]=r[1],o+=e,t[s+o]=r[2],t[s+o+1]=r[3],o+=e,t[s+o]=r[6],t[s+o+1]=r[7],o+=e,t[s+o]=r[4],t[s+o+1]=r[5],o+=e;const a=s/e;i[n++]=a,i[n++]=a+1,i[n++]=a+2,i[n++]=a+1,i[n++]=a+3,i[n++]=a+2}},_o={extension:{type:x.ShapeBuilder,name:"triangle"},build(r,t){return t[0]=r.x,t[1]=r.y,t[2]=r.x2,t[3]=r.y2,t[4]=r.x3,t[5]=r.y3,t},triangulate(r,t,e,s,i,n){let o=0;s*=e,t[s+o]=r[0],t[s+o+1]=r[1],o+=e,t[s+o]=r[2],t[s+o+1]=r[3],o+=e,t[s+o]=r[4],t[s+o+1]=r[5];const a=s/e;i[n++]=a,i[n++]=a+1,i[n++]=a+2}},Mr={};U.handleByMap(x.ShapeBuilder,Mr),U.add(go,mo,_o,qt,Od,Gd);const A1=new j;function Hd(r,t){const{geometryData:e,batches:s}=t;s.length=0,e.indices.length=0,e.vertices.length=0,e.uvs.length=0;for(let i=0;i<r.instructions.length;i++){const n=r.instructions[i];if(n.action==="texture")P1(n.data,s,e);else if(n.action==="fill"||n.action==="stroke"){const o=n.action==="stroke",a=n.data.path.shapePath,l=n.data.style,u=n.data.hole;o&&u&&Xd(u.shapePath,l,null,!0,s,e),Xd(a,l,u,o,s,e)}}}function P1(r,t,e){const{vertices:s,uvs:i,indices:n}=e,o=n.length,a=s.length/2,l=[],u=Mr.rectangle,h=A1,c=r.image;h.x=r.dx,h.y=r.dy,h.width=r.dw,h.height=r.dh;const d=r.transform;u.build(h,l),d&&$s(l,d),u.triangulate(l,s,2,a,n,o);const p=c.uvs;i.push(p.x0,p.y0,p.x1,p.y1,p.x3,p.y3,p.x2,p.y2);const f=L.get(Ls);f.indexOffset=o,f.indexSize=n.length-o,f.attributeOffset=a,f.attributeSize=s.length/2-a,f.baseColor=r.style,f.alpha=r.alpha,f.texture=c,f.geometryData=e,t.push(f)}function Xd(r,t,e,s,i,n){const{vertices:o,uvs:a,indices:l}=n,u=r.shapePrimitives.length-1;r.shapePrimitives.forEach(({shape:h,transform:c},d)=>{var p;const f=l.length,g=o.length/2,m=[],_=Mr[h.type];let v="triangle-list";if(_.build(h,m),c&&$s(m,c),s){const T=(p=h.closePath)!=null?p:!0,S=t;S.pixelLine?(Dd(m,T,o,l),v="line-list"):Fd(m,S,!1,T,o,l)}else if(e&&u===d){u!==0&&console.warn("[Pixi Graphics] only the last shape have be cut out");const T=[],S=m.slice();w1(e.shapePath).forEach(O=>{T.push(S.length/2),S.push(...O)}),fo(S,T,o,2,g,l,f)}else _.triangulate(m,o,2,g,l,f);const b=a.length/2,y=t.texture;if(y!==A.WHITE){const T=t.matrix;T&&(c&&T.append(c.clone().invert()),oo(o,2,g,a,b,2,o.length/2-g,T))}else ao(a,b,2,o.length/2-g);const E=L.get(Ls);E.indexOffset=f,E.indexSize=l.length-f,E.attributeOffset=g,E.attributeSize=o.length/2-g,E.baseColor=t.color,E.alpha=t.alpha,E.texture=y,E.geometryData=n,E.topology=v,i.push(E)})}function w1(r){if(!r)return[];const t=r.shapePrimitives,e=[];for(let s=0;s<t.length;s++){const i=t[s].shape,n=[];Mr[i.type].build(i,n),e.push(n)}return e}class jd{constructor(){this.batches=[],this.geometryData={vertices:[],uvs:[],indices:[]}}}class zd{constructor(){this.batcher=new ks,this.instructions=new xn}init(){this.instructions.reset()}get geometry(){return this.batcher.geometry}}const xo=class Au{constructor(t){this._gpuContextHash={},this._graphicsDataContextHash=Object.create(null),t.renderableGC.addManagedHash(this,"_gpuContextHash"),t.renderableGC.addManagedHash(this,"_graphicsDataContextHash")}init(t){var e;Au.defaultOptions.bezierSmoothness=(e=t==null?void 0:t.bezierSmoothness)!=null?e:Au.defaultOptions.bezierSmoothness}getContextRenderData(t){return this._graphicsDataContextHash[t.uid]||this._initContextRenderData(t)}updateGpuContext(t){let e=this._gpuContextHash[t.uid]||this._initContext(t);if(t.dirty){e?this._cleanGraphicsContextData(t):e=this._initContext(t),Hd(t,e);const s=t.batchMode;t.customShader||s==="no-batch"?e.isBatchable=!1:s==="auto"&&(e.isBatchable=e.geometryData.vertices.length<400),t.dirty=!1}return e}getGpuContext(t){return this._gpuContextHash[t.uid]||this._initContext(t)}_initContextRenderData(t){const e=L.get(zd),{batches:s,geometryData:i}=this._gpuContextHash[t.uid],n=i.vertices.length,o=i.indices.length;for(let h=0;h<s.length;h++)s[h].applyTransform=!1;const a=e.batcher;a.ensureAttributeBuffer(n),a.ensureIndexBuffer(o),a.begin();for(let h=0;h<s.length;h++){const c=s[h];a.add(c)}a.finish(e.instructions);const l=a.geometry;l.indexBuffer.setDataWithSize(a.indexBuffer,a.indexSize,!0),l.buffers[0].setDataWithSize(a.attributeBuffer.float32View,a.attributeSize,!0);const u=a.batches;for(let h=0;h<u.length;h++){const c=u[h];c.bindGroup=Rs(c.textures.textures,c.textures.count)}return this._graphicsDataContextHash[t.uid]=e,e}_initContext(t){const e=new jd;return e.context=t,this._gpuContextHash[t.uid]=e,t.on("destroy",this.onGraphicsContextDestroy,this),this._gpuContextHash[t.uid]}onGraphicsContextDestroy(t){this._cleanGraphicsContextData(t),t.off("destroy",this.onGraphicsContextDestroy,this),this._gpuContextHash[t.uid]=null}_cleanGraphicsContextData(t){const e=this._gpuContextHash[t.uid];e.isBatchable||this._graphicsDataContextHash[t.uid]&&(L.return(this.getContextRenderData(t)),this._graphicsDataContextHash[t.uid]=null),e.batches&&e.batches.forEach(s=>{L.return(s)})}destroy(){for(const t in this._gpuContextHash)this._gpuContextHash[t]&&this.onGraphicsContextDestroy(this._gpuContextHash[t].context)}};xo.extension={type:[x.WebGLSystem,x.WebGPUSystem,x.CanvasSystem],name:"graphicsContext"},xo.defaultOptions={bezierSmoothness:.5};let Ys=xo;const R1={normal:0,add:1,multiply:2,screen:3,overlay:4,erase:5,"normal-npm":6,"add-npm":7,"screen-npm":8,min:9,max:10},bo=0,vo=1,yo=2,To=3,So=4,Eo=5,Ao=class fv{constructor(){this.data=0,this.blendMode="normal",this.polygonOffset=0,this.blend=!0,this.depthMask=!0}get blend(){return!!(this.data&1<<bo)}set blend(t){!!(this.data&1<<bo)!==t&&(this.data^=1<<bo)}get offsets(){return!!(this.data&1<<vo)}set offsets(t){!!(this.data&1<<vo)!==t&&(this.data^=1<<vo)}set cullMode(t){if(t==="none"){this.culling=!1;return}this.culling=!0,this.clockwiseFrontFace=t==="front"}get cullMode(){return this.culling?this.clockwiseFrontFace?"front":"back":"none"}get culling(){return!!(this.data&1<<yo)}set culling(t){!!(this.data&1<<yo)!==t&&(this.data^=1<<yo)}get depthTest(){return!!(this.data&1<<To)}set depthTest(t){!!(this.data&1<<To)!==t&&(this.data^=1<<To)}get depthMask(){return!!(this.data&1<<Eo)}set depthMask(t){!!(this.data&1<<Eo)!==t&&(this.data^=1<<Eo)}get clockwiseFrontFace(){return!!(this.data&1<<So)}set clockwiseFrontFace(t){!!(this.data&1<<So)!==t&&(this.data^=1<<So)}get blendMode(){return this._blendMode}set blendMode(t){this.blend=t!=="none",this._blendMode=t,this._blendModeId=R1[t]||0}get polygonOffset(){return this._polygonOffset}set polygonOffset(t){this.offsets=!!t,this._polygonOffset=t}static for2d(){const t=new fv;return t.depthTest=!1,t.blend=!0,t}};Ao.default2d=Ao.for2d();let Tt=Ao;function M1(r,t,e,s){e[s++]=(r>>16&255)/255,e[s++]=(r>>8&255)/255,e[s++]=(r&255)/255,e[s++]=t}function je(r,t,e){const s=(r>>24&255)/255;t[e++]=(r&255)/255*s,t[e++]=(r>>8&255)/255*s,t[e++]=(r>>16&255)/255*s,t[e++]=s}class Po{constructor(t,e){this.state=Tt.for2d(),this._graphicsBatchesHash=Object.create(null),this._destroyRenderableBound=this.destroyRenderable.bind(this),this.renderer=t,this._adaptor=e,this._adaptor.init(),this.renderer.renderableGC.addManagedHash(this,"_graphicsBatchesHash")}validateRenderable(t){const e=t.context,s=!!this._graphicsBatchesHash[t.uid],i=this.renderer.graphicsContext.updateGpuContext(e);return!!(i.isBatchable||s!==i.isBatchable)}addRenderable(t,e){const s=this.renderer.graphicsContext.updateGpuContext(t.context);t.didViewUpdate&&this._rebuild(t),s.isBatchable?this._addToBatcher(t,e):(this.renderer.renderPipes.batch.break(e),e.add(t))}updateRenderable(t){const e=this._graphicsBatchesHash[t.uid];if(e)for(let s=0;s<e.length;s++){const i=e[s];i._batcher.updateElement(i)}}destroyRenderable(t){this._graphicsBatchesHash[t.uid]&&this._removeBatchForRenderable(t.uid),t.off("destroyed",this._destroyRenderableBound)}execute(t){if(!t.isRenderable)return;const e=this.renderer,s=t.context;if(!e.graphicsContext.getGpuContext(s).batches.length)return;const i=s.customShader||this._adaptor.shader;this.state.blendMode=t.groupBlendMode;const n=i.resources.localUniforms.uniforms;n.uTransformMatrix=t.groupTransform,n.uRound=e._roundPixels|t._roundPixels,je(t.groupColorAlpha,n.uColor,0),this._adaptor.execute(this,t)}_rebuild(t){const e=!!this._graphicsBatchesHash[t.uid],s=this.renderer.graphicsContext.updateGpuContext(t.context);e&&this._removeBatchForRenderable(t.uid),s.isBatchable&&this._initBatchesForRenderable(t),t.batched=s.isBatchable}_addToBatcher(t,e){const s=this.renderer.renderPipes.batch,i=this._getBatchesForRenderable(t);for(let n=0;n<i.length;n++){const o=i[n];s.addToBatch(o,e)}}_getBatchesForRenderable(t){return this._graphicsBatchesHash[t.uid]||this._initBatchesForRenderable(t)}_initBatchesForRenderable(t){const e=t.context,s=this.renderer.graphicsContext.getGpuContext(e),i=this.renderer._roundPixels|t._roundPixels,n=s.batches.map(o=>{const a=L.get(Ls);return o.copyTo(a),a.renderable=t,a.roundPixels=i,a});return this._graphicsBatchesHash[t.uid]===void 0&&t.on("destroyed",this._destroyRenderableBound),this._graphicsBatchesHash[t.uid]=n,n}_removeBatchForRenderable(t){this._graphicsBatchesHash[t].forEach(e=>{L.return(e)}),this._graphicsBatchesHash[t]=null}destroy(){this.renderer=null,this._adaptor.destroy(),this._adaptor=null,this.state=null;for(const t in this._graphicsBatchesHash)this._removeBatchForRenderable(t);this._graphicsBatchesHash=null}}Po.extension={type:[x.WebGLPipes,x.WebGPUPipes,x.CanvasPipes],name:"graphics"},U.add(Po),U.add(Ys);class Ks{constructor(){this.batcherName="default",this.packAsQuad=!1,this.indexOffset=0,this.attributeOffset=0,this.roundPixels=0,this._batcher=null,this._batch=null,this._uvUpdateId=-1,this._textureMatrixUpdateId=-1}get blendMode(){return this.renderable.groupBlendMode}get topology(){return this._topology||this.geometry.topology}set topology(t){this._topology=t}reset(){this.renderable=null,this.texture=null,this._batcher=null,this._batch=null,this.geometry=null,this._uvUpdateId=-1,this._textureMatrixUpdateId=-1}get uvs(){const t=this.geometry.getBuffer("aUV"),e=t.data;let s=e;const i=this.texture.textureMatrix;return i.isSimple||(s=this._transformedUvs,(this._textureMatrixUpdateId!==i._updateID||this._uvUpdateId!==t._updateID)&&((!s||s.length<e.length)&&(s=this._transformedUvs=new Float32Array(e.length)),this._textureMatrixUpdateId=i._updateID,this._uvUpdateId=t._updateID,i.multiplyUvs(e,s))),s}get positions(){return this.geometry.positions}get indices(){return this.geometry.indices}get color(){return this.renderable.groupColorAlpha}get groupTransform(){return this.renderable.groupTransform}get attributeSize(){return this.geometry.positions.length/2}get indexSize(){return this.geometry.indices.length}}class wo{constructor(t,e){this.localUniforms=new rt({uTransformMatrix:{value:new M,type:"mat3x3<f32>"},uColor:{value:new Float32Array([1,1,1,1]),type:"vec4<f32>"},uRound:{value:0,type:"f32"}}),this.localUniformsBindGroup=new Ut({0:this.localUniforms}),this._meshDataHash=Object.create(null),this._gpuBatchableMeshHash=Object.create(null),this._destroyRenderableBound=this.destroyRenderable.bind(this),this.renderer=t,this._adaptor=e,this._adaptor.init(),t.renderableGC.addManagedHash(this,"_gpuBatchableMeshHash"),t.renderableGC.addManagedHash(this,"_meshDataHash")}validateRenderable(t){const e=this._getMeshData(t),s=e.batched,i=t.batched;if(e.batched=i,s!==i)return!0;if(i){const n=t._geometry;if(n.indices.length!==e.indexSize||n.positions.length!==e.vertexSize)return e.indexSize=n.indices.length,e.vertexSize=n.positions.length,!0;const o=this._getBatchableMesh(t);return!o._batcher.checkAndUpdateTexture(o,t.texture)}return!1}addRenderable(t,e){const s=this.renderer.renderPipes.batch,{batched:i}=this._getMeshData(t);if(i){const n=this._getBatchableMesh(t);n.texture=t._texture,n.geometry=t._geometry,s.addToBatch(n,e)}else s.break(e),e.add(t)}updateRenderable(t){if(t.batched){const e=this._gpuBatchableMeshHash[t.uid];e.texture=t._texture,e.geometry=t._geometry,e._batcher.updateElement(e)}}destroyRenderable(t){this._meshDataHash[t.uid]=null;const e=this._gpuBatchableMeshHash[t.uid];e&&(L.return(e),this._gpuBatchableMeshHash[t.uid]=null),t.off("destroyed",this._destroyRenderableBound)}execute(t){if(!t.isRenderable)return;t.state.blendMode=De(t.groupBlendMode,t.texture._source);const e=this.localUniforms;e.uniforms.uTransformMatrix=t.groupTransform,e.uniforms.uRound=this.renderer._roundPixels|t._roundPixels,e.update(),je(t.groupColorAlpha,e.uniforms.uColor,0),this._adaptor.execute(this,t)}_getMeshData(t){return this._meshDataHash[t.uid]||this._initMeshData(t)}_initMeshData(t){var e,s;return this._meshDataHash[t.uid]={batched:t.batched,indexSize:(e=t._geometry.indices)==null?void 0:e.length,vertexSize:(s=t._geometry.positions)==null?void 0:s.length},t.on("destroyed",this._destroyRenderableBound),this._meshDataHash[t.uid]}_getBatchableMesh(t){return this._gpuBatchableMeshHash[t.uid]||this._initBatchableMesh(t)}_initBatchableMesh(t){const e=L.get(Ks);return e.renderable=t,e.texture=t._texture,e.transform=t.groupTransform,e.roundPixels=this.renderer._roundPixels|t._roundPixels,this._gpuBatchableMeshHash[t.uid]=e,e}destroy(){for(const t in this._gpuBatchableMeshHash)this._gpuBatchableMeshHash[t]&&L.return(this._gpuBatchableMeshHash[t]);this._gpuBatchableMeshHash=null,this._meshDataHash=null,this.localUniforms=null,this.localUniformsBindGroup=null,this._adaptor.destroy(),this._adaptor=null,this.renderer=null}}wo.extension={type:[x.WebGLPipes,x.WebGPUPipes,x.CanvasPipes],name:"mesh"},U.add(wo);class Vd{execute(t,e){const s=t.state,i=t.renderer,n=e.shader||t.defaultShader;n.resources.uTexture=e.texture._source,n.resources.uniforms=t.localUniforms;const o=i.gl,a=t.getBuffers(e);i.shader.bind(n),i.state.set(s),i.geometry.bind(a.geometry,n.glProgram);const l=a.geometry.indexBuffer.data.BYTES_PER_ELEMENT===2?o.UNSIGNED_SHORT:o.UNSIGNED_INT;o.drawElements(o.TRIANGLES,e.particleChildren.length*6,l,0)}}function Ro(r,t=null){const e=r*6;if(e>65535?t||(t=new Uint32Array(e)):t||(t=new Uint16Array(e)),t.length!==e)throw new Error(`Out buffer length is incorrect, got ${t.length} and expected ${e}`);for(let s=0,i=0;s<e;s+=6,i+=4)t[s+0]=i+0,t[s+1]=i+1,t[s+2]=i+2,t[s+3]=i+0,t[s+4]=i+2,t[s+5]=i+3;return t}function Wd(r){return{dynamicUpdate:Yd(r,!0),staticUpdate:Yd(r,!1)}}function Yd(r,t){const e=[];e.push(`
+      
+        var index = 0;
+
+        for (let i = 0; i < ps.length; ++i)
+        {
+            const p = ps[i];
+
+            `);let s=0;for(const n in r){const o=r[n];if(t!==o.dynamic)continue;e.push(`offset = index + ${s}`),e.push(o.code);const a=Kt(o.format);s+=a.stride/4}e.push(`
+            index += stride * 4;
+        }
+    `),e.unshift(`
+        var stride = ${s};
+    `);const i=e.join(`
+`);return new Function("ps","f32v","u32v",i)}class Kd{constructor(t){this._size=0,this._generateParticleUpdateCache={};var e;const s=this._size=(e=t.size)!=null?e:1e3,i=t.properties;let n=0,o=0;for(const c in i){const d=i[c],p=Kt(d.format);d.dynamic?o+=p.stride:n+=p.stride}this._dynamicStride=o/4,this._staticStride=n/4,this.staticAttributeBuffer=new ye(s*4*n),this.dynamicAttributeBuffer=new ye(s*4*o),this.indexBuffer=Ro(s);const a=new Te;let l=0,u=0;this._staticBuffer=new ht({data:new Float32Array(1),label:"static-particle-buffer",shrinkToFit:!1,usage:$.VERTEX|$.COPY_DST}),this._dynamicBuffer=new ht({data:new Float32Array(1),label:"dynamic-particle-buffer",shrinkToFit:!1,usage:$.VERTEX|$.COPY_DST});for(const c in i){const d=i[c],p=Kt(d.format);d.dynamic?(a.addAttribute(d.attributeName,{buffer:this._dynamicBuffer,stride:this._dynamicStride*4,offset:l*4,format:d.format}),l+=p.size):(a.addAttribute(d.attributeName,{buffer:this._staticBuffer,stride:this._staticStride*4,offset:u*4,format:d.format}),u+=p.size)}a.addIndex(this.indexBuffer);const h=this.getParticleUpdate(i);this._dynamicUpload=h.dynamicUpdate,this._staticUpload=h.staticUpdate,this.geometry=a}getParticleUpdate(t){const e=C1(t);return this._generateParticleUpdateCache[e]?this._generateParticleUpdateCache[e]:(this._generateParticleUpdateCache[e]=this.generateParticleUpdate(t),this._generateParticleUpdateCache[e])}generateParticleUpdate(t){return Wd(t)}update(t,e){t.length>this._size&&(e=!0,this._size=Math.max(t.length,this._size*1.5|0),this.staticAttributeBuffer=new ye(this._size*this._staticStride*4*4),this.dynamicAttributeBuffer=new ye(this._size*this._dynamicStride*4*4),this.indexBuffer=Ro(this._size),this.geometry.indexBuffer.setDataWithSize(this.indexBuffer,this.indexBuffer.byteLength,!0));const s=this.dynamicAttributeBuffer;if(this._dynamicUpload(t,s.float32View,s.uint32View),this._dynamicBuffer.setDataWithSize(this.dynamicAttributeBuffer.float32View,t.length*this._dynamicStride*4,!0),e){const i=this.staticAttributeBuffer;this._staticUpload(t,i.float32View,i.uint32View),this._staticBuffer.setDataWithSize(i.float32View,t.length*this._staticStride*4,!0)}}destroy(){this._staticBuffer.destroy(),this._dynamicBuffer.destroy(),this.geometry.destroy()}}function C1(r){const t=[];for(const e in r){const s=r[e];t.push(e,s.code,s.dynamic?"d":"s")}return t.join("_")}var qd=`varying vec2 vUV;
+varying vec4 vColor;
+
+uniform sampler2D uTexture;
+
+void main(void){
+    vec4 color = texture2D(uTexture, vUV) * vColor;
+    gl_FragColor = color;
+}`,Zd=`attribute vec2 aVertex;
+attribute vec2 aUV;
+attribute vec4 aColor;
+
+attribute vec2 aPosition;
+attribute float aRotation;
+
+uniform mat3 uTranslationMatrix;
+uniform float uRound;
+uniform vec2 uResolution;
+uniform vec4 uColor;
+
+varying vec2 vUV;
+varying vec4 vColor;
+
+vec2 roundPixels(vec2 position, vec2 targetSize)
+{       
+    return (floor(((position * 0.5 + 0.5) * targetSize) + 0.5) / targetSize) * 2.0 - 1.0;
+}
+
+void main(void){
+    float cosRotation = cos(aRotation);
+    float sinRotation = sin(aRotation);
+    float x = aVertex.x * cosRotation - aVertex.y * sinRotation;
+    float y = aVertex.x * sinRotation + aVertex.y * cosRotation;
+
+    vec2 v = vec2(x, y);
+    v = v + aPosition;
+
+    gl_Position = vec4((uTranslationMatrix * vec3(v, 1.0)).xy, 0.0, 1.0);
+
+    if(uRound == 1.0)
+    {
+        gl_Position.xy = roundPixels(gl_Position.xy, uResolution);
+    }
+
+    vUV = aUV;
+    vColor = vec4(aColor.rgb * aColor.a, aColor.a) * uColor;
+}
+`,Mo=`
+struct ParticleUniforms {
+  uProjectionMatrix:mat3x3<f32>,
+  uColor:vec4<f32>,
+  uResolution:vec2<f32>,
+  uRoundPixels:f32,
+};
+
+@group(0) @binding(0) var<uniform> uniforms: ParticleUniforms;
+
+@group(1) @binding(0) var uTexture: texture_2d<f32>;
+@group(1) @binding(1) var uSampler : sampler;
+
+struct VSOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv : vec2<f32>,
+    @location(1) color : vec4<f32>,
+  };
+@vertex
+fn mainVertex(
+  @location(0) aVertex: vec2<f32>,
+  @location(1) aPosition: vec2<f32>,
+  @location(2) aUV: vec2<f32>,
+  @location(3) aColor: vec4<f32>,
+  @location(4) aRotation: f32,
+) -> VSOutput {
+  
+   let v = vec2(
+       aVertex.x * cos(aRotation) - aVertex.y * sin(aRotation),
+       aVertex.x * sin(aRotation) + aVertex.y * cos(aRotation)
+   ) + aPosition;
+
+   let position = vec4((uniforms.uProjectionMatrix * vec3(v, 1.0)).xy, 0.0, 1.0);
+
+    let vColor = vec4(aColor.rgb * aColor.a, aColor.a) * uniforms.uColor;
+
+  return VSOutput(
+   position,
+   aUV,
+   vColor,
+  );
+}
+
+@fragment
+fn mainFragment(
+  @location(0) uv: vec2<f32>,
+  @location(1) color: vec4<f32>,
+  @builtin(position) position: vec4<f32>,
+) -> @location(0) vec4<f32> {
+
+    var sample = textureSample(uTexture, uSampler, uv) * color;
+   
+    return sample;
+}`;class Qd extends Pt{constructor(){const t=yt.from({vertex:Zd,fragment:qd}),e=bt.from({fragment:{source:Mo,entryPoint:"mainFragment"},vertex:{source:Mo,entryPoint:"mainVertex"}});super({glProgram:t,gpuProgram:e,resources:{uTexture:A.WHITE.source,uSampler:new vn({}),uniforms:{uTranslationMatrix:{value:new M,type:"mat3x3<f32>"},uColor:{value:new H(16777215),type:"vec4<f32>"},uRound:{value:1,type:"f32"},uResolution:{value:[0,0],type:"vec2<f32>"}}}})}}class Co{constructor(t,e){this.state=Tt.for2d(),this._gpuBufferHash=Object.create(null),this._destroyRenderableBound=this.destroyRenderable.bind(this),this.localUniforms=new rt({uTranslationMatrix:{value:new M,type:"mat3x3<f32>"},uColor:{value:new Float32Array(4),type:"vec4<f32>"},uRound:{value:1,type:"f32"},uResolution:{value:[0,0],type:"vec2<f32>"}}),this.renderer=t,this.adaptor=e,this.defaultShader=new Qd,this.state=Tt.for2d()}validateRenderable(t){return!1}addRenderable(t,e){this.renderer.renderPipes.batch.break(e),e.add(t)}getBuffers(t){return this._gpuBufferHash[t.uid]||this._initBuffer(t)}_initBuffer(t){return this._gpuBufferHash[t.uid]=new Kd({size:t.particleChildren.length,properties:t._properties}),t.on("destroyed",this._destroyRenderableBound),this._gpuBufferHash[t.uid]}updateRenderable(t){}destroyRenderable(t){this._gpuBufferHash[t.uid].destroy(),this._gpuBufferHash[t.uid]=null,t.off("destroyed",this._destroyRenderableBound)}execute(t){const e=t.particleChildren;if(e.length===0)return;const s=this.renderer,i=this.getBuffers(t);t.texture||(t.texture=e[0].texture);const n=this.state;i.update(e,t._childrenDirty),t._childrenDirty=!1,n.blendMode=De(t.blendMode,t.texture._source);const o=this.localUniforms.uniforms,a=o.uTranslationMatrix;t.worldTransform.copyTo(a),a.prepend(s.globalUniforms.globalUniformData.projectionMatrix),o.uResolution=s.globalUniforms.globalUniformData.resolution,o.uRound=s._roundPixels|t._roundPixels,je(t.groupColorAlpha,o.uColor,0),this.adaptor.execute(this,t)}destroy(){this.defaultShader&&(this.defaultShader.destroy(),this.defaultShader=null)}}class Oo extends Co{constructor(t){super(t,new Vd)}}Oo.extension={type:[x.WebGLPipes],name:"particle"};class Jd{execute(t,e){const s=t.renderer,i=e.shader||t.defaultShader;i.groups[0]=s.renderPipes.uniformBatch.getUniformBindGroup(t.localUniforms,!0),i.groups[1]=s.texture.getTextureBindGroup(e.texture);const n=t.state,o=t.getBuffers(e);s.encoder.draw({geometry:o.geometry,shader:e.shader||t.defaultShader,state:n,size:e.particleChildren.length*6})}}class Go extends Co{constructor(t){super(t,new Jd)}}Go.extension={type:[x.WebGPUPipes],name:"particle"},U.add(Oo),U.add(Go);class Cr{constructor(){this.batcherName="default",this.topology="triangle-list",this.attributeSize=4,this.indexSize=6,this.packAsQuad=!0,this.roundPixels=0,this._attributeStart=0,this._batcher=null,this._batch=null}get blendMode(){return this.renderable.groupBlendMode}get color(){return this.renderable.groupColorAlpha}reset(){this.renderable=null,this.texture=null,this._batcher=null,this._batch=null,this.bounds=null}}class Bo{constructor(t){this._gpuText=Object.create(null),this._destroyRenderableBound=this.destroyRenderable.bind(this),this._renderer=t,this._renderer.runners.resolutionChange.add(this),this._renderer.renderableGC.addManagedHash(this,"_gpuText")}resolutionChange(){for(const t in this._gpuText){const e=this._gpuText[t];if(!e)continue;const s=e.batchableSprite.renderable;s._autoResolution&&(s._resolution=this._renderer.resolution,s.onViewUpdate())}}validateRenderable(t){const e=this._getGpuText(t),s=t._getKey();return e.currentKey!==s}addRenderable(t,e){const s=this._getGpuText(t).batchableSprite;t._didTextUpdate&&this._updateText(t),this._renderer.renderPipes.batch.addToBatch(s,e)}updateRenderable(t){const e=this._getGpuText(t).batchableSprite;t._didTextUpdate&&this._updateText(t),e._batcher.updateElement(e)}destroyRenderable(t){t.off("destroyed",this._destroyRenderableBound),this._destroyRenderableById(t.uid)}_destroyRenderableById(t){const e=this._gpuText[t];this._renderer.canvasText.decreaseReferenceCount(e.currentKey),L.return(e.batchableSprite),this._gpuText[t]=null}_updateText(t){const e=t._getKey(),s=this._getGpuText(t),i=s.batchableSprite;s.currentKey!==e&&this._updateGpuText(t),t._didTextUpdate=!1;const n=t._style.padding;Tr(i.bounds,t._anchor,i.texture,n)}_updateGpuText(t){const e=this._getGpuText(t),s=e.batchableSprite;e.texture&&this._renderer.canvasText.decreaseReferenceCount(e.currentKey),e.texture=s.texture=this._renderer.canvasText.getManagedTexture(t),e.currentKey=t._getKey(),s.texture=e.texture}_getGpuText(t){return this._gpuText[t.uid]||this.initGpuText(t)}initGpuText(t){const e={texture:null,currentKey:"--",batchableSprite:L.get(Cr)};return e.batchableSprite.renderable=t,e.batchableSprite.transform=t.groupTransform,e.batchableSprite.bounds={minX:0,maxX:1,minY:0,maxY:0},e.batchableSprite.roundPixels=this._renderer._roundPixels|t._roundPixels,this._gpuText[t.uid]=e,t._resolution=t._autoResolution?this._renderer.resolution:t.resolution,this._updateText(t),t.on("destroyed",this._destroyRenderableBound),e}destroy(){for(const t in this._gpuText)this._destroyRenderableById(t);this._gpuText=null,this._renderer=null}}Bo.extension={type:[x.WebGLPipes,x.WebGPUPipes,x.CanvasPipes],name:"text"};class tp{constructor(t){this._canvasPool=Object.create(null),this.canvasOptions=t||{},this.enableFullScreen=!1}_createCanvasAndContext(t,e){const s=N.get().createCanvas();s.width=t,s.height=e;const i=s.getContext("2d");return{canvas:s,context:i}}getOptimalCanvasAndContext(t,e,s=1){t=Math.ceil(t*s-1e-6),e=Math.ceil(e*s-1e-6),t=pe(t),e=pe(e);const i=(t<<17)+(e<<1);this._canvasPool[i]||(this._canvasPool[i]=[]);let n=this._canvasPool[i].pop();return n||(n=this._createCanvasAndContext(t,e)),n}returnCanvasAndContext(t){const e=t.canvas,{width:s,height:i}=e,n=(s<<17)+(i<<1);t.context.clearRect(0,0,s,i),this._canvasPool[n].push(t)}clear(){this._canvasPool={}}}const kt=new tp;function ep(r,t,e){for(let s=0,i=4*e*t;s<t;++s,i+=4)if(r[i+3]!==0)return!1;return!0}function rp(r,t,e,s,i){const n=4*t;for(let o=s,a=s*n+4*e;o<=i;++o,a+=n)if(r[a+3]!==0)return!1;return!0}function sp(r,t=1){const{width:e,height:s}=r,i=r.getContext("2d",{willReadFrequently:!0});if(i===null)throw new TypeError("Failed to get canvas 2D context");const n=i.getImageData(0,0,e,s).data;let o=0,a=0,l=e-1,u=s-1;for(;a<s&&ep(n,e,a);)++a;if(a===s)return j.EMPTY;for(;ep(n,e,u);)--u;for(;rp(n,e,o,a,u);)++o;for(;rp(n,e,l,a,u);)--l;return++l,++u,new j(o/t,a/t,(l-o)/t,(u-a)/t)}const ip=class Pu{constructor(t,e,s,i){this.uid=K("fillGradient"),this.type="linear",this.gradientStops=[],this._styleKey=null,this.x0=t,this.y0=e,this.x1=s,this.y1=i}addColorStop(t,e){return this.gradientSt

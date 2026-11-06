@@ -1,0 +1,287 @@
+ntextChange(){const t=this.gl=this._renderer.gl;if(!this._renderer.context.supports.vertexArrayObject)throw new Error("[PixiJS] Vertex Array Objects are not supported on this device");const e=this._renderer.context.extensions.vertexArrayObject;e&&(t.createVertexArray=()=>e.createVertexArrayOES(),t.bindVertexArray=i=>e.bindVertexArrayOES(i),t.deleteVertexArray=i=>e.deleteVertexArrayOES(i));const s=this._renderer.context.extensions.vertexAttribDivisorANGLE;s&&(t.drawArraysInstanced=(i,n,o,a)=>{s.drawArraysInstancedANGLE(i,n,o,a)},t.drawElementsInstanced=(i,n,o,a,l)=>{s.drawElementsInstancedANGLE(i,n,o,a,l)},t.vertexAttribDivisor=(i,n)=>s.vertexAttribDivisorANGLE(i,n)),this._activeGeometry=null,this._activeVao=null,this._geometryVaoHash=Object.create(null)}bind(t,e){const s=this.gl;this._activeGeometry=t;const i=this.getVao(t,e);this._activeVao!==i&&(this._activeVao=i,s.bindVertexArray(i)),this.updateBuffers()}reset(){this.unbind()}updateBuffers(){const t=this._activeGeometry,e=this._renderer.buffer;for(let s=0;s<t.buffers.length;s++){const i=t.buffers[s];e.updateBuffer(i)}}checkCompatibility(t,e){const s=t.attributes,i=e._attributeData;for(const n in i)if(!s[n])throw new Error(`shader and geometry incompatible, geometry missing the "${n}" attribute`)}getSignature(t,e){const s=t.attributes,i=e._attributeData,n=["g",t.uid];for(const o in s)i[o]&&n.push(o,i[o].location);return n.join("-")}getVao(t,e){var s;return((s=this._geometryVaoHash[t.uid])==null?void 0:s[e._key])||this.initGeometryVao(t,e)}initGeometryVao(t,e,s=!0){const i=this._renderer.gl,n=this._renderer.buffer;this._renderer.shader._getProgramData(e),this.checkCompatibility(t,e);const o=this.getSignature(t,e);this._geometryVaoHash[t.uid]||(this._geometryVaoHash[t.uid]=Object.create(null),t.on("destroy",this.onGeometryDestroy,this));const a=this._geometryVaoHash[t.uid];let l=a[o];if(l)return a[e._key]=l,l;hl(t,e._attributeData);const u=t.buffers;l=i.createVertexArray(),i.bindVertexArray(l);for(let h=0;h<u.length;h++){const c=u[h];n.bind(c)}return this.activateVao(t,e),a[e._key]=l,a[o]=l,i.bindVertexArray(null),l}onGeometryDestroy(t,e){const s=this._geometryVaoHash[t.uid],i=this.gl;if(s){if(e)for(const n in s)this._activeVao!==s[n]&&this.unbind(),i.deleteVertexArray(s[n]);this._geometryVaoHash[t.uid]=null}}destroyAll(t=!1){const e=this.gl;for(const s in this._geometryVaoHash){if(t)for(const i in this._geometryVaoHash[s]){const n=this._geometryVaoHash[s];this._activeVao!==n&&this.unbind(),e.deleteVertexArray(n[i])}this._geometryVaoHash[s]=null}}activateVao(t,e){var s,i;const n=this._renderer.gl,o=this._renderer.buffer,a=t.attributes;t.indexBuffer&&o.bind(t.indexBuffer);let l=null;for(const u in a){const h=a[u],c=h.buffer,d=o.getGlBuffer(c),p=e._attributeData[u];if(p){l!==d&&(o.bind(c),l=d);const f=p.location;n.enableVertexAttribArray(f);const g=Kt(h.format),m=T_(h.format);if(((s=p.format)==null?void 0:s.substring(1,4))==="int"?n.vertexAttribIPointer(f,g.size,m,h.stride,h.offset):n.vertexAttribPointer(f,g.size,m,g.normalised,h.stride,h.offset),h.instance)if(this.hasInstance){const _=(i=h.divisor)!=null?i:1;n.vertexAttribDivisor(f,_)}else throw new Error("geometry error, GPU Instancing is not supported on this device")}}}draw(t,e,s,i){const{gl:n}=this._renderer,o=this._activeGeometry,a=EA[t||o.topology];if(i!=null||(i=o.instanceCount),o.indexBuffer){const l=o.indexBuffer.data.BYTES_PER_ELEMENT,u=l===2?n.UNSIGNED_SHORT:n.UNSIGNED_INT;i>1?n.drawElementsInstanced(a,e||o.indexBuffer.data.length,u,(s||0)*l,i):n.drawElements(a,e||o.indexBuffer.data.length,u,(s||0)*l)}else i>1?n.drawArraysInstanced(a,s||0,e||o.getSize(),i):n.drawArrays(a,s||0,e||o.getSize());return this}unbind(){this.gl.bindVertexArray(null),this._activeVao=null,this._activeGeometry=null}destroy(){this._renderer=null,this.gl=null,this._activeVao=null,this._activeGeometry=null}}dl.extension={type:[x.WebGLSystem],name:"geometry"};var AA=Object.defineProperty,S_=Object.getOwnPropertySymbols,PA=Object.prototype.hasOwnProperty,wA=Object.prototype.propertyIsEnumerable,E_=(r,t,e)=>t in r?AA(r,t,{enumerable:!0,configurable:!0,writable:!0,value:e}):r[t]=e,A_=(r,t)=>{for(var e in t||(t={}))PA.call(t,e)&&E_(r,e,t[e]);if(S_)for(var e of S_(t))wA.call(t,e)&&E_(r,e,t[e]);return r};const RA=new Te({attributes:{aPosition:[-1,-1,3,-1,-1,3]}}),pl=class Pv{constructor(t){this.useBackBuffer=!1,this._useBackBufferThisRender=!1,this._renderer=t}init(t={}){const{useBackBuffer:e,antialias:s}=A_(A_({},Pv.defaultOptions),t);this.useBackBuffer=e,this._antialias=s,this._renderer.context.supports.msaa||(Lt("antialiasing, is not supported on when using the back buffer"),this._antialias=!1),this._state=Tt.for2d();const i=new yt({vertex:`
+                attribute vec2 aPosition;
+                out vec2 vUv;
+
+                void main() {
+                    gl_Position = vec4(aPosition, 0.0, 1.0);
+
+                    vUv = (aPosition + 1.0) / 2.0;
+
+                    // flip dem UVs
+                    vUv.y = 1.0 - vUv.y;
+                }`,fragment:`
+                in vec2 vUv;
+                out vec4 finalColor;
+
+                uniform sampler2D uTexture;
+
+                void main() {
+                    finalColor = texture(uTexture, vUv);
+                }`,name:"big-triangle"});this._bigTriangleShader=new Pt({glProgram:i,resources:{uTexture:A.WHITE.source}})}renderStart(t){const e=this._renderer.renderTarget.getRenderTarget(t.target);if(this._useBackBufferThisRender=this.useBackBuffer&&!!e.isRoot,this._useBackBufferThisRender){const s=this._renderer.renderTarget.getRenderTarget(t.target);this._targetTexture=s.colorTexture,t.target=this._getBackBufferTexture(s.colorTexture)}}renderEnd(){this._presentBackBuffer()}_presentBackBuffer(){const t=this._renderer;t.renderTarget.finishRenderPass(),this._useBackBufferThisRender&&(t.renderTarget.bind(this._targetTexture,!1),this._bigTriangleShader.resources.uTexture=this._backBufferTexture.source,t.encoder.draw({geometry:RA,shader:this._bigTriangleShader,state:this._state}))}_getBackBufferTexture(t){return this._backBufferTexture=this._backBufferTexture||new A({source:new Q({width:t.width,height:t.height,resolution:t._resolution,antialias:this._antialias})}),this._backBufferTexture.source.resize(t.width,t.height,t._resolution),this._backBufferTexture}destroy(){this._backBufferTexture&&(this._backBufferTexture.destroy(),this._backBufferTexture=null)}};pl.extension={type:[x.WebGLSystem],name:"backBuffer",priority:1},pl.defaultOptions={useBackBuffer:!1};let P_=pl;class fl{constructor(t){this._colorMaskCache=15,this._renderer=t}setMask(t){this._colorMaskCache!==t&&(this._colorMaskCache=t,this._renderer.gl.colorMask(!!(t&8),!!(t&4),!!(t&2),!!(t&1)))}}fl.extension={type:[x.WebGLSystem],name:"colorMask"};class ml{constructor(t){this.commandFinished=Promise.resolve(),this._renderer=t}setGeometry(t,e){this._renderer.geometry.bind(t,e.glProgram)}finishRenderPass(){}draw(t){const e=this._renderer,{geometry:s,shader:i,state:n,skipSync:o,topology:a,size:l,start:u,instanceCount:h}=t;e.shader.bind(i,o),e.geometry.bind(s,e.shader._activeProgram),n&&e.state.set(n),e.geometry.draw(a,l,u,h!=null?h:s.instanceCount)}destroy(){this._renderer=null}}ml.extension={type:[x.WebGLSystem],name:"encoder"};class w_{constructor(){this.width=-1,this.height=-1,this.msaa=!1,this.msaaRenderBuffer=[]}}const Jt=[];Jt[J.NONE]=void 0,Jt[J.DISABLED]={stencilWriteMask:0,stencilReadMask:0},Jt[J.RENDERING_MASK_ADD]={stencilFront:{compare:"equal",passOp:"increment-clamp"},stencilBack:{compare:"equal",passOp:"increment-clamp"}},Jt[J.RENDERING_MASK_REMOVE]={stencilFront:{compare:"equal",passOp:"decrement-clamp"},stencilBack:{compare:"equal",passOp:"decrement-clamp"}},Jt[J.MASK_ACTIVE]={stencilWriteMask:0,stencilFront:{compare:"equal",passOp:"keep"},stencilBack:{compare:"equal",passOp:"keep"}},Jt[J.INVERSE_MASK_ACTIVE]={stencilWriteMask:0,stencilFront:{compare:"not-equal",passOp:"replace"},stencilBack:{compare:"not-equal",passOp:"replace"}};class gl{constructor(t){this._stencilCache={enabled:!1,stencilReference:0,stencilMode:J.NONE},this._renderTargetStencilState=Object.create(null),t.renderTarget.onRenderTargetChange.add(this)}contextChange(t){this._gl=t,this._comparisonFuncMapping={always:t.ALWAYS,never:t.NEVER,equal:t.EQUAL,"not-equal":t.NOTEQUAL,less:t.LESS,"less-equal":t.LEQUAL,greater:t.GREATER,"greater-equal":t.GEQUAL},this._stencilOpsMapping={keep:t.KEEP,zero:t.ZERO,replace:t.REPLACE,invert:t.INVERT,"increment-clamp":t.INCR,"decrement-clamp":t.DECR,"increment-wrap":t.INCR_WRAP,"decrement-wrap":t.DECR_WRAP},this._stencilCache.enabled=!1,this._stencilCache.stencilMode=J.NONE,this._stencilCache.stencilReference=0}onRenderTargetChange(t){if(this._activeRenderTarget===t)return;this._activeRenderTarget=t;let e=this._renderTargetStencilState[t.uid];e||(e=this._renderTargetStencilState[t.uid]={stencilMode:J.DISABLED,stencilReference:0}),this.setStencilMode(e.stencilMode,e.stencilReference)}setStencilMode(t,e){const s=this._renderTargetStencilState[this._activeRenderTarget.uid],i=this._gl,n=Jt[t],o=this._stencilCache;if(s.stencilMode=t,s.stencilReference=e,t===J.DISABLED){this._stencilCache.enabled&&(this._stencilCache.enabled=!1,i.disable(i.STENCIL_TEST));return}this._stencilCache.enabled||(this._stencilCache.enabled=!0,i.enable(i.STENCIL_TEST)),(t!==o.stencilMode||o.stencilReference!==e)&&(o.stencilMode=t,o.stencilReference=e,i.stencilFunc(this._comparisonFuncMapping[n.stencilBack.compare],e,255),i.stencilOp(i.KEEP,i.KEEP,this._stencilOpsMapping[n.stencilBack.passOp]))}}gl.extension={type:[x.WebGLSystem],name:"stencil"};class _l{constructor(t){this._syncFunctionHash=Object.create(null),this._adaptor=t,this._systemCheck()}_systemCheck(){if(!xa())throw new Error("Current environment does not allow unsafe-eval, please use pixi.js/unsafe-eval module to enable support.")}ensureUniformGroup(t){const e=this.getUniformGroupData(t);t.buffer||(t.buffer=new ht({data:new Float32Array(e.layout.size/4),usage:$.UNIFORM|$.COPY_DST}))}getUniformGroupData(t){return this._syncFunctionHash[t._signature]||this._initUniformGroup(t)}_initUniformGroup(t){const e=t._signature;let s=this._syncFunctionHash[e];if(!s){const i=Object.keys(t.uniformStructures).map(a=>t.uniformStructures[a]),n=this._adaptor.createUboElements(i),o=this._generateUboSync(n.uboElements);s=this._syncFunctionHash[e]={layout:n,syncFunction:o}}return this._syncFunctionHash[e]}_generateUboSync(t){return this._adaptor.generateUboSync(t)}syncUniformGroup(t,e,s){const i=this.getUniformGroupData(t);t.buffer||(t.buffer=new ht({data:new Float32Array(i.layout.size/4),usage:$.UNIFORM|$.COPY_DST}));let n=null;return e||(e=t.buffer.data,n=t.buffer.dataInt32),s||(s=0),i.syncFunction(t.uniforms,e,n,s),!0}updateUniformGroup(t){if(t.isStatic&&!t._dirtyId)return!1;t._dirtyId=0;const e=this.syncUniformGroup(t);return t.buffer.update(),e}destroy(){this._syncFunctionHash=null}}const xl={f32:4,i32:4,"vec2<f32>":8,"vec3<f32>":12,"vec4<f32>":16,"vec2<i32>":8,"vec3<i32>":12,"vec4<i32>":16,"mat2x2<f32>":32,"mat3x3<f32>":48,"mat4x4<f32>":64};function R_(r){const t=r.map(n=>({data:n,offset:0,size:0})),e=16;let s=0,i=0;for(let n=0;n<t.length;n++){const o=t[n];if(s=xl[o.data.type],!s)throw new Error(`Unknown type ${o.data.type}`);o.data.size>1&&(s=Math.max(s,e)*o.data.size);const a=s===12?16:s;o.size=s;const l=i%e;l>0&&e-l<a?i+=(e-l)%16:i+=(s-l%s)%s,o.offset=i,i+=s}return i=Math.ceil(i/16)*16,{uboElements:t,size:i}}const oe=[{type:"mat3x3<f32>",test:r=>r.value.a!==void 0,ubo:`
+            var matrix = uv[name].toArray(true);
+            data[offset] = matrix[0];
+            data[offset + 1] = matrix[1];
+            data[offset + 2] = matrix[2];
+            data[offset + 4] = matrix[3];
+            data[offset + 5] = matrix[4];
+            data[offset + 6] = matrix[5];
+            data[offset + 8] = matrix[6];
+            data[offset + 9] = matrix[7];
+            data[offset + 10] = matrix[8];
+        `,uniform:`
+            gl.uniformMatrix3fv(ud[name].location, false, uv[name].toArray(true));
+        `},{type:"vec4<f32>",test:r=>r.type==="vec4<f32>"&&r.size===1&&r.value.width!==void 0,ubo:`
+            v = uv[name];
+            data[offset] = v.x;
+            data[offset + 1] = v.y;
+            data[offset + 2] = v.width;
+            data[offset + 3] = v.height;
+        `,uniform:`
+            cv = ud[name].value;
+            v = uv[name];
+            if (cv[0] !== v.x || cv[1] !== v.y || cv[2] !== v.width || cv[3] !== v.height) {
+                cv[0] = v.x;
+                cv[1] = v.y;
+                cv[2] = v.width;
+                cv[3] = v.height;
+                gl.uniform4f(ud[name].location, v.x, v.y, v.width, v.height);
+            }
+        `},{type:"vec2<f32>",test:r=>r.type==="vec2<f32>"&&r.size===1&&r.value.x!==void 0,ubo:`
+            v = uv[name];
+            data[offset] = v.x;
+            data[offset + 1] = v.y;
+        `,uniform:`
+            cv = ud[name].value;
+            v = uv[name];
+            if (cv[0] !== v.x || cv[1] !== v.y) {
+                cv[0] = v.x;
+                cv[1] = v.y;
+                gl.uniform2f(ud[name].location, v.x, v.y);
+            }
+        `},{type:"vec4<f32>",test:r=>r.type==="vec4<f32>"&&r.size===1&&r.value.red!==void 0,ubo:`
+            v = uv[name];
+            data[offset] = v.red;
+            data[offset + 1] = v.green;
+            data[offset + 2] = v.blue;
+            data[offset + 3] = v.alpha;
+        `,uniform:`
+            cv = ud[name].value;
+            v = uv[name];
+            if (cv[0] !== v.red || cv[1] !== v.green || cv[2] !== v.blue || cv[3] !== v.alpha) {
+                cv[0] = v.red;
+                cv[1] = v.green;
+                cv[2] = v.blue;
+                cv[3] = v.alpha;
+                gl.uniform4f(ud[name].location, v.red, v.green, v.blue, v.alpha);
+            }
+        `},{type:"vec3<f32>",test:r=>r.type==="vec3<f32>"&&r.size===1&&r.value.red!==void 0,ubo:`
+            v = uv[name];
+            data[offset] = v.red;
+            data[offset + 1] = v.green;
+            data[offset + 2] = v.blue;
+        `,uniform:`
+            cv = ud[name].value;
+            v = uv[name];
+            if (cv[0] !== v.red || cv[1] !== v.green || cv[2] !== v.blue) {
+                cv[0] = v.red;
+                cv[1] = v.green;
+                cv[2] = v.blue;
+                gl.uniform3f(ud[name].location, v.red, v.green, v.blue);
+            }
+        `}];function bl(r,t,e,s){const i=[`
+        var v = null;
+        var v2 = null;
+        var t = 0;
+        var index = 0;
+        var name = null;
+        var arrayOffset = null;
+    `];let n=0;for(let a=0;a<r.length;a++){const l=r[a],u=l.data.name;let h=!1,c=0;for(let d=0;d<oe.length;d++)if(oe[d].test(l.data)){c=l.offset/4,i.push(`name = "${u}";`,`offset += ${c-n};`,oe[d][t]||oe[d].ubo),h=!0;break}if(!h)if(l.data.size>1)c=l.offset/4,i.push(e(l,c-n));else{const d=s[l.data.type];c=l.offset/4,i.push(`
+                    v = uv.${u};
+                    offset += ${c-n};
+                    ${d};
+                `)}n=c}const o=i.join(`
+`);return new Function("uv","data","dataInt32","offset",o)}var MA=Object.defineProperty,CA=Object.defineProperties,OA=Object.getOwnPropertyDescriptors,M_=Object.getOwnPropertySymbols,GA=Object.prototype.hasOwnProperty,BA=Object.prototype.propertyIsEnumerable,C_=(r,t,e)=>t in r?MA(r,t,{enumerable:!0,configurable:!0,writable:!0,value:e}):r[t]=e,IA=(r,t)=>{for(var e in t||(t={}))GA.call(t,e)&&C_(r,e,t[e]);if(M_)for(var e of M_(t))BA.call(t,e)&&C_(r,e,t[e]);return r},FA=(r,t)=>CA(r,OA(t));function tr(r,t){return`
+        for (let i = 0; i < ${r*t}; i++) {
+            data[offset + (((i / ${r})|0) * 4) + (i % ${r})] = v[i];
+        }
+    `}const vl={f32:`
+        data[offset] = v;`,i32:`
+        dataInt32[offset] = v;`,"vec2<f32>":`
+        data[offset] = v[0];
+        data[offset + 1] = v[1];`,"vec3<f32>":`
+        data[offset] = v[0];
+        data[offset + 1] = v[1];
+        data[offset + 2] = v[2];`,"vec4<f32>":`
+        data[offset] = v[0];
+        data[offset + 1] = v[1];
+        data[offset + 2] = v[2];
+        data[offset + 3] = v[3];`,"vec2<i32>":`
+        dataInt32[offset] = v[0];
+        dataInt32[offset + 1] = v[1];`,"vec3<i32>":`
+        dataInt32[offset] = v[0];
+        dataInt32[offset + 1] = v[1];
+        dataInt32[offset + 2] = v[2];`,"vec4<i32>":`
+        dataInt32[offset] = v[0];
+        dataInt32[offset + 1] = v[1];
+        dataInt32[offset + 2] = v[2];
+        dataInt32[offset + 3] = v[3];`,"mat2x2<f32>":`
+        data[offset] = v[0];
+        data[offset + 1] = v[1];
+        data[offset + 4] = v[2];
+        data[offset + 5] = v[3];`,"mat3x3<f32>":`
+        data[offset] = v[0];
+        data[offset + 1] = v[1];
+        data[offset + 2] = v[2];
+        data[offset + 4] = v[3];
+        data[offset + 5] = v[4];
+        data[offset + 6] = v[5];
+        data[offset + 8] = v[6];
+        data[offset + 9] = v[7];
+        data[offset + 10] = v[8];`,"mat4x4<f32>":`
+        for (let i = 0; i < 16; i++) {
+            data[offset + i] = v[i];
+        }`,"mat3x2<f32>":tr(3,2),"mat4x2<f32>":tr(4,2),"mat2x3<f32>":tr(2,3),"mat4x3<f32>":tr(4,3),"mat2x4<f32>":tr(2,4),"mat3x4<f32>":tr(3,4)},O_=FA(IA({},vl),{"mat2x2<f32>":`
+        data[offset] = v[0];
+        data[offset + 1] = v[1];
+        data[offset + 2] = v[2];
+        data[offset + 3] = v[3];
+    `});function G_(r,t){const e=Math.max(xl[r.data.type]/16,1),s=r.data.value.length/r.data.size,i=(4-s%4)%4,n=r.data.type.indexOf("i32")>=0?"dataInt32":"data";return`
+        v = uv.${r.data.name};
+        offset += ${t};
+
+        arrayOffset = offset;
+
+        t = 0;
+
+        for(var i=0; i < ${r.data.size*e}; i++)
+        {
+            for(var j = 0; j < ${s}; j++)
+            {
+                ${n}[arrayOffset++] = v[t++];
+            }
+            ${i!==0?`arrayOffset += ${i};`:""}
+        }
+    `}function B_(r){return bl(r,"uboStd40",G_,vl)}class yl extends _l{constructor(){super({createUboElements:R_,generateUboSync:B_})}}yl.extension={type:[x.WebGLSystem],name:"ubo"};class I_{constructor(){this._clearColorCache=[0,0,0,0],this._viewPortCache=new j}init(t,e){this._renderer=t,this._renderTargetSystem=e,t.runners.contextChange.add(this)}contextChange(){this._clearColorCache=[0,0,0,0],this._viewPortCache=new j}copyToTexture(t,e,s,i,n){const o=this._renderTargetSystem,a=this._renderer,l=o.getGpuRenderTarget(t),u=a.gl;return this.finishRenderPass(t),u.bindFramebuffer(u.FRAMEBUFFER,l.resolveTargetFramebuffer),a.texture.bind(e,0),u.copyTexSubImage2D(u.TEXTURE_2D,0,n.x,n.y,s.x,s.y,i.width,i.height),e}startRenderPass(t,e=!0,s,i){const n=this._renderTargetSystem,o=t.colorTexture,a=n.getGpuRenderTarget(t);let l=i.y;t.isRoot&&(l=o.pixelHeight-i.height),t.colorTextures.forEach(c=>{this._renderer.texture.unbind(c)});const u=this._renderer.gl;u.bindFramebuffer(u.FRAMEBUFFER,a.framebuffer);const h=this._viewPortCache;(h.x!==i.x||h.y!==l||h.width!==i.width||h.height!==i.height)&&(h.x=i.x,h.y=l,h.width=i.width,h.height=i.height,u.viewport(i.x,l,i.width,i.height)),!a.depthStencilRenderBuffer&&(t.stencil||t.depth)&&this._initStencil(a),this.clear(t,e,s)}finishRenderPass(t){const e=this._renderTargetSystem.getGpuRenderTarget(t);if(!e.msaa)return;const s=this._renderer.gl;s.bindFramebuffer(s.FRAMEBUFFER,e.resolveTargetFramebuffer),s.bindFramebuffer(s.READ_FRAMEBUFFER,e.framebuffer),s.blitFramebuffer(0,0,e.width,e.height,0,0,e.width,e.height,s.COLOR_BUFFER_BIT,s.NEAREST),s.bindFramebuffer(s.FRAMEBUFFER,e.framebuffer)}initGpuRenderTarget(t){const e=this._renderer,s=e.gl,i=new w_;return t.colorTexture.resource===e.canvas?(this._renderer.context.ensureCanvasSize(t.colorTexture.resource),i.framebuffer=null,i):(this._initColor(t,i),s.bindFramebuffer(s.FRAMEBUFFER,null),i)}destroyGpuRenderTarget(t){const e=this._renderer.gl;t.framebuffer&&(e.deleteFramebuffer(t.framebuffer),t.framebuffer=null),t.resolveTargetFramebuffer&&(e.deleteFramebuffer(t.resolveTargetFramebuffer),t.resolveTargetFramebuffer=null),t.depthStencilRenderBuffer&&(e.deleteRenderbuffer(t.depthStencilRenderBuffer),t.depthStencilRenderBuffer=null),t.msaaRenderBuffer.forEach(s=>{e.deleteRenderbuffer(s)}),t.msaaRenderBuffer=null}clear(t,e,s){if(!e)return;const i=this._renderTargetSystem;typeof e=="boolean"&&(e=e?gt.ALL:gt.NONE);const n=this._renderer.gl;if(e&gt.COLOR){s!=null||(s=i.defaultClearColor);const o=this._clearColorCache,a=s;(o[0]!==a[0]||o[1]!==a[1]||o[2]!==a[2]||o[3]!==a[3])&&(o[0]=a[0],o[1]=a[1],o[2]=a[2],o[3]=a[3],n.clearColor(a[0],a[1],a[2],a[3]))}n.clear(e)}resizeGpuRenderTarget(t){if(t.isRoot)return;const e=this._renderTargetSystem.getGpuRenderTarget(t);this._resizeColor(t,e),(t.stencil||t.depth)&&this._resizeStencil(e)}_initColor(t,e){const s=this._renderer,i=s.gl,n=i.createFramebuffer();if(e.resolveTargetFramebuffer=n,i.bindFramebuffer(i.FRAMEBUFFER,n),e.width=t.colorTexture.source.pixelWidth,e.height=t.colorTexture.source.pixelHeight,t.colorTextures.forEach((o,a)=>{const l=o.source;l.antialias&&(s.context.supports.msaa?e.msaa=!0:Lt("[RenderTexture] Antialiasing on textures is not supported in WebGL1")),s.texture.bindSource(l,0);const u=s.texture.getGlSource(l).texture;i.framebufferTexture2D(i.FRAMEBUFFER,i.COLOR_ATTACHMENT0+a,3553,u,0)}),e.msaa){const o=i.createFramebuffer();e.framebuffer=o,i.bindFramebuffer(i.FRAMEBUFFER,o),t.colorTextures.forEach((a,l)=>{const u=i.createRenderbuffer();e.msaaRenderBuffer[l]=u})}else e.framebuffer=n;this._resizeColor(t,e)}_resizeColor(t,e){const s=t.colorTexture.source;if(e.width=s.pixelWidth,e.height=s.pixelHeight,t.colorTextures.forEach((i,n)=>{n!==0&&i.source.resize(s.width,s.height,s._resolution)}),e.msaa){const i=this._renderer,n=i.gl,o=e.framebuffer;n.bindFramebuffer(n.FRAMEBUFFER,o),t.colorTextures.forEach((a,l)=>{const u=a.source;i.texture.bindSource(u,0);const h=i.texture.getGlSource(u).internalFormat,c=e.msaaRenderBuffer[l];n.bindRenderbuffer(n.RENDERBUFFER,c),n.renderbufferStorageMultisample(n.RENDERBUFFER,4,h,u.pixelWidth,u.pixelHeight),n.framebufferRenderbuffer(n.FRAMEBUFFER,n.COLOR_ATTACHMENT0+l,n.RENDERBUFFER,c)})}}_initStencil(t){if(t.framebuffer===null)return;const e=this._renderer.gl,s=e.createRenderbuffer();t.depthStencilRenderBuffer=s,e.bindRenderbuffer(e.RENDERBUFFER,s),e.framebufferRenderbuffer(e.FRAMEBUFFER,e.DEPTH_STENCIL_ATTACHMENT,e.RENDERBUFFER,s),this._resizeStencil(t)}_resizeStencil(t){const e=this._renderer.gl;e.bindRenderbuffer(e.RENDERBUFFER,t.depthStencilRenderBuffer),t.msaa?e.renderbufferStorageMultisample(e.RENDERBUFFER,4,e.DEPTH24_STENCIL8,t.width,t.height):e.renderbufferStorage(e.RENDERBUFFER,this._renderer.context.webGLVersion===2?e.DEPTH24_STENCIL8:e.DEPTH_STENCIL,t.width,t.height)}prerender(t){const e=t.colorTexture.resource;this._renderer.context.multiView&&Yt.test(e)&&this._renderer.context.ensureCanvasSize(e)}postrender(t){if(this._renderer.context.multiView&&Yt.test(t.colorTexture.resource)){const e=this._renderer.context.canvas,s=t.colorTexture;s.context2D.drawImage(e,0,s.pixelHeight-e.height)}}}function F_(r,t,e,s,i,n){const o=n?1:-1;return r.identity(),r.a=1/s*2,r.d=o*(1/i*2),r.tx=-1-t*r.a,r.ty=-o-e*r.d,r}var DA=Object.defineProperty,D_=Object.getOwnPropertySymbols,UA=Object.prototype.hasOwnProperty,kA=Object.prototype.propertyIsEnumerable,U_=(r,t,e)=>t in r?DA(r,t,{enumerable:!0,configurable:!0,writable:!0,value:e}):r[t]=e,$A=(r,t)=>{for(var e in t||(t={}))UA.call(t,e)&&U_(r,e,t[e]);if(D_)for(var e of D_(t))kA.call(t,e)&&U_(r,e,t[e]);return r};const er=new Map;function Tl(r,t){if(!er.has(r)){const e=new A({source:new Yt($A({resource:r},t))}),s=()=>{er.get(r)===e&&er.delete(r)};e.once("destroy",s),e.source.once("destroy",s),er.set(r,e)}return er.get(r)}function LA(r){return er.has(r)}function k_(r){const t=r.colorTexture.source.resource;return globalThis.HTMLCanvasElement&&t instanceof HTMLCanvasElement&&document.body.contains(t)}var NA=Object.defineProperty,$_=Object.getOwnPropertySymbols,HA=Object.prototype.hasOwnProperty,XA=Object.prototype.propertyIsEnumerable,L_=(r,t,e)=>t in r?NA(r,t,{enumerable:!0,configurable:!0,writable:!0,value:e}):r[t]=e,N_=(r,t)=>{for(var e in t||(t={}))HA.call(t,e)&&L_(r,e,t[e]);if($_)for(var e of $_(t))XA.call(t,e)&&L_(r,e,t[e]);return r};const H_=class wv{constructor(t={}){if(this.uid=K("renderTarget"),this.colorTextures=[],this.dirtyId=0,this.isRoot=!1,this._size=new Float32Array(2),this._managedColorTextures=!1,t=N_(N_({},wv.defaultOptions),t),this.stencil=t.stencil,this.depth=t.depth,this.isRoot=t.isRoot,typeof t.colorTextures=="number"){this._managedColorTextures=!0;for(let e=0;e<t.colorTextures;e++)this.colorTextures.push(new Q({width:t.width,height:t.height,resolution:t.resolution,antialias:t.antialias}))}else{this.colorTextures=[...t.colorTextures.map(s=>s.source)];const e=this.colorTexture.source;this.resize(e.width,e.height,e._resolution)}this.colorTexture.source.on("resize",this.onSourceResize,this),(t.depthStencilTexture||this.stencil)&&(t.depthStencilTexture instanceof A||t.depthStencilTexture instanceof Q?this.depthStencilTexture=t.depthStencilTexture.source:this.ensureDepthStencilTexture())}get size(){const t=this._size;return t[0]=this.pixelWidth,t[1]=this.pixelHeight,t}get width(){return this.colorTexture.source.width}get height(){return this.colorTexture.source.height}get pixelWidth(){return this.colorTexture.source.pixelWidth}get pixelHeight(){return this.colorTexture.source.pixelHeight}get resolution(){return this.colorTexture.source._resolution}get colorTexture(){return this.colorTextures[0]}onSourceResize(t){this.resize(t.width,t.height,t._resolution,!0)}ensureDepthStencilTexture(){this.depthStencilTexture||(this.depthStencilTexture=new Q({width:this.width,height:this.height,resolution:this.resolution,format:"depth24plus-stencil8",autoGenerateMipmaps:!1,antialias:!1,mipLevelCount:1}))}resize(t,e,s=this.resolution,i=!1){this.dirtyId++,this.colorTextures.forEach((n,o)=>{i&&o===0||n.source.resize(t,e,s)}),this.depthStencilTexture&&this.depthStencilTexture.source.resize(t,e,s)}destroy(){this.colorTexture.source.off("resize",this.onSourceResize,this),this._managedColorTextures&&this.colorTextures.forEach(t=>{t.destroy()}),this.depthStencilTexture&&(this.depthStencilTexture.destroy(),delete this.depthStencilTexture)}};H_.defaultOptions={width:0,height:0,resolution:1,colorTextures:1,stencil:!1,depth:!1,antialias:!1,isRoot:!1};let Fi=H_;class Sl{constructor(t){this.rootViewPort=new j,this.viewport=new j,this.onRenderTargetChange=new ba("onRenderTargetChange"),this.projectionMatrix=new M,this.defaultClearColor=[0,0,0,0],this._renderSurfaceToRenderTargetHash=new Map,this._gpuRenderTargetHash=Object.create(null),this._renderTargetStack=[],this._renderer=t,t.renderableGC.addManagedHash(this,"_gpuRenderTargetHash")}finishRenderPass(){this.adaptor.finishRenderPass(this.renderTarget)}renderStart({target:t,clear:e,clearColor:s,frame:i}){var n,o;this._renderTargetStack.length=0,this.push(t,e,s,i),this.rootViewPort.copyFrom(this.viewport),this.rootRenderTarget=this.renderTarget,this.renderingToScreen=k_(this.rootRenderTarget),(o=(n=this.adaptor).prerender)==null||o.call(n,this.rootRenderTarget)}postrender(){var t,e;(e=(t=this.adaptor).postrender)==null||e.call(t,this.rootRenderTarget)}bind(t,e=!0,s,i){const n=this.getRenderTarget(t),o=this.renderTarget!==n;this.renderTarget=n,this.renderSurface=t;const a=this.getGpuRenderTarget(n);(n.pixelWidth!==a.width||n.pixelHeight!==a.height)&&(this.adaptor.resizeGpuRenderTarget(n),a.width=n.pixelWidth,a.height=n.pixelHeight);const l=n.colorTexture,u=this.viewport,h=l.pixelWidth,c=l.pixelHeight;if(!i&&t instanceof A&&(i=t.frame),i){const d=l._resolution;u.x=i.x*d+.5|0,u.y=i.y*d+.5|0,u.width=i.width*d+.5|0,u.height=i.height*d+.5|0}else u.x=0,u.y=0,u.width=h,u.height=c;return F_(this.projectionMatrix,0,0,u.width/l.resolution,u.height/l.resolution,!n.isRoot),this.adaptor.startRenderPass(n,e,s,u),o&&this.onRenderTargetChange.emit(n),n}clear(t,e=gt.ALL,s){e&&(t&&(t=this.getRenderTarget(t)),this.adaptor.clear(t||this.renderTarget,e,s,this.viewport))}contextChange(){this._gpuRenderTargetHash=Object.create(null)}push(t,e=gt.ALL,s,i){const n=this.bind(t,e,s,i);return this._renderTargetStack.push({renderTarget:n,frame:i}),n}pop(){this._renderTargetStack.pop();const t=this._renderTargetStack[this._renderTargetStack.length-1];this.bind(t.renderTarget,!1,null,t.frame)}getRenderTarget(t){var e;return t.isTexture&&(t=t.source),(e=this._renderSurfaceToRenderTargetHash.get(t))!=null?e:this._initRenderTarget(t)}copyToTexture(t,e,s,i,n){s.x<0&&(i.width+=s.x,n.x-=s.x,s.x=0),s.y<0&&(i.height+=s.y,n.y-=s.y,s.y=0);const{pixelWidth:o,pixelHeight:a}=t;return i.width=Math.min(i.width,o-s.x),i.height=Math.min(i.height,a-s.y),this.adaptor.copyToTexture(t,e,s,i,n)}ensureDepthStencil(){this.renderTarget.stencil||(this.renderTarget.stencil=!0,this.adaptor.startRenderPass(this.renderTarget,!1,null,this.viewport))}destroy(){this._renderer=null,this._renderSurfaceToRenderTargetHash.forEach((t,e)=>{t!==e&&t.destroy()}),this._renderSurfaceToRenderTargetHash.clear(),this._gpuRenderTargetHash=Object.create(null)}_initRenderTarget(t){let e=null;return Yt.test(t)&&(t=Tl(t).source),t instanceof Fi?e=t:t instanceof Q&&(e=new Fi({colorTextures:[t]}),Yt.test(t.source.resource)&&(e.isRoot=!0),t.once("destroy",()=>{e.destroy(),this._renderSurfaceToRenderTargetHash.delete(t);const s=this._gpuRenderTargetHash[e.uid];s&&(this._gpuRenderTargetHash[e.uid]=null,this.adaptor.destroyGpuRenderTarget(s))})),this._renderSurfaceToRenderTargetHash.set(t,e),e}getGpuRenderTarget(t){return this._gpuRenderTargetHash[t.uid]||(this._gpuRenderTargetHash[t.uid]=this.adaptor.initGpuRenderTarget(t))}}class El extends Sl{constructor(t){super(t),this.adaptor=new I_,this.adaptor.init(t,this)}}El.extension={type:[x.WebGLSystem],name:"renderTarget"};class Di extends pt{constructor({buffer:t,offset:e,size:s}){super(),this.uid=K("buffer"),this._resourceType="bufferResource",this._touched=0,this._resourceId=K("resource"),this._bufferResource=!0,this.destroyed=!1,this.buffer=t,this.offset=e|0,this.size=s,this.buffer.on("change",this.onBufferChange,this)}onBufferChange(){this._resourceId=K("resource"),this.emit("change",this)}destroy(t=!1){this.destroyed=!0,t&&this.buffer.destroy(),this.emit("change",this),this.buffer=null}}function X_(r,t){const e=[],s=[`
+        var g = s.groups;
+        var sS = r.shader;
+        var p = s.glProgram;
+        var ugS = r.uniformGroup;
+        var resources;
+    `];let i=!1,n=0;const o=t._getProgramData(r.glProgram);for(const l in r.groups){const u=r.groups[l];e.push(`
+            resources = g[${l}].resources;
+        `);for(const h in u.resources){const c=u.resources[h];if(c instanceof rt)if(c.ubo){const d=r._uniformBindMap[l][Number(h)];e.push(`
+                        sS.bindUniformBlock(
+                            resources[${h}],
+                            '${d}',
+                            ${r.glProgram._uniformBlockData[d].index}
+                        );
+                    `)}else e.push(`
+                        ugS.updateUniformGroup(resources[${h}], p, sD);
+                    `);else if(c instanceof Di){const d=r._uniformBindMap[l][Number(h)];e.push(`
+                    sS.bindUniformBlock(
+                        resources[${h}],
+                        '${d}',
+                        ${r.glProgram._uniformBlockData[d].index}
+                    );
+                `)}else if(c instanceof Q){const d=r._uniformBindMap[l][h],p=o.uniformData[d];p&&(i||(i=!0,s.push(`
+                        var tS = r.texture;
+                        `)),t._gl.uniform1i(p.location,n),e.push(`
+                        tS.bind(resources[${h}], ${n});
+                    `),n++)}}}const a=[...s,...e].join(`
+`);return new Function("r","s","sD",a)}class jA{}class j_{constructor(t,e){this.program=t,this.uniformData=e,this.uniformGroups={},this.uniformDirtyGroups={},this.uniformBlockBindings={}}destroy(){this.uniformData=null,this.uniformGroups=null,this.uniformDirtyGroups=null,this.uniformBlockBindings=null,this.program=null}}function Al(r,t,e){const s=r.createShader(t);return r.shaderSource(s,e),r.compileShader(s),s}function Pl(r){const t=new Array(r);for(let e=0;e<t.length;e++)t[e]=!1;return t}function wl(r,t){switch(r){case"float":return 0;case"vec2":return new Float32Array(2*t);case"vec3":return new Float32Array(3*t);case"vec4":return new Float32Array(4*t);case"int":case"uint":case"sampler2D":case"sampler2DArray":return 0;case"ivec2":return new Int32Array(2*t);case"ivec3":return new Int32Array(3*t);case"ivec4":return new Int32Array(4*t);case"uvec2":return new Uint32Array(2*t);case"uvec3":return new Uint32Array(3*t);case"uvec4":return new Uint32Array(4*t);case"bool":return!1;case"bvec2":return Pl(2*t);case"bvec3":return Pl(3*t);case"bvec4":return Pl(4*t);case"mat2":return new Float32Array([1,0,0,1]);case"mat3":return new Float32Array([1,0,0,0,1,0,0,0,1]);case"mat4":return new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1])}return null}let Ui=null;const z_={FLOAT:"float",FLOAT_VEC2:"vec2",FLOAT_VEC3:"vec3",FLOAT_VEC4:"vec4",INT:"int",INT_VEC2:"ivec2",INT_VEC3:"ivec3",INT_VEC4:"ivec4",UNSIGNED_INT:"uint",UNSIGNED_INT_VEC2:"uvec2",UNSIGNED_INT_VEC3:"uvec3",UNSIGNED_INT_VEC4:"uvec4",BOOL:"bool",BOOL_VEC2:"bvec2",BOOL_VEC3:"bvec3",BOOL_VEC4:"bvec4",FLOAT_MAT2:"mat2",FLOAT_MAT3:"mat3",FLOAT_MAT4:"mat4",SAMPLER_2D:"sampler2D",INT_SAMPLER_2D:"sampler2D",UNSIGNED_INT_SAMPLER_2D:"sampler2D",SAMPLER_CUBE:"samplerCube",INT_SAMPLER_CUBE:"samplerCube",UNSIGNED_INT_SAMPLER_CUBE:"samplerCube",SAMPLER_2D_ARRAY:"sampler2DArray",INT_SAMPLER_2D_ARRAY:"sampler2DArray",UNSIGNED_INT_SAMPLER_2D_ARRAY:"sampler2DArray"},zA={float:"float32",vec2:"float32x2",vec3:"float32x3",vec4:"float32x4",int:"sint32",ivec2:"sint32x2",ivec3:"sint32x3",ivec4:"sint32x4",uint:"uint32",uvec2:"uint32x2",uvec3:"uint32x3",uvec4:"uint32x4",bool:"uint32",bvec2:"uint32x2",bvec3:"uint32x3",bvec4:"uint32x4"};function Rl(r,t){if(!Ui){const e=Object.keys(z_);Ui={};for(let s=0;s<e.length;++s){const i=e[s];Ui[r[i]]=z_[i]}}return Ui[t]}function V_(r,t){const e=Rl(r,t);return zA[e]||"float32"}function W_(r,t,e=!1){const s={},i=t.getProgramParameter(r,t.ACTIVE_ATTRIBUTES);for(let o=0;o<i;o++){const a=t.getActiveAttrib(r,o);if(a.name.startsWith("gl_"))continue;const l=V_(t,a.type);s[a.name]={location:0,format:l,stride:Kt(l).stride,offset:0,instance:!1,start:0}}const n=Object.keys(s);if(e){n.sort((o,a)=>o>a?1:-1);for(let o=0;o<n.length;o++)s[n[o]].location=o,t.bindAttribLocation(r,o,n[o]);t.linkProgram(r)}else for(let o=0;o<n.length;o++)s[n[o]].location=t.getAttribLocation(r,n[o]);return s}function Y_(r,t){if(!t.ACTIVE_UNIFORM_BLOCKS)return{};const e={},s=t.getProgramParameter(r,t.ACTIVE_UNIFORM_BLOCKS);for(let i=0;i<s;i++){const n=t.getActiveUniformBlockName(r,i),o=t.getUniformBlockIndex(r,n),a=t.getActiveUniformBlockParameter(r,i,t.UNIFORM_BLOCK_DATA_SIZE);e[n]={name:n,index:o,size:a}}return e}function K_(r,t){const e={},s=t.getProgramParameter(r,t.ACTIVE_UNIFORMS);for(let i=0;i<s;i++){const n=t.getActiveUniform(r,i),o=n.name.replace(/\[.*?\]$/,""),a=!!n.name.match(/\[.*?\]$/),l=Rl(t,n.type);e[o]={name:o,index:i,type:l,size:n.size,isArray:a,value:wl(l,n.size)}}return e}function q_(r,t){const e=r.getShaderSource(t).split(`
+`).map((u,h)=>`${h}: ${u}`),s=r.getShaderInfoLog(t),i=s.split(`
+`),n={},o=i.map(u=>parseFloat(u.replace(/^ERROR\: 0\:([\d]+)\:.*$/,"$1"))).filter(u=>u&&!n[u]?(n[u]=!0,!0):!1),a=[""];o.forEach(u=>{e[u-1]=`%c${e[u-1]}%c`,a.push("background: #FF0000; color:#FFFFFF; font-size: 10px","font-size: 10px")});const l=e.join(`
+`);a[0]=l,console.error(s),console.groupCollapsed("click to view full shader code"),console.warn(...a),console.groupEnd()}function Z_(r,t,e,s){r.getProgramParameter(t,r.LINK_STATUS)||(r.getShaderParameter(e,r.COMPILE_STATUS)||q_(r,e),r.getShaderParameter(s,r.COMPILE_STATUS)||q_(r,s),console.error("PixiJS Error: Could not initialize shader."),r.getProgramInfoLog(t)!==""&&console.warn("PixiJS Warning: gl.getProgramInfoLog()",r.getProgramInfoLog(t)))}function Q_(r,t){const e=Al(r,r.VERTEX_SHADER,t.vertex),s=Al(r,r.FRAGMENT_SHADER,t.fragment),i=r.createProgram();r.attachShader(i,e),r.attachShader(i,s);const n=t.transformFeedbackVaryings;n&&(typeof r.transformFeedbackVaryings!="function"||r.transformFeedbackVaryings(i,n.names,n.bufferMode==="separate"?r.SEPARATE_ATTRIBS:r.INTERLEAVED_ATTRIBS)),r.linkProgram(i),r.getProgramParameter(i,r.LINK_STATUS)||Z_(r,i,e,s),t._attributeData=W_(i,r,!/^[ \t]*#[ \t]*version[ \t]+300[ \t]+es[ \t]*$/m.test(t.vertex)),t._uniformData=K_(i,r),t._uniformBlockData=Y_(i,r),r.deleteShader(e),r.deleteShader(s);const o={};for(const a in t._uniformData){const l=t._uniformData[a];o[a]={location:r.getUniformLocation(i,a),value:wl(l.type,l.size)}}return new j_(i,o)}const ki={textureCount:0,blockIndex:0};class Ml{constructor(t){this._activeProgram=null,this._programDataHash=Object.create(null),this._shaderSyncFunctions=Object.create(null),this._renderer=t,this._renderer.renderableGC.addManagedHash(this,"_programDataHash")}contextChange(t){this._gl=t,this._programDataHash=Object.create(null),this._shaderSyncFunctions=Object.create(null),this._activeProgram=null,this.maxTextures=ve()}bind(t,e){if(this._setProgram(t.glProgram),e)return;ki.textureCount=0,ki.blockIndex=0;let s=this._shaderSyncFunctions[t.glProgram._key];s||(s=this._shaderSyncFunctions[t.glProgram._key]=this._generateShaderSync(t,this)),this._renderer.buffer.nextBindBase(!!t.glProgram.transformFeedbackVaryings),s(this._renderer,t,ki)}updateUniformGroup(t){this._renderer.uniformGroup.updateUniformGroup(t,this._activeProgram,ki)}bindUniformBlock(t,e,s=0){const i=this._renderer.buffer,n=this._getProgramData(this._activeProgram),o=t._bufferResource;o||this._renderer.ubo.updateUniformGroup(t);const a=t.buffer,l=i.updateBuffer(a),u=i.freeLocationForBufferBase(l);if(o){const{offset:c,size:d}=t;c===0&&d===a.data.byteLength?i.bindBufferBase(l,u):i.bindBufferRange(l,u,c)}else i.getLastBindBaseLocation(l)!==u&&i.bindBufferBase(l,u);const h=this._activeProgram._uniformBlockData[e].index;n.uniformBlockBindings[s]!==u&&(n.uniformBlockBindings[s]=u,this._renderer.gl.uniformBlockBinding(n.program,h,u))}_setProgram(t){if(this._activeProgram===t)return;this._activeProgram=t;const e=this._getProgramData(t);this._gl.useProgram(e.program)}_getProgramData(t){return this._programDataHash[t._key]||this._createProgramData(t)}_createProgramData(t){const e=t._key;return this._programDataHash[e]=Q_(this._gl,t),this._programDataHash[e]}destroy(){for(const t of Object.keys(this._programDataHash))this._programDataHash[t].destroy(),this._programDataHash[t]=null;this._programDataHash=null}_generateShaderSync(t,e){return X_(t,e)}}Ml.extension={type:[x.WebGLSystem],name:"shader"};const J_={f32:`if (cv !== v) {
+            cu.value = v;
+            gl.uniform1f(location, v);
+        }`,"vec2<f32>":`if (cv[0] !== v[0] || cv[1] !== v[1]) {
+            cv[0] = v[0];
+            cv[1] = v[1];
+            gl.uniform2f(location, v[0], v[1]);
+        }`,"vec3<f32>":`if (cv[0] !== v[0] || cv[1] !== v[1] || cv[2] !== v[2]) {
+            cv[0] = v[0];
+            cv[1] = v[1];
+            cv[2] = v[2];
+            gl.uniform3f(location, v[0], v[1], v[2]);
+        }`,"vec4<f32>":`if (cv[0] !== v[0] || cv[1] !== v[1] || cv[2] !== v[2] || cv[3] !== v[3]) {
+            cv[0] = v[0];
+            cv[1] = v[1];
+            cv[2] = v[2];
+            cv[3] = v[3];
+            gl.uniform4f(location, v[0], v[1], v[2], v[3]);
+        }`,i32:`if (cv !== v) {
+            cu.value = v;
+            gl.uniform1i(location, v);
+        }`,"vec2<i32>":`if (cv[0] !== v[0] || cv[1] !== v[1]) {
+            cv[0] = v[0];
+            cv[1] = v[1];
+            gl.uniform2i(location, v[0], v[1]);
+        }`,"vec3<i32>":`if (cv[0] !== v[0] || cv[1] !== v[1] || cv[2] !== v[2]) {
+            cv[0] = v[0];
+            cv[1] = v[1];
+            cv[2] = v[2];
+            gl.uniform3i(location, v[0], v[1], v[2]);
+        }`,"vec4<i32>":`if (cv[0] !== v[0] || cv[1] !== v[1] || cv[2] !== v[2] || cv[3] !== v[3]) {
+            cv[0] = v[0];
+            cv[1] = v[1];
+            cv[2] = v[2];
+            cv[3] = v[3];
+            gl.uniform4i(location, v[0], v[1], v[2], v[3]);
+        }`,u32:`if (cv !== v) {
+            cu.value = v;
+            gl.uniform1ui(location, v);
+        }`,"vec2<u32>":`if (cv[0] !== v[0] || cv[1] !== v[1]) {
+            cv[0] = v[0];
+            cv[1] = v[1];
+            gl.uniform2ui(location, v[0], v[1]);
+        }`,"vec3<u32>":`if (cv[0] !== v[0] || cv[1] !== v[1] || cv[2] !== v[2]) {
+            cv[0] = v[0];
+            cv[1] = v[1];
+            cv[2] = v[2];
+            gl.uniform3ui(location, v[0], v[1], v[2]);
+        }`,"vec4<u32>":`if (cv[0] !== v[0] || cv[1] !== v[1] || cv[2] !== v[2] || cv[3] !== v[3]) {
+            cv[0] = v[0];
+            cv[1] = v[1];
+            cv[2] = v[2];
+            cv[3] = v[3];
+            gl.uniform4ui(location, v[0], v[1], v[2], v[3]);
+        }`,bool:`if (cv !== v) {
+            cu.value = v;
+            gl.uniform1i(location, v);
+        }`,"vec2<bool>":`if (cv[0] !== v[0] || cv[1] !== v[1]) {
+            cv[0] = v[0];
+            cv[1] = v[1];
+            gl.uniform2i(location, v[0], v[1]);
+        }`,"vec3<bool>":`if (cv[0] !== v[0] || cv[1] !== v[1] || cv[2] !== v[2]) {
+            cv[0] = v[0];
+            cv[1] = v[1];
+            cv[2] = v[2];
+            gl.uniform3i(location, v[0], v[1], v[2]);
+        }`,"vec4<bool>":`if (cv[0] !== v[0] || cv[1] !== v[1] || cv[2] !== v[2] || cv[3] !== v[3]) {
+            cv[0] = v[0];
+            cv[1] = v[1];
+            cv[2] = v[2];
+            cv[3] = v[3];
+            gl.uniform4i(location, v[0], v[1], v[2], v[3]);
+        }`,"mat2x2<f32>":"gl.uniformMatrix2fv(location, false, v);","mat3x3<f32>":"gl.uniformMatrix3fv(location, false, v);","mat4x4<f32>":"gl.uniformMatrix4fv(location, false, v);"},tx={f32:"gl.uniform1fv(location, v);","vec2<f32>":"gl.uniform2fv(location, v);","vec3<f32>":"gl.uniform3fv(location, v);","vec4<f32>":"gl.uniform4fv(location, v);","mat2x2<f32>":"gl.uniformMatrix2fv(location, false, v);","mat3x3<f32>":"gl.uniformMatrix3fv(location, false, v);","mat4x4<f32>":"gl.uniformMatrix4fv(location, false, v);",i32:"gl.uniform1iv(location, v);","vec2<i32>":"gl.uniform2iv(location, v);","vec3<i32>":"gl.uniform3iv(location, v);","vec4<i32>":"gl.uniform4iv(location, v);",u32:"gl.uniform1iv(location, v);","vec2<u32>":"gl.uniform2iv(location, v);","vec3<u32>":"gl.uniform3iv(location, v);","vec4<u32>":"gl.uniform4iv(location, v);",bool:"gl.uniform1iv(location, v);","vec2<bool>":"gl.uniform2iv(location, v);","vec3<bool>":"gl.uniform3iv(location, v);","vec4<bool>":"gl.uniform4iv(location, v);"};function ex(r,t){const e=[`
+        var v = null;
+        var cv = null;
+        var cu = null;
+        var t = 0;
+        var gl = renderer.gl;
+        var name = null;
+    `];for(const s in r.uniforms){if(!t[s]){r.uniforms[s]instanceof rt?r.uniforms[s].ubo?e.push(`
+                        renderer.shader.bindUniformBlock(uv.${s}, "${s}");
+                    `):e.push(`
+                        renderer.shader.updateUniformGroup(uv.${s});
+                    `):r.uniforms[s]instanceof Di&&e.push(`
+                        renderer.shader.bindBufferResource(uv.${s}, "${s}");
+                    `);continue}const i=r.uniformStructures[s];let n=!1;for(let o=0;o<oe.length;o++){const a=oe[o];if(i.type===a.type&&a.test(i)){e.push(`name = "${s}";`,oe[o].uniform),n=!0;break}}if(!n){const o=(i.size===1?J_:tx)[i.type].replace("location",`ud["${s}"].location`);e.push(`
+            cu = ud["${s}"];
+            cv = cu.value;
+            v = uv["${s}"];
+            ${o};`)}}return new Function("ud","uv","renderer","syncData",e.join(`
+`))}class Cl{constructor(t){this._cache={},this._uniformGroupSyncHash={},this._renderer=t,this.gl=null,this._cache={}}contextChange(t){this.gl=t}updateUniformGroup(t,e,s){const i=this._renderer.shader._getProgramData(e);(!t.isStatic||t._dirtyId!==i.uniformDirtyGroups[t.uid])&&(i.uniformDirtyGroups[t.uid]=t._dirtyId,this._getUniformSyncFunction(t,e)(i.uniformData,t.uniforms,this._renderer,s))}_getUniformSyncFunction(t,e){var s;return((s=this._uniformGroupSyncHash[t._signature])==null?void 0:s[e._key])||this._createUniformSyncFunction(t,e)}_createUniformSyncFunction(t,e){const s=this._uniformGroupSyncHash[t._signature]||(this._uniformGroupSyncHash[t._signature]={}),i=this._getSignature(t,e._uniformData,"u");return this._cache[i]||(this._cache[i]=this._generateUniformsSync(t,e._uniformData)),s[e._key]=this._cache[i],s[e._key]}_generateUniformsSync(t,e){return ex(t,e)}_getSignature(t,e,s){const i=t.uniforms,n=[`${s}-`];for(const o in i)n.push(o),e[o]&&n.push(e[o].type);return n.join("-")}destroy(){this._renderer=null,this._cache=null}}Cl.extension={type:[x.WebGLSystem],name:"uniformGroup"};function VA(r){return r=r.replaceAll("texture2D","texture").replaceAll("gl_FragColor","finalColor").replaceAll("varying","in"),r=`
+        out vec4 finalColor;
+    ${r}
+    `,r}const WA={float:1,vec2:2,vec3:3,vec4:4,int:1,ivec2:2,ivec3:3,ivec4:4,uint:1,uvec2:2,uvec3:3,uvec4:4,bool:1,bvec2:2,bvec3:3,bvec4:4,mat2:4,mat3:9,mat4:16,sampler2D:1};function YA(r){return WA[r]}function rx(r){const t={};if(t.normal=[r.ONE,r.ONE_MINUS_SRC_ALPHA],t.add=[r.ONE,r.ONE],t.multiply=[r.DST_COLOR,r.ONE_MINUS_SRC_ALPHA,r.ONE,r.ONE_MINUS_SRC_ALPHA],t.screen=[r.ONE,r.ONE_MINUS_SRC_COLOR,r.ONE,r.ONE_MINUS_SRC_ALPHA],t.none=[0,0],t["normal-npm"]=[r.SRC_ALPHA,r.ONE_MINUS_SRC_ALPHA,r.ONE,r.ONE_MINUS_SRC_ALPHA],t["add-npm"]=[r.SRC_ALPHA,r.ONE,r.ONE,r.ONE],t["screen-npm"]=[r.SRC_ALPHA,r.ONE_MINUS_SRC_COLOR,r.ONE,r.ONE_MINUS_SRC_ALPHA],t.erase=[r.ZERO,r.ONE_MINUS_SRC_ALPHA],!(r instanceof N.get().getWebGLRenderingContext()))t.min=[r.ONE,r.ONE,r.ONE,r.ONE,r.MIN,r.MIN],t.max=[r.ONE,r.ONE,r.ONE,r.ONE,r.MAX,r.MAX];else{const e=r.getExtension("EXT_blend_minmax");e&&(t.min=[r.ONE,r.ONE,r.ONE,r.ONE,e.MIN_EXT,e.MIN_EXT],t.max=[r.ONE,r.ONE,r.ONE,r.ONE,e.MAX_EXT,e.MAX_EXT])}return t}const KA=0,qA=1,ZA=2,QA=3,JA=4,tP=5,sx=class Mu{constructor(){this.gl=null,this.stateId=0,this.polygonOffset=0,this.blendMode="none",this._blendEq=!1,this.map=[],this.map[KA]=this.setBlend,this.map[qA]=this.setOffset,this.map[ZA]=this.setCullFace,this.map[QA]=this.setDepthTest,this.map[JA]=this.setFrontFace,this.map[tP]=this.setDepthMask,this.checks=[],this.defaultState=Tt.for2d()}contextChange(t){this.gl=t,this.blendModesMap=rx(t),this.reset()}set(t){if(t||(t=this.defaultState),this.stateId!==t.data){let e=this.stateId^t.data,s=0;for(;e;)e&1&&this.map[s].call(this,!!(t.data&1<<s)),e>>=1,s++;this.stateId=t.data}for(let e=0;e<this.checks.length;e++)this.checks[e](this,t)}forceState(t){t||(t=this.defaultState);for(let e=0;e<this.map.length;e++)this.map[e].call(this,!!(t.data&1<<e));for(let e=0;e<this.checks.length;e++)this.checks[e](this,t);this.stateId=t.data}setBlend(t){this._updateCheck(Mu._checkBlendMode,t),this.gl[t?"enable":"disable"](this.gl.BLEND)}setOffset(t){this._updateCheck(Mu._checkPolygonOffset,t),this.gl[t?"enable":"disable"](this.gl.POLYGON_OFFSET_FILL)}setDepthTest(t){this.gl[t?"enable":"disable"](this.gl.DEPTH_TEST)}setDepthMask(t){this.gl.depthMask(t)}setCullFace(t){this.gl[t?"enable":"disable"](this.gl.CULL_FACE)}setFrontFace(t){this.gl.frontFace(this.gl[t?"CW":"CCW"])}setBlendMode(t){if(this.blendModesMap[t]||(t="normal"),t===this.blendMode)return;this.blendMode=t;const e=this.blendModesMap[t],s=this.gl;e.length===2?s.blendFunc(e[0],e[1]):s.blendFuncSeparate(e[0],e[1],e[2],e[3]),e.length===6?(this._blendEq=!0,s.blendEquationSeparate(e[4],e[5])):this._blendEq&&(this._blendEq=!1,s.blendEquationSeparate(s.FUNC_ADD,s.FUNC_ADD))}setPolygonOffset(t,e){this.gl.polygonOffset(t,e)}reset(){this.gl.pixelStorei(this.gl.UNPACK_FLIP_Y_WEBGL,!1),this.forceState(this.defaultState),this._blendEq=!0,this.blendMode="",this.setBlendMode("normal")}_updateCheck(t,e){const s=this.checks.indexOf(t);e&&s===-1?this.checks.push(t):!e&&s!==-1&&this.checks.splice(s,1)}static _checkBlendMode(t,e){t.setBlendMode(e.blendMode)}static _checkPolygonOffset(t,e){t.setPolygonOffset(1,e.polygonOffset)}destroy(){this.gl=null,this.checks.length=0}};sx.extension={type:[x.WebGLSystem],name:"state"};let ix=sx;class nx{constructor(t){this.target=cl.TEXTURE_2D,this.texture=t,this.width=-1,this.height=-1,this.type=X.UNSIGNED_BYTE,this.internalFormat=Ii.RGBA,this.format=Ii.RGBA,this.samplerType=0}}const ox={id:"buffer",upload(r,t,e){t.width===r.width||t.height===r.height?e.texSubImage2D(e.TEXTURE_2D,0,0,0,r.width,r.height,t.format,t.type,r.resource):e.texImage2D(t.target,0,t.internalFormat,r.width,r.height,0,t.format,t.type,r.resource),t.width=r.width,t.height=r.height}},eP={"bc1-rgba-unorm":!0,"bc1-rgba-unorm-srgb":!0,"bc2-rgba-unorm":!0,"bc2-rgba-unorm-srgb":!0,"bc3-rgba-unorm":!0,"bc3-rgba-unorm-srgb":!0,"bc4-r-unorm":!0,"bc4-r-snorm":!0,"bc5-rg-unorm":!0,"bc5-rg-snorm":!0,"bc6h-rgb-ufloat":!0,"bc6h-rgb-float":!0,"bc7-rgba-unorm":!0,"bc7-rgba-unorm-srgb":!0,"etc2-rgb8unorm":!0,"etc2-rgb8unorm-srgb":!0,"etc2-rgb8a1unorm":!0,"etc2-rgb8a1unorm-srgb":!0,"etc2-rgba8unorm":!0,"etc2-rgba8unorm-srgb":!0,"eac-r11unorm":!0,"eac-r11snorm":!0,"eac-rg11unorm":!0,"eac-rg11snorm":!0,"astc-4x4-unorm":!0,"astc-4x4-unorm-srgb":!0,"astc-5x4-unorm":!0,"astc-5x4-unorm-srgb":!0,"astc-5x5-unorm":!0,"astc-5x5-unorm-srgb":!0,"astc-6x5-unorm":!0,"astc-6x5-unorm-srgb":!0,"astc-6x6-unorm":!0,"astc-6x6-unorm-srgb":!0,"astc-8x5-unorm":!0,"astc-8x5-unorm-srgb":!0,"astc-8x6-unorm":!0,"astc-8x6-unorm-srgb":!0,"astc-8x8-unorm":!0,"astc-8x8-unorm-srgb":!0,"astc-10x5-unorm":!0,"astc-10x5-unorm-srgb":!0,"astc-10x6-unorm":!0,"astc-10x6-unorm-srgb":!0,"astc-10x8-unorm":!0,"astc-10x8-unorm-srgb":!0,"astc-10x10-unorm":!0,"astc-10x10-unorm-srgb":!0,"astc-12x10-unorm":!0,"astc-12x10-unorm-srgb":!0,"astc-12x12-unorm":!0,"astc-12x12-unorm-srgb":!0},ax={id:"compressed",upload(r,t,e){e.pixelStorei(e.UNPACK_ALIGNMENT,4);let s=r.pixelWidth,i=r.pixelHeight;const n=!!eP[r.format];for(let o=0;o<r.resource.length;o++){const a=r.resource[o];n?e.compressedTexImage2D(e.TEXTURE_2D,o,t.internalFormat,s,i,0,a):e.texImage2D(e.TEXTURE_2D,o,t.internalFormat,s,i,0,t.format,t.type,a),s=Math.max(s>>1,1),i=Math.max(i>>1,1)}}},Ol={id:"image",upload(r,t,e,s){const i=r.alphaMode==="premultiply-alpha-on-upload";e.pixelStorei(e.UNPACK_PREMULTIPLY_ALPHA_WEBGL,i);const n=t.width,o=t.height,a=r.pixelWidth,l=r.pixelHeight,u=r.resourceWidth,h=r.resourceHeight;u<a||h<l?((n!==a||o!==l)&&e.texImage2D(t.target,0,t.internalFormat,a,l,0,t.format,t.type,null),s===2?e.texSubImage2D(e.TEXTURE_2D,0,0,0,u,h,t.format,t.type,r.resource):e.texSubImage2D(e.TEXTURE_2D,0,0,0,t.format,t.type,r.resource)):n===a||o===l?e.texSubImage2D(e.TEXTURE_2D,0,0,0,t.format,t.type,r.resource):s===2?e.texImage2D(t.target,0,t.internalFormat,a,l,0,t.format,t.type,r.resource):e.texImage2D(t.target,0,t.internalFormat,t.format,t.type,r.resource),t.width=a,t.height=l}},lx={id:"video",upload(r,t,e,s){if(!r.isValid){e.texImage2D(t.target,0,t.internalFormat,1,1,0,t.format,t.type,null);return}Ol.upload(r,t,e,s)}},Gl={linear:9729,nearest:9728},ux={linear:{linear:9987,nearest:9985},nearest:{linear:9986,nearest:9984}},$i={"clamp-to-edge":33071,repeat:10497,"mirror-repeat":33648},hx={never:512,less:513,equal:514,"less-equal":515,greater:516,"not-equal":517,"greater-equal":518,always:519};function Bl(r,t,e,s,i,n,o,a){const l=n;if(!a||r.addressModeU!=="repeat"||r.addressModeV!=="repeat"||r.addressModeW!=="repeat"){const u=$i[o?"clamp-to-edge":r.addressModeU],h=$i[o?"clamp-to-edge":r.addressModeV],c=$i[o?"clamp-to-edge":r.addressModeW];t[i](l,t.TEXTURE_WRAP_S,u),t[i](l,t.TEXTURE_WRAP_T,h),t.TEXTURE_WRAP_R&&t[i](l,t.TEXTURE_WRAP_R,c)}if((!a||r.magFilter!=="linear")&&t[i](l,t.TEXTURE_MAG_FILTER,Gl[r.magFilter]),e){if(!a||r.mipmapFilter!=="linear"){const u=ux[r.minFilter][r.mipmapFilter];t[i](l,t.TEXTURE_MIN_FILTER,u)}}else t[i](l,t.TEXTURE_MIN_FILTER,Gl[r.minFilter]);if(s&&r.maxAnisotropy>1){const u=Math.min(r.maxAnisotropy,t.getParameter(s.MAX_TEXTURE_MAX_ANISOTROPY_EXT));t[i](l,s.TEXTURE_MAX_ANISOTROPY_EXT,u)}r.compare&&t[i](l,t.TEXTURE_COMPARE_FUNC,hx[r.compare])}function cx(r){return{r8unorm:r.RED,r8snorm:r.RED,r8uint:r.RED,r8sint:r.RED,r16uint:r.RED,r16sint:r.RED,r16float:r.RED,rg8unorm:r.RG,rg8snorm:r.RG,rg8uint:r.RG,rg8sint:r.RG,r32uint:r.RED,r32sint:r.RED,r32float:r.RED,rg16uint:r.RG,rg16sint:r.RG,rg16float:r.RG,rgba8unorm:r.RGBA,"rgba8unorm-srgb":r.RGBA,rgba8snorm:r.RGBA,rgba8uint:r.RGBA,rgba8sint:r.RGBA,bgra8unorm:r.RGBA,"bgra8unorm-srgb":r.RGBA,rgb9e5ufloat:r.RGB,rgb10a2unorm:r.RGBA,rg11b10ufloat:r.RGB,rg32uint:r.RG,rg32sint:r.RG,rg32float:r.RG,rgba16uint:r.RGBA,rgba16sint:r.RGBA,rgba16float:r.RGBA,rgba32uint:r.RGBA,rgba32sint:r.RGBA,rgba32float:r.RGBA,stencil8:r.STENCIL_INDEX8,depth16unorm:r.DEPTH_COMPONENT,depth24plus:r.DEPTH_COMPONENT,"depth24plus-stencil8":r.DEPTH_STENCIL,depth32float:r.DEPTH_COMPONENT,"depth32float-stencil8":r.DEPTH_STENCIL}}var rP=Object.defineProperty,sP=Object.defineProperties,iP=Object.getOwnPropertyDescriptors,dx=Object.getOwnPropertySymbols,nP=Object.prototype.hasOwnProperty,oP=Object.prototype.propertyIsEnumerable,px=(r,t,e)=>t in r?rP(r,t,{enumerable:!0,configurable:!0,writable:!0,value:e}):r[t]=e,Re=(r,t)=>{for(var e in t||(t={}))nP.call(t,e)&&px(r,e,t[e]);if(dx)for(var e of dx(t))oP.call(t,e)&&px(r,e,t[e]);return r},aP=(r,t)=>sP(r,iP(t));function fx(r,t){let e={},s=r.RGBA;return r instanceof N.get().getWebGLRenderingContext()?t.srgb&&(e={"rgba8unorm-srgb":t.srgb.SRGB8_ALPHA8_EXT,"bgra8unorm-srgb":t.srgb.SRGB8_ALPHA8_EXT}):(e={"rgba8unorm-srgb":r.SRGB8_ALPHA8,"bgra8unorm-srgb":r.SRGB8_ALPHA8},s=r.RGBA8),Re(Re(Re(Re(Re(Re(aP(Re({r8unorm:r.R8,r8snorm:r.R8_SNORM,r8uint:r.R8UI,r8sint:r.R8I,r16uint:r.R16UI,r16sint:r.R16I,r16float:r.R16F,rg8unorm:r.RG8,rg8snorm:r.RG8_SNORM,rg8uint:r.RG8UI,rg8sint:r.RG8I,r32uint:r.R32UI,r32sint:r.R32I,r32float:r.R32F,rg16uint:r.RG16UI,rg16sint:r.RG16I,rg16float:r.RG16F,rgba8unorm:r.RGBA},e),{rgba8snorm:r.RGBA8_SNORM,rgba8uint:r.RGBA8UI,rgba8sint:r.RGBA8I,bgra8unorm:s,rgb9e5ufloat:r.RGB9_E5,rgb10a2unorm:r.RGB10_A2,rg11b10ufloat:r.R11F_G11F_B10F,rg32uint:r.RG32UI,rg32sint:r.RG32I,rg32float:r.RG32F,rgba16uint:r.RGBA16UI,rgba16sint:r.RGBA16I,rgba16float:r.RGBA16F,rgba32uint:r.RGBA32UI,rgba32sint:r.RGBA32I,rgba32float:r.RGBA32F,stencil8:r.STENCIL_INDEX8,depth16unorm:r.DEPTH_COMPONENT16,depth24plus:r.DEPTH_COMPONENT24,"depth24plus-stencil8":r.DEPTH24_STENCIL8,depth32float:r.DEPTH_COMPONENT32F,"depth32float-stencil8":r.DEPTH32F_STENCIL8}),t.s3tc?{"bc1-rgba-unorm":t.s3tc.COMPRESSED_RGBA_S3TC_DXT1_EXT,"bc2-rgba-unorm":t.s3tc.COMPRESSED_RGBA_S3TC_DXT3_EXT,"bc3-rgba-unorm":t.s3tc.COMPRESSED_RGBA_S3TC_DXT5_EXT}:{}),t.s3tc_sRGB?{"bc1-rgba-unorm-srgb":t.s3tc_sRGB.COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT,"bc2-rgba-unorm-srgb":t.s3tc_sRGB.COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT,"bc3-rgba-unorm-srgb":t.s3tc_sRGB.COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT}:{}),t.rgtc?{"bc4-r-unorm":t.rgtc.COMPRESSED_RED_RGTC1_EXT,"bc4-r-snorm":t.rgtc.COMPRESSED_SIGNED_RED_RGTC1_EXT,"bc5-rg-unorm":t.rgtc.COMPRESSED_RED_GREEN_RGTC2_EXT,"bc5-rg-snorm":t.rgtc.COMPRESSED_SIGNED_RED_GREEN_RGTC2_EXT}:{}),t.bptc?{"bc6h-rgb-float":t.bptc.COMPRESSED_RGB_BPTC_SIGNED_FLOAT_EXT,"bc6h-rgb-ufloat":t.bptc.COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT_EXT,"bc7-rgba-unorm":t.bptc.COMPRESSED_RGBA_BPTC_UNORM_EXT,"bc7-rgba-unorm-srgb":t.bptc.COMPRESSED_SRGB_ALPHA_BPTC_UNORM_EXT}:{}),t.etc?{"etc2-rgb8unorm":t.etc.COMPRESSED_RGB8_ETC2,"etc2-rgb8unorm-srgb":t.etc.COMPRESSED_SRGB8_ETC2,"etc2-rgb8a1unorm":t.etc.COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2,"etc2-

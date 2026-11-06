@@ -1,0 +1,866 @@
+]="COMPRESSED_RGBA_S3TC_DXT3_EXT",r[r.COMPRESSED_RGBA_S3TC_DXT5_EXT=33779]="COMPRESSED_RGBA_S3TC_DXT5_EXT",r[r.COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT=35917]="COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT",r[r.COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT=35918]="COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT",r[r.COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT=35919]="COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT",r[r.COMPRESSED_SRGB_S3TC_DXT1_EXT=35916]="COMPRESSED_SRGB_S3TC_DXT1_EXT",r[r.COMPRESSED_RED_RGTC1_EXT=36283]="COMPRESSED_RED_RGTC1_EXT",r[r.COMPRESSED_SIGNED_RED_RGTC1_EXT=36284]="COMPRESSED_SIGNED_RED_RGTC1_EXT",r[r.COMPRESSED_RED_GREEN_RGTC2_EXT=36285]="COMPRESSED_RED_GREEN_RGTC2_EXT",r[r.COMPRESSED_SIGNED_RED_GREEN_RGTC2_EXT=36286]="COMPRESSED_SIGNED_RED_GREEN_RGTC2_EXT",r[r.COMPRESSED_R11_EAC=37488]="COMPRESSED_R11_EAC",r[r.COMPRESSED_SIGNED_R11_EAC=37489]="COMPRESSED_SIGNED_R11_EAC",r[r.COMPRESSED_RG11_EAC=37490]="COMPRESSED_RG11_EAC",r[r.COMPRESSED_SIGNED_RG11_EAC=37491]="COMPRESSED_SIGNED_RG11_EAC",r[r.COMPRESSED_RGB8_ETC2=37492]="COMPRESSED_RGB8_ETC2",r[r.COMPRESSED_RGBA8_ETC2_EAC=37496]="COMPRESSED_RGBA8_ETC2_EAC",r[r.COMPRESSED_SRGB8_ETC2=37493]="COMPRESSED_SRGB8_ETC2",r[r.COMPRESSED_SRGB8_ALPHA8_ETC2_EAC=37497]="COMPRESSED_SRGB8_ALPHA8_ETC2_EAC",r[r.COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2=37494]="COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2",r[r.COMPRESSED_SRGB8_PUNCHTHROUGH_ALPHA1_ETC2=37495]="COMPRESSED_SRGB8_PUNCHTHROUGH_ALPHA1_ETC2",r[r.COMPRESSED_RGBA_ASTC_4x4_KHR=37808]="COMPRESSED_RGBA_ASTC_4x4_KHR",r[r.COMPRESSED_RGBA_ASTC_5x4_KHR=37809]="COMPRESSED_RGBA_ASTC_5x4_KHR",r[r.COMPRESSED_RGBA_ASTC_5x5_KHR=37810]="COMPRESSED_RGBA_ASTC_5x5_KHR",r[r.COMPRESSED_RGBA_ASTC_6x5_KHR=37811]="COMPRESSED_RGBA_ASTC_6x5_KHR",r[r.COMPRESSED_RGBA_ASTC_6x6_KHR=37812]="COMPRESSED_RGBA_ASTC_6x6_KHR",r[r.COMPRESSED_RGBA_ASTC_8x5_KHR=37813]="COMPRESSED_RGBA_ASTC_8x5_KHR",r[r.COMPRESSED_RGBA_ASTC_8x6_KHR=37814]="COMPRESSED_RGBA_ASTC_8x6_KHR",r[r.COMPRESSED_RGBA_ASTC_8x8_KHR=37815]="COMPRESSED_RGBA_ASTC_8x8_KHR",r[r.COMPRESSED_RGBA_ASTC_10x5_KHR=37816]="COMPRESSED_RGBA_ASTC_10x5_KHR",r[r.COMPRESSED_RGBA_ASTC_10x6_KHR=37817]="COMPRESSED_RGBA_ASTC_10x6_KHR",r[r.COMPRESSED_RGBA_ASTC_10x8_KHR=37818]="COMPRESSED_RGBA_ASTC_10x8_KHR",r[r.COMPRESSED_RGBA_ASTC_10x10_KHR=37819]="COMPRESSED_RGBA_ASTC_10x10_KHR",r[r.COMPRESSED_RGBA_ASTC_12x10_KHR=37820]="COMPRESSED_RGBA_ASTC_12x10_KHR",r[r.COMPRESSED_RGBA_ASTC_12x12_KHR=37821]="COMPRESSED_RGBA_ASTC_12x12_KHR",r[r.COMPRESSED_SRGB8_ALPHA8_ASTC_4x4_KHR=37840]="COMPRESSED_SRGB8_ALPHA8_ASTC_4x4_KHR",r[r.COMPRESSED_SRGB8_ALPHA8_ASTC_5x4_KHR=37841]="COMPRESSED_SRGB8_ALPHA8_ASTC_5x4_KHR",r[r.COMPRESSED_SRGB8_ALPHA8_ASTC_5x5_KHR=37842]="COMPRESSED_SRGB8_ALPHA8_ASTC_5x5_KHR",r[r.COMPRESSED_SRGB8_ALPHA8_ASTC_6x5_KHR=37843]="COMPRESSED_SRGB8_ALPHA8_ASTC_6x5_KHR",r[r.COMPRESSED_SRGB8_ALPHA8_ASTC_6x6_KHR=37844]="COMPRESSED_SRGB8_ALPHA8_ASTC_6x6_KHR",r[r.COMPRESSED_SRGB8_ALPHA8_ASTC_8x5_KHR=37845]="COMPRESSED_SRGB8_ALPHA8_ASTC_8x5_KHR",r[r.COMPRESSED_SRGB8_ALPHA8_ASTC_8x6_KHR=37846]="COMPRESSED_SRGB8_ALPHA8_ASTC_8x6_KHR",r[r.COMPRESSED_SRGB8_ALPHA8_ASTC_8x8_KHR=37847]="COMPRESSED_SRGB8_ALPHA8_ASTC_8x8_KHR",r[r.COMPRESSED_SRGB8_ALPHA8_ASTC_10x5_KHR=37848]="COMPRESSED_SRGB8_ALPHA8_ASTC_10x5_KHR",r[r.COMPRESSED_SRGB8_ALPHA8_ASTC_10x6_KHR=37849]="COMPRESSED_SRGB8_ALPHA8_ASTC_10x6_KHR",r[r.COMPRESSED_SRGB8_ALPHA8_ASTC_10x8_KHR=37850]="COMPRESSED_SRGB8_ALPHA8_ASTC_10x8_KHR",r[r.COMPRESSED_SRGB8_ALPHA8_ASTC_10x10_KHR=37851]="COMPRESSED_SRGB8_ALPHA8_ASTC_10x10_KHR",r[r.COMPRESSED_SRGB8_ALPHA8_ASTC_12x10_KHR=37852]="COMPRESSED_SRGB8_ALPHA8_ASTC_12x10_KHR",r[r.COMPRESSED_SRGB8_ALPHA8_ASTC_12x12_KHR=37853]="COMPRESSED_SRGB8_ALPHA8_ASTC_12x12_KHR",r[r.COMPRESSED_RGBA_BPTC_UNORM_EXT=36492]="COMPRESSED_RGBA_BPTC_UNORM_EXT",r[r.COMPRESSED_SRGB_ALPHA_BPTC_UNORM_EXT=36493]="COMPRESSED_SRGB_ALPHA_BPTC_UNORM_EXT",r[r.COMPRESSED_RGB_BPTC_SIGNED_FLOAT_EXT=36494]="COMPRESSED_RGB_BPTC_SIGNED_FLOAT_EXT",r[r.COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT_EXT=36495]="COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT_EXT",r))(Lm||{}),y2=(r=>(r[r.RGBA=6408]="RGBA",r[r.RGB=6407]="RGB",r[r.RG=33319]="RG",r[r.RED=6403]="RED",r[r.RGBA_INTEGER=36249]="RGBA_INTEGER",r[r.RGB_INTEGER=36248]="RGB_INTEGER",r[r.RG_INTEGER=33320]="RG_INTEGER",r[r.RED_INTEGER=36244]="RED_INTEGER",r[r.ALPHA=6406]="ALPHA",r[r.LUMINANCE=6409]="LUMINANCE",r[r.LUMINANCE_ALPHA=6410]="LUMINANCE_ALPHA",r[r.DEPTH_COMPONENT=6402]="DEPTH_COMPONENT",r[r.DEPTH_STENCIL=34041]="DEPTH_STENCIL",r))(y2||{}),T2=(r=>(r[r.UNSIGNED_BYTE=5121]="UNSIGNED_BYTE",r[r.UNSIGNED_SHORT=5123]="UNSIGNED_SHORT",r[r.UNSIGNED_SHORT_5_6_5=33635]="UNSIGNED_SHORT_5_6_5",r[r.UNSIGNED_SHORT_4_4_4_4=32819]="UNSIGNED_SHORT_4_4_4_4",r[r.UNSIGNED_SHORT_5_5_5_1=32820]="UNSIGNED_SHORT_5_5_5_1",r[r.UNSIGNED_INT=5125]="UNSIGNED_INT",r[r.UNSIGNED_INT_10F_11F_11F_REV=35899]="UNSIGNED_INT_10F_11F_11F_REV",r[r.UNSIGNED_INT_2_10_10_10_REV=33640]="UNSIGNED_INT_2_10_10_10_REV",r[r.UNSIGNED_INT_24_8=34042]="UNSIGNED_INT_24_8",r[r.UNSIGNED_INT_5_9_9_9_REV=35902]="UNSIGNED_INT_5_9_9_9_REV",r[r.BYTE=5120]="BYTE",r[r.SHORT=5122]="SHORT",r[r.INT=5124]="INT",r[r.FLOAT=5126]="FLOAT",r[r.FLOAT_32_UNSIGNED_INT_24_8_REV=36269]="FLOAT_32_UNSIGNED_INT_24_8_REV",r[r.HALF_FLOAT=36193]="HALF_FLOAT",r))(T2||{});const S2={33776:"bc1-rgba-unorm",33777:"bc1-rgba-unorm",33778:"bc2-rgba-unorm",33779:"bc3-rgba-unorm",35916:"bc1-rgba-unorm-srgb",35917:"bc1-rgba-unorm-srgb",35918:"bc2-rgba-unorm-srgb",35919:"bc3-rgba-unorm-srgb",36283:"bc4-r-unorm",36284:"bc4-r-snorm",36285:"bc5-rg-unorm",36286:"bc5-rg-snorm",37488:"eac-r11unorm",37490:"eac-rg11snorm",37492:"etc2-rgb8unorm",37496:"etc2-rgba8unorm",37493:"etc2-rgb8unorm-srgb",37497:"etc2-rgba8unorm-srgb",37494:"etc2-rgb8a1unorm",37495:"etc2-rgb8a1unorm-srgb",37808:"astc-4x4-unorm",37840:"astc-4x4-unorm-srgb",37809:"astc-5x4-unorm",37841:"astc-5x4-unorm-srgb",37810:"astc-5x5-unorm",37842:"astc-5x5-unorm-srgb",37811:"astc-6x5-unorm",37843:"astc-6x5-unorm-srgb",37812:"astc-6x6-unorm",37844:"astc-6x6-unorm-srgb",37813:"astc-8x5-unorm",37845:"astc-8x5-unorm-srgb",37814:"astc-8x6-unorm",37846:"astc-8x6-unorm-srgb",37815:"astc-8x8-unorm",37847:"astc-8x8-unorm-srgb",37816:"astc-10x5-unorm",37848:"astc-10x5-unorm-srgb",37817:"astc-10x6-unorm",37849:"astc-10x6-unorm-srgb",37818:"astc-10x8-unorm",37850:"astc-10x8-unorm-srgb",37819:"astc-10x10-unorm",37851:"astc-10x10-unorm-srgb",37820:"astc-12x10-unorm",37852:"astc-12x10-unorm-srgb",37821:"astc-12x12-unorm",37853:"astc-12x12-unorm-srgb",36492:"bc7-rgba-unorm",36493:"bc7-rgba-unorm-srgb",36494:"bc6h-rgb-float",36495:"bc6h-rgb-ufloat",35907:"rgba8unorm-srgb",36759:"rgba8snorm",36220:"rgba8uint",36238:"rgba8sint",6408:"rgba8unorm"},E2=[171,75,84,88,32,49,49,187,13,10,26,10],A2={FILE_IDENTIFIER:0,ENDIANNESS:12,GL_TYPE:16,GL_TYPE_SIZE:20,GL_FORMAT:24,GL_INTERNAL_FORMAT:28,GL_BASE_INTERNAL_FORMAT:32,PIXEL_WIDTH:36,PIXEL_HEIGHT:40,PIXEL_DEPTH:44,NUMBER_OF_ARRAY_ELEMENTS:48,NUMBER_OF_FACES:52,NUMBER_OF_MIPMAP_LEVELS:56,BYTES_OF_KEY_VALUE_DATA:60},P2=64,w2=67305985,R2={5121:1,5123:2,5124:4,5125:4,5126:4,36193:8},M2={6408:4,6407:3,33319:2,6403:1,6409:1,6410:2,6406:1},C2={32819:2,32820:2,33635:2},O2={33776:.5,33777:.5,33778:1,33779:1,35916:.5,35917:.5,35918:1,35919:1,36283:.5,36284:.5,36285:1,36286:1,37488:.5,37489:.5,37490:1,37491:1,37492:.5,37496:1,37493:.5,37497:1,37494:.5,37495:.5,37808:1,37840:1,37809:.8,37841:.8,37810:.64,37842:.64,37811:.53375,37843:.53375,37812:.445,37844:.445,37813:.4,37845:.4,37814:.33375,37846:.33375,37815:.25,37847:.25,37816:.32,37848:.32,37817:.26625,37849:.26625,37818:.2,37850:.2,37819:.16,37851:.16,37820:.13375,37852:.13375,37821:.11125,37853:.11125,36492:1,36493:1,36494:1,36495:1},tt={FILE_HEADER_SIZE:P2,FILE_IDENTIFIER:E2,FORMATS_TO_COMPONENTS:M2,INTERNAL_FORMAT_TO_BYTES_PER_PIXEL:O2,INTERNAL_FORMAT_TO_TEXTURE_FORMATS:S2,FIELDS:A2,TYPES_TO_BYTES_PER_COMPONENT:R2,TYPES_TO_BYTES_PER_PIXEL:C2,ENDIANNESS:w2};function Nm(r,t){const e=new DataView(r);if(!F2(e))throw new Error("Invalid KTX identifier in header");const{littleEndian:s,glType:i,glFormat:n,glInternalFormat:o,pixelWidth:a,pixelHeight:l,numberOfMipmapLevels:u,offset:h}=I2(e),c=tt.INTERNAL_FORMAT_TO_TEXTURE_FORMATS[o];if(!c)throw new Error(`Unknown texture format ${o}`);if(!t.includes(c))throw new Error(`Unsupported texture format: ${c}, supportedFormats: ${t}`);const d=B2(i,n,o),p=G2(e,i,d,a,l,h,u,s);return{format:c,width:a,height:l,resource:p,alphaMode:"no-premultiply-alpha"}}function G2(r,t,e,s,i,n,o,a){const l=s+3&-4,u=i+3&-4;let h=s*i;t===0&&(h=l*u);let c=h*e,d=s,p=i,f=l,g=u,m=n;const _=new Array(o);for(let v=0;v<o;v++){const b=r.getUint32(m,a);let y=m+4;_[v]=new Uint8Array(r.buffer,y,c),y+=c,m+=b+4,m=m%4!==0?m+4-m%4:m,d=d>>1||1,p=p>>1||1,f=d+4-1&-4,g=p+4-1&-4,c=f*g*e}return _}function B2(r,t,e){let s=tt.INTERNAL_FORMAT_TO_BYTES_PER_PIXEL[e];if(r!==0&&(tt.TYPES_TO_BYTES_PER_COMPONENT[r]?s=tt.TYPES_TO_BYTES_PER_COMPONENT[r]*tt.FORMATS_TO_COMPONENTS[t]:s=tt.TYPES_TO_BYTES_PER_PIXEL[r]),s===void 0)throw new Error("Unable to resolve the pixel format stored in the *.ktx file!");return s}function I2(r){const t=r.getUint32(tt.FIELDS.ENDIANNESS,!0)===tt.ENDIANNESS,e=r.getUint32(tt.FIELDS.GL_TYPE,t),s=r.getUint32(tt.FIELDS.GL_FORMAT,t),i=r.getUint32(tt.FIELDS.GL_INTERNAL_FORMAT,t),n=r.getUint32(tt.FIELDS.PIXEL_WIDTH,t),o=r.getUint32(tt.FIELDS.PIXEL_HEIGHT,t)||1,a=r.getUint32(tt.FIELDS.PIXEL_DEPTH,t)||1,l=r.getUint32(tt.FIELDS.NUMBER_OF_ARRAY_ELEMENTS,t)||1,u=r.getUint32(tt.FIELDS.NUMBER_OF_FACES,t),h=r.getUint32(tt.FIELDS.NUMBER_OF_MIPMAP_LEVELS,t),c=r.getUint32(tt.FIELDS.BYTES_OF_KEY_VALUE_DATA,t);if(o===0||a!==1)throw new Error("Only 2D textures are supported");if(u!==1)throw new Error("CubeTextures are not supported by KTXLoader yet!");if(l!==1)throw new Error("WebGL does not support array textures");return{littleEndian:t,glType:e,glFormat:s,glInternalFormat:i,pixelWidth:n,pixelHeight:o,numberOfMipmapLevels:h,offset:tt.FILE_HEADER_SIZE+c}}function F2(r){for(let t=0;t<tt.FILE_IDENTIFIER.length;t++)if(r.getUint8(t)!==tt.FILE_IDENTIFIER[t])return!1;return!0}const D2={extension:{type:x.LoadParser,priority:vt.High,name:"loadKTX"},name:"loadKTX",test(r){return Ct(r,".ktx")},async load(r,t,e){const s=await Yr(),i=await(await fetch(r)).arrayBuffer(),n=Nm(i,s),o=new Wr(n);return ne(o,e,r)},unload(r){Array.isArray(r)?r.forEach(t=>t.destroy(!0)):r.destroy(!0)}},U2='(function(){"use strict";const s={rgb8unorm:{convertedFormat:"rgba8unorm",convertFunction:i},"rgb8unorm-srgb":{convertedFormat:"rgba8unorm-srgb",convertFunction:i}};function f(r){const t=r.format;if(s[t]){const n=s[t].convertFunction,o=r.resource;for(let e=0;e<o.length;e++)o[e]=n(o[e]);r.format=s[t].convertedFormat}}function i(r){const t=r.byteLength/3,n=new Uint32Array(t);for(let o=0;o<t;++o)n[o]=r[o*3]+(r[o*3+1]<<8)+(r[o*3+2]<<16)+4278190080;return new Uint8Array(n.buffer)}function d(r){const t=[];for(let n=0;n<r.numLevels;n++){const o=r.getImageData(n,0,0),e=new Uint8Array(o.byteLength);e.set(o),t.push(e)}return t}const w={6408:"rgba8unorm",32856:"bgra8unorm",32857:"rgb10a2unorm",33189:"depth16unorm",33190:"depth24plus",33321:"r8unorm",33323:"rg8unorm",33325:"r16float",33326:"r32float",33327:"rg16float",33328:"rg32float",33329:"r8sint",33330:"r8uint",33331:"r16sint",33332:"r16uint",33333:"r32sint",33334:"r32uint",33335:"rg8sint",33336:"rg8uint",33337:"rg16sint",33338:"rg16uint",33339:"rg32sint",33340:"rg32uint",33778:"bc2-rgba-unorm",33779:"bc3-rgba-unorm",34836:"rgba32float",34842:"rgba16float",35056:"depth24plus-stencil8",35898:"rg11b10ufloat",35901:"rgb9e5ufloat",35907:"rgba8unorm-srgb",36012:"depth32float",36013:"depth32float-stencil8",36168:"stencil8",36208:"rgba32uint",36214:"rgba16uint",36220:"rgba8uint",36226:"rgba32sint",36232:"rgba16sint",36238:"rgba8sint",36492:"bc7-rgba-unorm",36756:"r8snorm",36757:"rg8snorm",36759:"rgba8snorm",37496:"etc2-rgba8unorm",37808:"astc-4x4-unorm"};function p(r){const t=w[r];if(t)return t;throw new Error(`Unsupported glInternalFormat: ${r}`)}const h={23:"rgb8unorm",37:"rgba8unorm",43:"rgba8unorm-srgb"};function F(r){const t=h[r];if(t)return t;throw new Error(`Unsupported VkFormat: ${r}`)}function U(r){return r.classId===2?F(r.vkFormat):p(r.glInternalformat)}const T={"bc3-rgba-unorm":"BC3_RGBA","bc7-rgba-unorm":"BC7_M5_RGBA","etc2-rgba8unorm":"ETC2_RGBA","astc-4x4-unorm":"ASTC_4x4_RGBA",rgba8unorm:"RGBA32",rg11b10ufloat:"R11F_G11F_B10F"};function y(r){const t=T[r];if(t)return t;throw new Error(`Unsupported transcoderFormat: ${r}`)}const a={jsUrl:"",wasmUrl:""};let l,u,c;async function g(){if(!c){const r=new URL(a.jsUrl,location.origin).href,t=new URL(a.wasmUrl,location.origin).href;importScripts(r),c=new Promise(n=>{LIBKTX({locateFile:o=>t}).then(o=>{n(o)})})}return c}async function v(r,t){const n=await fetch(r);if(n.ok){const o=await n.arrayBuffer();return new t.ktxTexture(new Uint8Array(o))}throw new Error(`Failed to load KTX(2) texture: ${r}`)}const x=["bc7-rgba-unorm","astc-4x4-unorm","etc2-rgba8unorm","bc3-rgba-unorm","rgba8unorm"];async function B(r){const t=await g(),n=await v(r,t);let o;if(n.needsTranscoding){o=u;const R=t.TranscodeTarget[l];if(n.transcodeBasis(R,0)!==t.ErrorCode.SUCCESS)throw new Error("Unable to transcode basis texture.")}else o=U(n);const e=d(n),b={width:n.baseWidth,height:n.baseHeight,format:o,mipLevelCount:n.numLevels,resource:e,alphaMode:"no-premultiply-alpha"};return f(b),b}async function A(r,t,n){r&&(a.jsUrl=r),t&&(a.wasmUrl=t),u=x.filter(o=>n.includes(o))[0],l=y(u),await g()}const m={init:async r=>{const{jsUrl:t,wasmUrl:n,supportedTextures:o}=r;await A(t,n,o)},load:async r=>{var t;try{const n=await B(r.url);return{type:"load",url:r.url,success:!0,textureOptions:n,transferables:(t=n.resource)==null?void 0:t.map(o=>o.buffer)}}catch(n){throw n}}};self.onmessage=async r=>{var t;const n=r.data,o=await((t=m[n.type])==null?void 0:t.call(m,n));o&&self.postMessage(o,o.transferables)}})();\n';let Qe=null;class Hm{constructor(){Qe||(Qe=URL.createObjectURL(new Blob([U2],{type:"application/javascript"}))),this.worker=new Worker(Qe)}}Hm.revokeObjectURL=function(){Qe&&(URL.revokeObjectURL(Qe),Qe=null)};const mi={jsUrl:"https://files.pixijs.download/transcoders/ktx/libktx.js",wasmUrl:"https://files.pixijs.download/transcoders/ktx/libktx.wasm"};function k2(r){Object.assign(mi,r)}let qr;const Xm={};function $2(r){return qr||(qr=new Hm().worker,qr.onmessage=t=>{const{success:e,url:s,textureOptions:i}=t.data;e||console.warn("Failed to load KTX texture",s),Xm[s](i)},qr.postMessage({type:"init",jsUrl:mi.jsUrl,wasmUrl:mi.wasmUrl,supportedTextures:r})),qr}function jm(r,t){const e=$2(t);return new Promise(s=>{Xm[r]=s,e.postMessage({type:"load",url:r})})}const L2={extension:{type:x.LoadParser,priority:vt.High,name:"loadKTX2"},name:"loadKTX2",test(r){return Ct(r,".ktx2")},async load(r,t,e){const s=await Yr(),i=await jm(r,s),n=new Wr(i);return ne(n,e,r)},async unload(r){Array.isArray(r)?r.forEach(t=>t.destroy(!0)):r.destroy(!0)}},Na={rgb8unorm:{convertedFormat:"rgba8unorm",convertFunction:zm},"rgb8unorm-srgb":{convertedFormat:"rgba8unorm-srgb",convertFunction:zm}};function N2(r){const t=r.format;if(Na[t]){const e=Na[t].convertFunction,s=r.resource;for(let i=0;i<s.length;i++)s[i]=e(s[i]);r.format=Na[t].convertedFormat}}function zm(r){const t=r.byteLength/3,e=new Uint32Array(t);for(let s=0;s<t;++s)e[s]=r[s*3]+(r[s*3+1]<<8)+(r[s*3+2]<<16)+4278190080;return new Uint8Array(e.buffer)}function H2(r){const t=[];for(let e=0;e<r.numLevels;e++){const s=r.getImageData(e,0,0),i=new Uint8Array(s.byteLength);i.set(s),t.push(i)}return t}const X2={6408:"rgba8unorm",32856:"bgra8unorm",32857:"rgb10a2unorm",33189:"depth16unorm",33190:"depth24plus",33321:"r8unorm",33323:"rg8unorm",33325:"r16float",33326:"r32float",33327:"rg16float",33328:"rg32float",33329:"r8sint",33330:"r8uint",33331:"r16sint",33332:"r16uint",33333:"r32sint",33334:"r32uint",33335:"rg8sint",33336:"rg8uint",33337:"rg16sint",33338:"rg16uint",33339:"rg32sint",33340:"rg32uint",33778:"bc2-rgba-unorm",33779:"bc3-rgba-unorm",34836:"rgba32float",34842:"rgba16float",35056:"depth24plus-stencil8",35898:"rg11b10ufloat",35901:"rgb9e5ufloat",35907:"rgba8unorm-srgb",36012:"depth32float",36013:"depth32float-stencil8",36168:"stencil8",36208:"rgba32uint",36214:"rgba16uint",36220:"rgba8uint",36226:"rgba32sint",36232:"rgba16sint",36238:"rgba8sint",36492:"bc7-rgba-unorm",36756:"r8snorm",36757:"rg8snorm",36759:"rgba8snorm",37496:"etc2-rgba8unorm",37808:"astc-4x4-unorm"};function Vm(r){const t=X2[r];if(t)return t;throw new Error(`Unsupported glInternalFormat: ${r}`)}const j2={23:"rgb8unorm",37:"rgba8unorm",43:"rgba8unorm-srgb"};function Wm(r){const t=j2[r];if(t)return t;throw new Error(`Unsupported VkFormat: ${r}`)}function z2(r){return r.classId===2?Wm(r.vkFormat):Vm(r.glInternalformat)}const V2={"bc3-rgba-unorm":"BC3_RGBA","bc7-rgba-unorm":"BC7_M5_RGBA","etc2-rgba8unorm":"ETC2_RGBA","astc-4x4-unorm":"ASTC_4x4_RGBA",rgba8unorm:"RGBA32",rg11b10ufloat:"R11F_G11F_B10F"};function W2(r){const t=V2[r];if(t)return t;throw new Error(`Unsupported transcoderFormat: ${r}`)}const gi=["basis","bc7","bc6h","astc","etc2","bc5","bc4","bc3","bc2","bc1","eac"],Y2={extension:x.ResolveParser,test:r=>Ct(r,[".ktx",".ktx2",".dds"]),parse:r=>{var t,e;let s;const i=r.split(".");if(i.length>2){const n=i[i.length-2];gi.includes(n)&&(s=n)}else s=i[i.length-1];return{resolution:parseFloat((e=(t=ee.RETINA_PREFIX.exec(r))==null?void 0:t[1])!=null?e:"1"),format:s,src:r}}};let _i;const K2={extension:{type:x.DetectionParser,priority:2},test:async()=>!!(await Xr()||Hr()),add:async r=>{const t=await Ua();return _i=q2(t),[..._i,...r]},remove:async r=>_i?r.filter(t=>!(t in _i)):r};function q2(r){const t=["basis"],e={};return r.forEach(s=>{const i=s.split("-")[0];i&&!e[i]&&(e[i]=!0,t.push(i))}),t.sort((s,i)=>{const n=gi.indexOf(s),o=gi.indexOf(i);return n===-1?1:o===-1?-1:n-o}),t}const Z2=new at,Ha=class{cull(t,e,s=!0){this._cullRecursive(t,e,s)}_cullRecursive(t,e,s=!0){var i;if(t.cullable&&t.measurable&&t.includeInBuild){const n=(i=t.cullArea)!=null?i:mr(t,s,Z2);t.culled=n.x>=e.x+e.width||n.y>=e.y+e.height||n.x+n.width<=e.x||n.y+n.height<=e.y}else t.culled=!1;if(!(!t.cullableChildren||t.culled||!t.renderable||!t.measurable||!t.includeInBuild))for(let n=0;n<t.children.length;n++)this._cullRecursive(t.children[n],e,s)}};Ha.shared=new Ha;let Ym=Ha;class Km{static init(){this._renderRef=this.render.bind(this),this.render=()=>{Ym.shared.cull(this.stage,this.renderer.screen),this.renderer.render({container:this.stage})}}static destroy(){this.render=this._renderRef}}Km.extension={priority:10,type:x.Application,name:"culler"};const Q2={extension:{type:x.Environment,name:"browser",priority:-1},test:()=>!0,load:async()=>{await Promise.resolve().then(function(){return QT})}};var J2=Object.defineProperty,xi=Object.getOwnPropertySymbols,qm=Object.prototype.hasOwnProperty,Zm=Object.prototype.propertyIsEnumerable,Qm=(r,t,e)=>t in r?J2(r,t,{enumerable:!0,configurable:!0,writable:!0,value:e}):r[t]=e,Xa=(r,t)=>{for(var e in t||(t={}))qm.call(t,e)&&Qm(r,e,t[e]);if(xi)for(var e of xi(t))Zm.call(t,e)&&Qm(r,e,t[e]);return r},tE=(r,t)=>{var e={};for(var s in r)qm.call(r,s)&&t.indexOf(s)<0&&(e[s]=r[s]);if(r!=null&&xi)for(var s of xi(r))t.indexOf(s)<0&&Zm.call(r,s)&&(e[s]=r[s]);return e};const Jm=class Ru extends Pt{constructor(t){t=Xa(Xa({},Ru.defaultOptions),t),super(t),this.enabled=!0,this._state=Tt.for2d(),this.blendMode=t.blendMode,this.padding=t.padding,typeof t.antialias=="boolean"?this.antialias=t.antialias?"on":"off":this.antialias=t.antialias,this.resolution=t.resolution,this.blendRequired=t.blendRequired,this.clipToViewport=t.clipToViewport,this.addResource("uTexture",0,1)}apply(t,e,s,i){t.applyFilter(this,e,s,i)}get blendMode(){return this._state.blendMode}set blendMode(t){this._state.blendMode=t}static from(t){const e=t,{gpu:s,gl:i}=e,n=tE(e,["gpu","gl"]);let o,a;return s&&(o=bt.from(s)),i&&(a=yt.from(i)),new Ru(Xa({gpuProgram:o,glProgram:a},n))}};Jm.defaultOptions={blendMode:"normal",resolution:1,padding:0,antialias:"off",blendRequired:!1,clipToViewport:!0};let Qt=Jm;var tg=`
+in vec2 vTextureCoord;
+in vec4 vColor;
+
+out vec4 finalColor;
+
+uniform float uBlend;
+
+uniform sampler2D uTexture;
+uniform sampler2D uBackTexture;
+
+{FUNCTIONS}
+
+void main()
+{ 
+    vec4 back = texture(uBackTexture, vTextureCoord);
+    vec4 front = texture(uTexture, vTextureCoord);
+    float blendedAlpha = front.a + back.a * (1.0 - front.a);
+    
+    {MAIN}
+}
+`,eg=`in vec2 aPosition;
+out vec2 vTextureCoord;
+out vec2 backgroundUv;
+
+uniform vec4 uInputSize;
+uniform vec4 uOutputFrame;
+uniform vec4 uOutputTexture;
+
+vec4 filterVertexPosition( void )
+{
+    vec2 position = aPosition * uOutputFrame.zw + uOutputFrame.xy;
+    
+    position.x = position.x * (2.0 / uOutputTexture.x) - 1.0;
+    position.y = position.y * (2.0*uOutputTexture.z / uOutputTexture.y) - uOutputTexture.z;
+
+    return vec4(position, 0.0, 1.0);
+}
+
+vec2 filterTextureCoord( void )
+{
+    return aPosition * (uOutputFrame.zw * uInputSize.zw);
+}
+
+void main(void)
+{
+    gl_Position = filterVertexPosition();
+    vTextureCoord = filterTextureCoord();
+}
+`,rg=`
+struct GlobalFilterUniforms {
+  uInputSize:vec4<f32>,
+  uInputPixel:vec4<f32>,
+  uInputClamp:vec4<f32>,
+  uOutputFrame:vec4<f32>,
+  uGlobalFrame:vec4<f32>,
+  uOutputTexture:vec4<f32>,
+};
+
+struct BlendUniforms {
+  uBlend:f32,
+};
+
+@group(0) @binding(0) var<uniform> gfu: GlobalFilterUniforms;
+@group(0) @binding(1) var uTexture: texture_2d<f32>;
+@group(0) @binding(2) var uSampler : sampler;
+@group(0) @binding(3) var uBackTexture: texture_2d<f32>;
+
+@group(1) @binding(0) var<uniform> blendUniforms : BlendUniforms;
+
+
+struct VSOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv : vec2<f32>
+  };
+
+fn filterVertexPosition(aPosition:vec2<f32>) -> vec4<f32>
+{
+    var position = aPosition * gfu.uOutputFrame.zw + gfu.uOutputFrame.xy;
+
+    position.x = position.x * (2.0 / gfu.uOutputTexture.x) - 1.0;
+    position.y = position.y * (2.0*gfu.uOutputTexture.z / gfu.uOutputTexture.y) - gfu.uOutputTexture.z;
+
+    return vec4(position, 0.0, 1.0);
+}
+
+fn filterTextureCoord( aPosition:vec2<f32> ) -> vec2<f32>
+{
+    return aPosition * (gfu.uOutputFrame.zw * gfu.uInputSize.zw);
+}
+
+fn globalTextureCoord( aPosition:vec2<f32> ) -> vec2<f32>
+{
+  return  (aPosition.xy / gfu.uGlobalFrame.zw) + (gfu.uGlobalFrame.xy / gfu.uGlobalFrame.zw);  
+}
+  
+@vertex
+fn mainVertex(
+  @location(0) aPosition : vec2<f32>, 
+) -> VSOutput {
+  return VSOutput(
+   filterVertexPosition(aPosition),
+   filterTextureCoord(aPosition)
+  );
+}
+
+{FUNCTIONS}
+
+@fragment
+fn mainFragment(
+  @location(0) uv: vec2<f32>
+) -> @location(0) vec4<f32> {
+
+
+   var back =  textureSample(uBackTexture, uSampler, uv);
+   var front = textureSample(uTexture, uSampler, uv);
+   var blendedAlpha = front.a + back.a * (1.0 - front.a);
+   
+   var out = vec4<f32>(0.0,0.0,0.0,0.0);
+
+   {MAIN}
+
+   return out;
+}`,eE=Object.defineProperty,sg=Object.getOwnPropertySymbols,rE=Object.prototype.hasOwnProperty,sE=Object.prototype.propertyIsEnumerable,ig=(r,t,e)=>t in r?eE(r,t,{enumerable:!0,configurable:!0,writable:!0,value:e}):r[t]=e,ng=(r,t)=>{for(var e in t||(t={}))rE.call(t,e)&&ig(r,e,t[e]);if(sg)for(var e of sg(t))sE.call(t,e)&&ig(r,e,t[e]);return r};class iE extends Qt{constructor(t){const e=t.gpu,s=og(ng({source:rg},e)),i=bt.from({vertex:{source:s,entryPoint:"mainVertex"},fragment:{source:s,entryPoint:"mainFragment"}}),n=t.gl,o=og(ng({source:tg},n)),a=yt.from({vertex:eg,fragment:o}),l=new rt({uBlend:{value:1,type:"f32"}});super({gpuProgram:i,glProgram:a,blendRequired:!0,resources:{blendUniforms:l,uBackTexture:A.EMPTY}})}}function og(r){const{source:t,functions:e,main:s}=r;return t.replace("{FUNCTIONS}",e).replace("{MAIN}",s)}const nE=`
+	float getLuminosity(vec3 c) {
+		return 0.3 * c.r + 0.59 * c.g + 0.11 * c.b;
+	}
+
+	vec3 setLuminosity(vec3 c, float lum) {
+		float modLum = lum - getLuminosity(c);
+		vec3 color = c.rgb + vec3(modLum);
+
+		// clip back into legal range
+		modLum = getLuminosity(color);
+		vec3 modLumVec = vec3(modLum);
+
+		float cMin = min(color.r, min(color.g, color.b));
+		float cMax = max(color.r, max(color.g, color.b));
+
+		if(cMin < 0.0) {
+			color = mix(modLumVec, color, modLum / (modLum - cMin));
+		}
+
+		if(cMax > 1.0) {
+			color = mix(modLumVec, color, (1.0 - modLum) / (cMax - modLum));
+		}
+
+		return color;
+	}
+
+	float getSaturation(vec3 c) {
+		return max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b));
+	}
+
+	vec3 setSaturationMinMidMax(vec3 cSorted, float s) {
+		vec3 colorSorted = cSorted;
+
+		if(colorSorted.z > colorSorted.x) {
+			colorSorted.y = (((colorSorted.y - colorSorted.x) * s) / (colorSorted.z - colorSorted.x));
+			colorSorted.z = s;
+		}
+		else {
+			colorSorted.y = 0.0;
+			colorSorted.z = 0.0;
+		}
+
+		colorSorted.x = 0.0;
+
+		return colorSorted;
+	}
+
+	vec3 setSaturation(vec3 c, float s) {
+		vec3 color = c;
+
+		if(color.r <= color.g && color.r <= color.b) {
+			if(color.g <= color.b) {
+				color = setSaturationMinMidMax(color.rgb, s).rgb;
+			}
+			else {
+				color = setSaturationMinMidMax(color.rbg, s).rbg;
+			}
+		}
+		else if(color.g <= color.r && color.g <= color.b) {
+			if(color.r <= color.b) {
+				color = setSaturationMinMidMax(color.grb, s).grb;
+			}
+			else {
+				color = setSaturationMinMidMax(color.gbr, s).gbr;
+			}
+		}
+		else {
+			// Using bgr for both fixes part of hue
+			if(color.r <= color.g) {
+				color = setSaturationMinMidMax(color.brg, s).brg;
+			}
+			else {
+				color = setSaturationMinMidMax(color.bgr, s).bgr;
+			}
+		}
+
+		return color;
+	}
+    `,oE=`
+	fn getLuminosity(c: vec3<f32>) -> f32
+	{
+		return 0.3*c.r + 0.59*c.g + 0.11*c.b;
+	}
+
+	fn setLuminosity(c: vec3<f32>, lum: f32) -> vec3<f32>
+	{
+		var modLum: f32 = lum - getLuminosity(c);
+		var color: vec3<f32> = c.rgb + modLum;
+
+		// clip back into legal range
+		modLum = getLuminosity(color);
+		let modLumVec = vec3<f32>(modLum);
+
+		let cMin: f32 = min(color.r, min(color.g, color.b));
+		let cMax: f32 = max(color.r, max(color.g, color.b));
+
+		if(cMin < 0.0)
+		{
+			color = mix(modLumVec, color, modLum / (modLum - cMin));
+		}
+
+		if(cMax > 1.0)
+		{
+			color = mix(modLumVec, color, (1 - modLum) / (cMax - modLum));
+		}
+
+		return color;
+	}
+
+	fn getSaturation(c: vec3<f32>) -> f32
+	{
+		return max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b));
+	}
+
+	fn setSaturationMinMidMax(cSorted: vec3<f32>, s: f32) -> vec3<f32>
+	{
+		var colorSorted = cSorted;
+
+		if(colorSorted.z > colorSorted.x)
+		{
+			colorSorted.y = (((colorSorted.y - colorSorted.x) * s) / (colorSorted.z - colorSorted.x));
+			colorSorted.z = s;
+		}
+		else
+		{
+			colorSorted.y = 0;
+			colorSorted.z = 0;
+		}
+
+		colorSorted.x = 0;
+
+		return colorSorted;
+	}
+
+	fn setSaturation(c: vec3<f32>, s: f32) -> vec3<f32>
+	{
+		var color = c;
+
+		if (color.r <= color.g && color.r <= color.b)
+		{
+			if (color.g <= color.b)
+			{
+				color = vec3<f32>(setSaturationMinMidMax(color.rgb, s)).rgb;
+			}
+			else
+			{
+				color = vec3<f32>(setSaturationMinMidMax(color.rbg, s)).rbg;
+			}
+		}
+		else if (color.g <= color.r && color.g <= color.b)
+		{
+			if (color.r <= color.b)
+			{
+				color = vec3<f32>(setSaturationMinMidMax(color.grb, s)).grb;
+			}
+			else
+			{
+				color = vec3<f32>(setSaturationMinMidMax(color.gbr, s)).gbr;
+			}
+		}
+		else
+		{
+			// Using bgr for both fixes part of hue
+			if (color.r <= color.g)
+			{
+				color = vec3<f32>(setSaturationMinMidMax(color.brg, s)).brg;
+			}
+			else
+			{
+				color  = vec3<f32>(setSaturationMinMidMax(color.bgr, s)).bgr;
+			}
+		}
+
+		return color;
+	}
+	`;var bi=`in vec2 aPosition;
+out vec2 vTextureCoord;
+
+uniform vec4 uInputSize;
+uniform vec4 uOutputFrame;
+uniform vec4 uOutputTexture;
+
+vec4 filterVertexPosition( void )
+{
+    vec2 position = aPosition * uOutputFrame.zw + uOutputFrame.xy;
+    
+    position.x = position.x * (2.0 / uOutputTexture.x) - 1.0;
+    position.y = position.y * (2.0*uOutputTexture.z / uOutputTexture.y) - uOutputTexture.z;
+
+    return vec4(position, 0.0, 1.0);
+}
+
+vec2 filterTextureCoord( void )
+{
+    return aPosition * (uOutputFrame.zw * uInputSize.zw);
+}
+
+void main(void)
+{
+    gl_Position = filterVertexPosition();
+    vTextureCoord = filterTextureCoord();
+}
+`,ag=`
+in vec2 vTextureCoord;
+
+out vec4 finalColor;
+
+uniform float uAlpha;
+uniform sampler2D uTexture;
+
+void main()
+{
+    finalColor =  texture(uTexture, vTextureCoord) * uAlpha;
+}
+`,ja=`struct GlobalFilterUniforms {
+  uInputSize:vec4<f32>,
+  uInputPixel:vec4<f32>,
+  uInputClamp:vec4<f32>,
+  uOutputFrame:vec4<f32>,
+  uGlobalFrame:vec4<f32>,
+  uOutputTexture:vec4<f32>,
+};
+
+struct AlphaUniforms {
+  uAlpha:f32,
+};
+
+@group(0) @binding(0) var<uniform> gfu: GlobalFilterUniforms;
+@group(0) @binding(1) var uTexture: texture_2d<f32>;
+@group(0) @binding(2) var uSampler : sampler;
+
+@group(1) @binding(0) var<uniform> alphaUniforms : AlphaUniforms;
+
+struct VSOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv : vec2<f32>
+  };
+
+fn filterVertexPosition(aPosition:vec2<f32>) -> vec4<f32>
+{
+    var position = aPosition * gfu.uOutputFrame.zw + gfu.uOutputFrame.xy;
+
+    position.x = position.x * (2.0 / gfu.uOutputTexture.x) - 1.0;
+    position.y = position.y * (2.0*gfu.uOutputTexture.z / gfu.uOutputTexture.y) - gfu.uOutputTexture.z;
+
+    return vec4(position, 0.0, 1.0);
+}
+
+fn filterTextureCoord( aPosition:vec2<f32> ) -> vec2<f32>
+{
+    return aPosition * (gfu.uOutputFrame.zw * gfu.uInputSize.zw);
+}
+
+fn globalTextureCoord( aPosition:vec2<f32> ) -> vec2<f32>
+{
+  return  (aPosition.xy / gfu.uGlobalFrame.zw) + (gfu.uGlobalFrame.xy / gfu.uGlobalFrame.zw);  
+}
+
+fn getSize() -> vec2<f32>
+{
+  return gfu.uGlobalFrame.zw;
+}
+  
+@vertex
+fn mainVertex(
+  @location(0) aPosition : vec2<f32>, 
+) -> VSOutput {
+  return VSOutput(
+   filterVertexPosition(aPosition),
+   filterTextureCoord(aPosition)
+  );
+}
+
+@fragment
+fn mainFragment(
+  @location(0) uv: vec2<f32>,
+  @builtin(position) position: vec4<f32>
+) -> @location(0) vec4<f32> {
+ 
+    var sample = textureSample(uTexture, uSampler, uv);
+    
+    return sample * alphaUniforms.uAlpha;
+}`,aE=Object.defineProperty,lE=Object.defineProperties,uE=Object.getOwnPropertyDescriptors,vi=Object.getOwnPropertySymbols,lg=Object.prototype.hasOwnProperty,ug=Object.prototype.propertyIsEnumerable,hg=(r,t,e)=>t in r?aE(r,t,{enumerable:!0,configurable:!0,writable:!0,value:e}):r[t]=e,za=(r,t)=>{for(var e in t||(t={}))lg.call(t,e)&&hg(r,e,t[e]);if(vi)for(var e of vi(t))ug.call(t,e)&&hg(r,e,t[e]);return r},hE=(r,t)=>lE(r,uE(t)),cE=(r,t)=>{var e={};for(var s in r)lg.call(r,s)&&t.indexOf(s)<0&&(e[s]=r[s]);if(r!=null&&vi)for(var s of vi(r))t.indexOf(s)<0&&ug.call(r,s)&&(e[s]=r[s]);return e};const cg=class vv extends Qt{constructor(t){t=za(za({},vv.defaultOptions),t);const e=bt.from({vertex:{source:ja,entryPoint:"mainVertex"},fragment:{source:ja,entryPoint:"mainFragment"}}),s=yt.from({vertex:bi,fragment:ag,name:"alpha-filter"}),i=t,{alpha:n}=i,o=cE(i,["alpha"]),a=new rt({uAlpha:{value:n,type:"f32"}});super(hE(za({},o),{gpuProgram:e,glProgram:s,resources:{alphaUniforms:a}}))}get alpha(){return this.resources.alphaUniforms.uniforms.uAlpha}set alpha(t){this.resources.alphaUniforms.uniforms.uAlpha=t}};cg.defaultOptions={alpha:1};let dE=cg;const Va={5:[.153388,.221461,.250301],7:[.071303,.131514,.189879,.214607],9:[.028532,.067234,.124009,.179044,.20236],11:[.0093,.028002,.065984,.121703,.175713,.198596],13:[.002406,.009255,.027867,.065666,.121117,.174868,.197641],15:[489e-6,.002403,.009246,.02784,.065602,.120999,.174697,.197448]},pE=["in vec2 vBlurTexCoords[%size%];","uniform sampler2D uTexture;","out vec4 finalColor;","void main(void)","{","    finalColor = vec4(0.0);","    %blur%","}"].join(`
+`);function dg(r){const t=Va[r],e=t.length;let s=pE,i="";const n="finalColor += texture(uTexture, vBlurTexCoords[%index%]) * %value%;";let o;for(let a=0;a<r;a++){let l=n.replace("%index%",a.toString());o=a,a>=e&&(o=r-a-1),l=l.replace("%value%",t[o].toString()),i+=l,i+=`
+`}return s=s.replace("%blur%",i),s=s.replace("%size%",r.toString()),s}const fE=`
+    in vec2 aPosition;
+
+    uniform float uStrength;
+
+    out vec2 vBlurTexCoords[%size%];
+
+    uniform vec4 uInputSize;
+    uniform vec4 uOutputFrame;
+    uniform vec4 uOutputTexture;
+
+    vec4 filterVertexPosition( void )
+{
+    vec2 position = aPosition * uOutputFrame.zw + uOutputFrame.xy;
+    
+    position.x = position.x * (2.0 / uOutputTexture.x) - 1.0;
+    position.y = position.y * (2.0*uOutputTexture.z / uOutputTexture.y) - uOutputTexture.z;
+
+    return vec4(position, 0.0, 1.0);
+}
+
+    vec2 filterTextureCoord( void )
+    {
+        return aPosition * (uOutputFrame.zw * uInputSize.zw);
+    }
+
+    void main(void)
+    {
+        gl_Position = filterVertexPosition();
+
+        float pixelStrength = uInputSize.%dimension% * uStrength;
+
+        vec2 textureCoord = filterTextureCoord();
+        %blur%
+    }`;function pg(r,t){const e=Math.ceil(r/2);let s=fE,i="",n;t?n="vBlurTexCoords[%index%] =  textureCoord + vec2(%sampleIndex% * pixelStrength, 0.0);":n="vBlurTexCoords[%index%] =  textureCoord + vec2(0.0, %sampleIndex% * pixelStrength);";for(let o=0;o<r;o++){let a=n.replace("%index%",o.toString());a=a.replace("%sampleIndex%",`${o-(e-1)}.0`),i+=a,i+=`
+`}return s=s.replace("%blur%",i),s=s.replace("%size%",r.toString()),s=s.replace("%dimension%",t?"z":"w"),s}function fg(r,t){const e=pg(t,r),s=dg(t);return yt.from({vertex:e,fragment:s,name:`blur-${r?"horizontal":"vertical"}-pass-filter`})}var mg=`
+
+struct GlobalFilterUniforms {
+  uInputSize:vec4<f32>,
+  uInputPixel:vec4<f32>,
+  uInputClamp:vec4<f32>,
+  uOutputFrame:vec4<f32>,
+  uGlobalFrame:vec4<f32>,
+  uOutputTexture:vec4<f32>,
+};
+
+struct BlurUniforms {
+  uStrength:f32,
+};
+
+@group(0) @binding(0) var<uniform> gfu: GlobalFilterUniforms;
+@group(0) @binding(1) var uTexture: texture_2d<f32>;
+@group(0) @binding(2) var uSampler : sampler;
+
+@group(1) @binding(0) var<uniform> blurUniforms : BlurUniforms;
+
+
+struct VSOutput {
+    @builtin(position) position: vec4<f32>,
+    %blur-struct%
+  };
+
+fn filterVertexPosition(aPosition:vec2<f32>) -> vec4<f32>
+{
+    var position = aPosition * gfu.uOutputFrame.zw + gfu.uOutputFrame.xy;
+
+    position.x = position.x * (2.0 / gfu.uOutputTexture.x) - 1.0;
+    position.y = position.y * (2.0*gfu.uOutputTexture.z / gfu.uOutputTexture.y) - gfu.uOutputTexture.z;
+
+    return vec4(position, 0.0, 1.0);
+}
+
+fn filterTextureCoord( aPosition:vec2<f32> ) -> vec2<f32>
+{
+    return aPosition * (gfu.uOutputFrame.zw * gfu.uInputSize.zw);
+}
+
+fn globalTextureCoord( aPosition:vec2<f32> ) -> vec2<f32>
+{
+  return  (aPosition.xy / gfu.uGlobalFrame.zw) + (gfu.uGlobalFrame.xy / gfu.uGlobalFrame.zw);  
+}
+
+fn getSize() -> vec2<f32>
+{
+  return gfu.uGlobalFrame.zw;
+}
+
+
+@vertex
+fn mainVertex(
+  @location(0) aPosition : vec2<f32>, 
+) -> VSOutput {
+
+  let filteredCord = filterTextureCoord(aPosition);
+
+  let pixelStrength = gfu.uInputSize.%dimension% * blurUniforms.uStrength;
+
+  return VSOutput(
+   filterVertexPosition(aPosition),
+    %blur-vertex-out%
+  );
+}
+
+@fragment
+fn mainFragment(
+  @builtin(position) position: vec4<f32>,
+  %blur-fragment-in%
+) -> @location(0) vec4<f32> {
+
+    var   finalColor = vec4(0.0);
+
+    %blur-sampling%
+
+    return finalColor;
+}`;function gg(r,t){const e=Va[t],s=e.length,i=[],n=[],o=[];for(let c=0;c<t;c++){i[c]=`@location(${c}) offset${c}: vec2<f32>,`,r?n[c]=`filteredCord + vec2(${c-s+1} * pixelStrength, 0.0),`:n[c]=`filteredCord + vec2(0.0, ${c-s+1} * pixelStrength),`;const d=c<s?c:t-c-1,p=e[d].toString();o[c]=`finalColor += textureSample(uTexture, uSampler, offset${c}) * ${p};`}const a=i.join(`
+`),l=n.join(`
+`),u=o.join(`
+`),h=mg.replace("%blur-struct%",a).replace("%blur-vertex-out%",l).replace("%blur-fragment-in%",a).replace("%blur-sampling%",u).replace("%dimension%",r?"z":"w");return bt.from({vertex:{source:h,entryPoint:"mainVertex"},fragment:{source:h,entryPoint:"mainFragment"}})}var mE=Object.defineProperty,_g=Object.getOwnPropertySymbols,gE=Object.prototype.hasOwnProperty,_E=Object.prototype.propertyIsEnumerable,xg=(r,t,e)=>t in r?mE(r,t,{enumerable:!0,configurable:!0,writable:!0,value:e}):r[t]=e,Wa=(r,t)=>{for(var e in t||(t={}))gE.call(t,e)&&xg(r,e,t[e]);if(_g)for(var e of _g(t))_E.call(t,e)&&xg(r,e,t[e]);return r};const bg=class yv extends Qt{constructor(t){t=Wa(Wa({},yv.defaultOptions),t);const e=fg(t.horizontal,t.kernelSize),s=gg(t.horizontal,t.kernelSize);super(Wa({glProgram:e,gpuProgram:s,resources:{blurUniforms:{uStrength:{value:0,type:"f32"}}}},t)),this.horizontal=t.horizontal,this._quality=0,this.quality=t.quality,this.blur=t.strength,this._uniforms=this.resources.blurUniforms.uniforms}apply(t,e,s,i){if(this._uniforms.uStrength=this.strength/this.passes,this.passes===1)t.applyFilter(this,e,s,i);else{const n=et.getSameSizeTexture(e);let o=e,a=n;this._state.blend=!1;const l=t.renderer.type===mt.WEBGPU;for(let u=0;u<this.passes-1;u++){t.applyFilter(this,o,a,u===0?!0:l);const h=a;a=o,o=h}this._state.blend=!0,t.applyFilter(this,o,s,i),et.returnTexture(n)}}get blur(){return this.strength}set blur(t){this.padding=1+Math.abs(t)*2,this.strength=t}get quality(){return this._quality}set quality(t){this._quality=t,this.passes=t}};bg.defaultOptions={strength:8,quality:4,kernelSize:5};let yi=bg;var xE=Object.defineProperty,bE=Object.defineProperties,vE=Object.getOwnPropertyDescriptors,Ti=Object.getOwnPropertySymbols,vg=Object.prototype.hasOwnProperty,yg=Object.prototype.propertyIsEnumerable,Tg=(r,t,e)=>t in r?xE(r,t,{enumerable:!0,configurable:!0,writable:!0,value:e}):r[t]=e,Zr=(r,t)=>{for(var e in t||(t={}))vg.call(t,e)&&Tg(r,e,t[e]);if(Ti)for(var e of Ti(t))yg.call(t,e)&&Tg(r,e,t[e]);return r},yE=(r,t)=>bE(r,vE(t)),TE=(r,t)=>{var e={};for(var s in r)vg.call(r,s)&&t.indexOf(s)<0&&(e[s]=r[s]);if(r!=null&&Ti)for(var s of Ti(r))t.indexOf(s)<0&&yg.call(r,s)&&(e[s]=r[s]);return e};class Sg extends Qt{constructor(...t){var e;let s=(e=t[0])!=null?e:{};typeof s=="number"&&(s={strength:s},t[1]!==void 0&&(s.quality=t[1]),t[2]!==void 0&&(s.resolution=t[2]||"inherit"),t[3]!==void 0&&(s.kernelSize=t[3])),s=Zr(Zr({},yi.defaultOptions),s);const i=s,{strength:n,strengthX:o,strengthY:a,quality:l}=i,u=TE(i,["strength","strengthX","strengthY","quality"]);super(yE(Zr({},u),{compatibleRenderers:mt.BOTH,resources:{}})),this._repeatEdgePixels=!1,this.blurXFilter=new yi(Zr({horizontal:!0},s)),this.blurYFilter=new yi(Zr({horizontal:!1},s)),this.quality=l,this.strengthX=o!=null?o:n,this.strengthY=a!=null?a:n,this.repeatEdgePixels=!1}apply(t,e,s,i){const n=Math.abs(this.blurXFilter.strength),o=Math.abs(this.blurYFilter.strength);if(n&&o){const a=et.getSameSizeTexture(e);this.blurXFilter.blendMode="normal",this.blurXFilter.apply(t,e,a,!0),this.blurYFilter.blendMode=this.blendMode,this.blurYFilter.apply(t,a,s,i),et.returnTexture(a)}else o?(this.blurYFilter.blendMode=this.blendMode,this.blurYFilter.apply(t,e,s,i)):(this.blurXFilter.blendMode=this.blendMode,this.blurXFilter.apply(t,e,s,i))}updatePadding(){this._repeatEdgePixels?this.padding=0:this.padding=Math.max(Math.abs(this.blurXFilter.blur),Math.abs(this.blurYFilter.blur))*2}get strength(){if(this.strengthX!==this.strengthY)throw new Error("BlurFilter's strengthX and strengthY are different");return this.strengthX}set strength(t){this.blurXFilter.blur=this.blurYFilter.blur=t,this.updatePadding()}get quality(){return this.blurXFilter.quality}set quality(t){this.blurXFilter.quality=this.blurYFilter.quality=t}get strengthX(){return this.blurXFilter.blur}set strengthX(t){this.blurXFilter.blur=t,this.updatePadding()}get strengthY(){return this.blurYFilter.blur}set strengthY(t){this.blurYFilter.blur=t,this.updatePadding()}get blur(){return this.strength}set blur(t){this.strength=t}get blurX(){return this.strengthX}set blurX(t){this.strengthX=t}get blurY(){return this.strengthY}set blurY(t){this.strengthY=t}get repeatEdgePixels(){return this._repeatEdgePixels}set repeatEdgePixels(t){this._repeatEdgePixels=t,this.updatePadding()}}Sg.defaultOptions={strength:8,quality:4,kernelSize:5};var Eg=`
+in vec2 vTextureCoord;
+in vec4 vColor;
+
+out vec4 finalColor;
+
+uniform float uColorMatrix[20];
+uniform float uAlpha;
+
+uniform sampler2D uTexture;
+
+float rand(vec2 co)
+{
+    return fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+void main()
+{
+    vec4 color = texture(uTexture, vTextureCoord);
+    float randomValue = rand(gl_FragCoord.xy * 0.2);
+    float diff = (randomValue - 0.5) *  0.5;
+
+    if (uAlpha == 0.0) {
+        finalColor = color;
+        return;
+    }
+
+    if (color.a > 0.0) {
+        color.rgb /= color.a;
+    }
+
+    vec4 result;
+
+    result.r = (uColorMatrix[0] * color.r);
+        result.r += (uColorMatrix[1] * color.g);
+        result.r += (uColorMatrix[2] * color.b);
+        result.r += (uColorMatrix[3] * color.a);
+        result.r += uColorMatrix[4];
+
+    result.g = (uColorMatrix[5] * color.r);
+        result.g += (uColorMatrix[6] * color.g);
+        result.g += (uColorMatrix[7] * color.b);
+        result.g += (uColorMatrix[8] * color.a);
+        result.g += uColorMatrix[9];
+
+    result.b = (uColorMatrix[10] * color.r);
+       result.b += (uColorMatrix[11] * color.g);
+       result.b += (uColorMatrix[12] * color.b);
+       result.b += (uColorMatrix[13] * color.a);
+       result.b += uColorMatrix[14];
+
+    result.a = (uColorMatrix[15] * color.r);
+       result.a += (uColorMatrix[16] * color.g);
+       result.a += (uColorMatrix[17] * color.b);
+       result.a += (uColorMatrix[18] * color.a);
+       result.a += uColorMatrix[19];
+
+    vec3 rgb = mix(color.rgb, result.rgb, uAlpha);
+
+    // Premultiply alpha again.
+    rgb *= result.a;
+
+    finalColor = vec4(rgb, result.a);
+}
+`,Ya=`struct GlobalFilterUniforms {
+  uInputSize:vec4<f32>,
+  uInputPixel:vec4<f32>,
+  uInputClamp:vec4<f32>,
+  uOutputFrame:vec4<f32>,
+  uGlobalFrame:vec4<f32>,
+  uOutputTexture:vec4<f32>,
+};
+
+struct ColorMatrixUniforms {
+  uColorMatrix:array<vec4<f32>, 5>,
+  uAlpha:f32,
+};
+
+
+@group(0) @binding(0) var<uniform> gfu: GlobalFilterUniforms;
+@group(0) @binding(1) var uTexture: texture_2d<f32>;
+@group(0) @binding(2) var uSampler : sampler;
+@group(1) @binding(0) var<uniform> colorMatrixUniforms : ColorMatrixUniforms;
+
+
+struct VSOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv : vec2<f32>,
+  };
+  
+fn filterVertexPosition(aPosition:vec2<f32>) -> vec4<f32>
+{
+    var position = aPosition * gfu.uOutputFrame.zw + gfu.uOutputFrame.xy;
+
+    position.x = position.x * (2.0 / gfu.uOutputTexture.x) - 1.0;
+    position.y = position.y * (2.0*gfu.uOutputTexture.z / gfu.uOutputTexture.y) - gfu.uOutputTexture.z;
+
+    return vec4(position, 0.0, 1.0);
+}
+
+fn filterTextureCoord( aPosition:vec2<f32> ) -> vec2<f32>
+{
+  return aPosition * (gfu.uOutputFrame.zw * gfu.uInputSize.zw);
+}
+
+@vertex
+fn mainVertex(
+  @location(0) aPosition : vec2<f32>, 
+) -> VSOutput {
+  return VSOutput(
+   filterVertexPosition(aPosition),
+   filterTextureCoord(aPosition),
+  );
+}
+
+
+@fragment
+fn mainFragment(
+  @location(0) uv: vec2<f32>,
+) -> @location(0) vec4<f32> {
+
+
+  var c = textureSample(uTexture, uSampler, uv);
+  
+  if (colorMatrixUniforms.uAlpha == 0.0) {
+    return c;
+  }
+
+ 
+    // Un-premultiply alpha before applying the color matrix. See issue #3539.
+    if (c.a > 0.0) {
+      c.r /= c.a;
+      c.g /= c.a;
+      c.b /= c.a;
+    }
+
+    var cm = colorMatrixUniforms.uColorMatrix;
+
+
+    var result = vec4<f32>(0.);
+
+    result.r = (cm[0][0] * c.r);
+    result.r += (cm[0][1] * c.g);
+    result.r += (cm[0][2] * c.b);
+    result.r += (cm[0][3] * c.a);
+    result.r += cm[1][0];
+
+    result.g = (cm[1][1] * c.r);
+    result.g += (cm[1][2] * c.g);
+    result.g += (cm[1][3] * c.b);
+    result.g += (cm[2][0] * c.a);
+    result.g += cm[2][1];
+
+    result.b = (cm[2][2] * c.r);
+    result.b += (cm[2][3] * c.g);
+    result.b += (cm[3][0] * c.b);
+    result.b += (cm[3][1] * c.a);
+    result.b += cm[3][2];
+
+    result.a = (cm[3][3] * c.r);
+    result.a += (cm[4][0] * c.g);
+    result.a += (cm[4][1] * c.b);
+    result.a += (cm[4][2] * c.a);
+    result.a += cm[4][3];
+
+    var rgb = mix(c.rgb, result.rgb, colorMatrixUniforms.uAlpha);
+
+    rgb.r *= result.a;
+    rgb.g *= result.a;
+    rgb.b *= result.a;
+
+    return vec4(rgb, result.a);
+}`,SE=Object.defineProperty,EE=Object.defineProperties,AE=Object.getOwnPropertyDescriptors,Ag=Object.getOwnPropertySymbols,PE=Object.prototype.hasOwnProperty,wE=Object.prototype.propertyIsEnumerable,Pg=(r,t,e)=>t in r?SE(r,t,{enumerable:!0,configurable:!0,writable:!0,value:e}):r[t]=e,RE=(r,t)=>{for(var e in t||(t={}))PE.call(t,e)&&Pg(r,e,t[e]);if(Ag)for(var e of Ag(t))wE.call(t,e)&&Pg(r,e,t[e]);return r},ME=(r,t)=>EE(r,AE(t));class CE extends Qt{constructor(t={}){const e=new rt({uColorMatrix:{value:[1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0],type:"f32",size:20},uAlpha:{value:1,type:"f32"}}),s=bt.from({vertex:{source:Ya,entryPoint:"mainVertex"},fragment:{source:Ya,entryPoint:"mainFragment"}}),i=yt.from({vertex:bi,fragment:Eg,name:"color-matrix-filter"});super(ME(RE({},t),{gpuProgram:s,glProgram:i,resources:{colorMatrixUniforms:e}})),this.alpha=1}_loadMatrix(t,e=!1){let s=t;e&&(this._multiply(s,this.matrix,t),s=this._colorMatrix(s)),this.resources.colorMatrixUniforms.uniforms.uColorMatrix=s,this.resources.colorMatrixUniforms.update()}_multiply(t,e,s){return t[0]=e[0]*s[0]+e[1]*s[5]+e[2]*s[10]+e[3]*s[15],t[1]=e[0]*s[1]+e[1]*s[6]+e[2]*s[11]+e[3]*s[16],t[2]=e[0]*s[2]+e[1]*s[7]+e[2]*s[12]+e[3]*s[17],t[3]=e[0]*s[3]+e[1]*s[8]+e[2]*s[13]+e[3]*s[18],t[4]=e[0]*s[4]+e[1]*s[9]+e[2]*s[14]+e[3]*s[19]+e[4],t[5]=e[5]*s[0]+e[6]*s[5]+e[7]*s[10]+e[8]*s[15],t[6]=e[5]*s[1]+e[6]*s[6]+e[7]*s[11]+e[8]*s[16],t[7]=e[5]*s[2]+e[6]*s[7]+e[7]*s[12]+e[8]*s[17],t[8]=e[5]*s[3]+e[6]*s[8]+e[7]*s[13]+e[8]*s[18],t[9]=e[5]*s[4]+e[6]*s[9]+e[7]*s[14]+e[8]*s[19]+e[9],t[10]=e[10]*s[0]+e[11]*s[5]+e[12]*s[10]+e[13]*s[15],t[11]=e[10]*s[1]+e[11]*s[6]+e[12]*s[11]+e[13]*s[16],t[12]=e[10]*s[2]+e[11]*s[7]+e[12]*s[12]+e[13]*s[17],t[13]=e[10]*s[3]+e[11]*s[8]+e[12]*s[13]+e[13]*s[18],t[14]=e[10]*s[4]+e[11]*s[9]+e[12]*s[14]+e[13]*s[19]+e[14],t[15]=e[15]*s[0]+e[16]*s[5]+e[17]*s[10]+e[18]*s[15],t[16]=e[15]*s[1]+e[16]*s[6]+e[17]*s[11]+e[18]*s[16],t[17]=e[15]*s[2]+e[16]*s[7]+e[17]*s[12]+e[18]*s[17],t[18]=e[15]*s[3]+e[16]*s[8]+e[17]*s[13]+e[18]*s[18],t[19]=e[15]*s[4]+e[16]*s[9]+e[17]*s[14]+e[18]*s[19]+e[19],t}_colorMatrix(t){const e=new Float32Array(t);return e[4]/=255,e[9]/=255,e[14]/=255,e[19]/=255,e}brightness(t,e){const s=[t,0,0,0,0,0,t,0,0,0,0,0,t,0,0,0,0,0,1,0];this._loadMatrix(s,e)}tint(t,e){const[s,i,n]=H.shared.setValue(t).toArray(),o=[s,0,0,0,0,0,i,0,0,0,0,0,n,0,0,0,0,0,1,0];this._loadMatrix(o,e)}greyscale(t,e){const s=[t,t,t,0,0,t,t,t,0,0,t,t,t,0,0,0,0,0,1,0];this._loadMatrix(s,e)}grayscale(t,e){this.greyscale(t,e)}blackAndWhite(t){const e=[.3,.6,.1,0,0,.3,.6,.1,0,0,.3,.6,.1,0,0,0,0,0,1,0];this._loadMatrix(e,t)}hue(t,e){t=(t||0)/180*Math.PI;const s=Math.cos(t),i=Math.sin(t),n=Math.sqrt,o=1/3,a=n(o),l=s+(1-s)*o,u=o*(1-s)-a*i,h=o*(1-s)+a*i,c=o*(1-s)+a*i,d=s+o*(1-s),p=o*(1-s)-a*i,f=o*(1-s)-a*i,g=o*(1-s)+a*i,m=s+o*(1-s),_=[l,u,h,0,0,c,d,p,0,0,f,g,m,0,0,0,0,0,1,0];this._loadMatrix(_,e)}contrast(t,e){const s=(t||0)+1,i=-.5*(s-1),n=[s,0,0,0,i,0,s,0,0,i,0,0,s,0,i,0,0,0,1,0];this._loadMatrix(n,e)}saturate(t=0,e){const s=t*2/3+1,i=(s-1)*-.5,n=[s,i,i,0,0,i,s,i,0,0,i,i,s,0,0,0,0,0,1,0];this._loadMatrix(n,e)}desaturate(){this.saturate(-1)}negative(t){const e=[-1,0,0,1,0,0,-1,0,1,0,0,0,-1,1,0,0,0,0,1,0];this._loadMatrix(e,t)}sepia(t){const e=[.393,.7689999,.18899999,0,0,.349,.6859999,.16799999,0,0,.272,.5339999,.13099999,0,0,0,0,0,1,0];this._loadMatrix(e,t)}technicolor(t){const e=[1.9125277891456083,-.8545344976951645,-.09155508482755585,0,11.793603434377337,-.3087833385928097,1.7658908555458428,-.10601743074722245,0,-70.35205161461398,-.231103377548616,-.7501899197440212,1.847597816108189,0,30.950940869491138,0,0,0,1,0];this._loadMatrix(e,t)}polaroid(t){const e=[1.438,-.062,-.062,0,0,-.122,1.378,-.122,0,0,-.016,-.016,1.483,0,0,0,0,0,1,0];this._loadMatrix(e,t)}toBGR(t){const e=[0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,1,0];this._loadMatrix(e,t)}kodachrome(t){const e=[1.1285582396593525,-.3967382283601348,-.03992559172921793,0,63.72958762196502,-.16404339962244616,1.0835251566291304,-.05498805115633132,0,24.732407896706203,-.16786010706155763,-.5603416277695248,1.6014850761964943,0,35.62982807460946,0,0,0,1,0];this._loadMatrix(e,t)}browni(t){const e=[.5997023498159715,.34553243048391263,-.2708298674538042,0,47.43192855600873,-.037703249837783157,.8609577587992641,.15059552388459913,0,-36.96841498319127,.24113635128153335,-.07441037908422492,.44972182064877153,0,-7.562075277591283,0,0,0,1,0];this._loadMatrix(e,t)}vintage(t){const e=[.6279345635605994,.3202183420819367,-.03965408211312453,0,9.651285835294123,.02578397704808868,.6441188644374771,.03259127616149294,0,7.462829176470591,.0466055556782719,-.0851232987247891,.5241648018700465,0,5.159190588235296,0,0,0,1,0];this._loadMatrix(e,t)}colorTone(t,e,s,i,n){t||(t=.2),e||(e=.15),s||(s=16770432),i||(i=3375104);const o=H.shared,[a,l,u]=o.setValue(s).toArray(),[h,c,d]=o.setValue(i).toArray(),p=[.3,.59,.11,0,0,a,l,u,t,0,h,c,d,e,0,a-h,l-c,u-d,0,0];this._loadMatrix(p,n)}night(t,e){t||(t=.1);const s=[t*-2,-t,0,0,0,-t,0,t,0,0,0,t,t*2,0,0,0,0,0,1,0];this._loadMatrix(s,e)}predator(t,e){const s=[11.224130630493164*t,-4.794486999511719*t,-2.8746118545532227*t,0*t,.40342438220977783*t,-3.6330697536468506*t,9.193157196044922*t,-2.951810836791992*t,0*t,-1.316135048866272*t,-3.2184197902679443*t,-4.2375030517578125*t,7.476448059082031*t,0*t,.8044459223747253*t,0,0,0,1,0];this._loadMatrix(s,e)}lsd(t){const e=[2,-.4,.5,0,0,-.5,2,-.4,0,0,-.4,-.5,3,0,0,0,0,0,1,0];this._loadMatrix(e,t)}reset(){const t=[1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0];this._loadMatrix(t,!1)}get matrix(){return this.resources.colorMatrixUniforms.uniforms.uColorMatrix}set matrix(t){this.resources.colorMatrixUniforms.uniforms.uColorMatrix=t}get alpha(){return this.resources.colorMatrixUniforms.uniforms.uAlpha}set alpha(t){this.resources.colorMatrixUniforms.uniforms.uAlpha=t}}var wg=`
+in vec2 vTextureCoord;
+in vec2 vFilterUv;
+
+out vec4 finalColor;
+
+uniform sampler2D uTexture;
+uniform sampler2D uMapTexture;
+
+uniform vec4 uInputClamp;
+uniform highp vec4 uInputSize;
+uniform mat2 uRotation;
+uniform vec2 uScale;
+
+void main()
+{
+    vec4 map = texture(uMapTexture, vFilterUv);
+    
+    vec2 offset = uInputSize.zw * (uRotation * (map.xy - 0.5)) * uScale; 
+
+    finalColor = texture(uTexture, clamp(vTextureCoord + offset, uInputClamp.xy, uInputClamp.zw));
+}
+`,Rg=`in vec2 aPosition;
+out vec2 vTextureCoord;
+out vec2 vFilterUv;
+
+
+uniform vec4 uInputSize;
+uniform vec4 uOutputFrame;
+uniform vec4 uOutputTexture;
+
+uniform mat3 uFilterMatrix;
+
+vec4 filterVertexPosition( void )
+{
+    vec2 position = aPosition * uOutputFrame.zw + uOutputFrame.xy;
+    
+    position.x = position.x * (2.0 / uOutputTexture.x) - 1.0;
+    position.y = position.y * (2.0*uOutputTexture.z / uOutputTexture.y) - uOutputTexture.z;
+
+    return vec4(position, 0.0, 1.0);
+}
+
+vec2 filterTextureCoord( void )
+{
+    return aPosition * (uOutputFrame.zw * uInputSize.zw);
+}
+
+vec2 getFilterCoord( void )
+{
+  return ( uFilterMatrix * vec3( filterTextureCoord(), 1.0)  ).xy;
+}
+
+
+void main(void)
+{
+    gl_Position = filterVertexPosition();
+    vTextureCoord = filterTextureCoord();
+    vFilterUv = getFilterCoord();
+}
+`,Ka=`
+struct GlobalFilterUniforms {
+  uInputSize:vec4<f32>,
+  uInputPixel:vec4<f32>,
+  uInputClamp:vec4<f32>,
+  uOutputFrame:vec4<f32>,
+  uGlobalFrame:vec4<f32>,
+  uOutputTexture:vec4<f32>,
+};
+
+struct DisplacementUniforms {
+  uFilterMatrix:mat3x3<f32>,
+  uScale:vec2<f32>,
+  uRotation:mat2x2<f32>
+};
+
+
+
+@group(0) @binding(0) var<uniform> gfu: GlobalFilterUniforms;
+@group(0) @binding(1) var uTexture: texture_2d<f32>;
+@group(0) @binding(2) var uSampler : sampler;
+
+@group(1) @binding(0) var<uniform> filterUniforms : DisplacementUniforms;
+@group(1) @binding(1) var uMapTexture: texture_2d<f32>;
+@group(1) @binding(2) var uMapSampler : sampler;
+
+struct VSOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv : vec2<f32>,
+    @location(1) filterUv : vec2<f32>,
+  };
+
+fn filterVertexPosition(aPosition:vec2<f32>) -> vec4<f32>
+{
+    var position = aPosition * gfu.uOutputFrame.zw + gfu.uOutputFrame.xy;
+
+    position.x = position.x * (2.0 / gfu.uOutputTexture.x) - 1.0;
+    position.y = position.y * (2.0*gfu.uOutputTexture.z / gfu.uOutputTexture.y) - gfu.uOutputTexture.z;
+
+    return vec4(position, 0.0, 1.0);
+}
+
+fn filterTextureCoord( aPosition:vec2<f32> ) -> vec2<f32>
+{
+    return aPosition * (gfu.uOutputFrame.zw * gfu.uInputSize.zw);
+}
+
+fn globalTextureCoord( aPosition:vec2<f32> ) -> vec2<f32>
+{
+  return  (aPosition.xy / gfu.uGlobalFrame.zw) + (gfu.uGlobalFrame.xy / gfu.uGlobalFrame.zw);  
+}
+
+fn getFilterCoord(aPosition:vec2<f32> ) -> vec2<f32>
+{
+  return ( filterUniforms.uFilterMatrix * vec3( filterTextureCoord(aPosition), 1.0)  ).xy;
+}
+
+fn getSize() -> vec2<f32>
+{
+
+  
+  return gfu.uGlobalFrame.zw;
+}
+  
+@vertex
+fn mainVertex(
+  @location(0) aPosition : vec2<f32>, 
+) -> VSOutput {
+  return VSOutput(
+   filterVertexPosition(aPosition),
+   filterTextureCoord(aPosition),
+   getFilterCoord(aPosition)
+  );
+}
+
+@fragment
+fn mainFragment(
+  @location(0) uv: vec2<f32>,
+  @location(1) filterUv: vec2<f32>,
+  @builtin(position) position: vec4<f32>
+) -> @location(0) vec4<f32> {
+
+    var map = textureSample(uMapTexture, uMapSampler, filterUv);
+
+    var offset =  gfu.uInputSize.zw * (filterUniforms.uRotation * (map.xy - 0.5)) * filterUniforms.uScale; 
+   
+    return textureSample(uTexture, uSampler, clamp(uv + offset, gfu.uInputClamp.xy, gfu.uInputClamp.zw));
+}`,OE=Object.defineProperty,GE=Object.defineProperties,BE=Object.getOwnPropertyDescriptors,Si=Object.getOwnPropertySymbols,Mg=Object.prototype.hasOwnProperty,Cg=Object.prototype.propertyIsEnumerable,Og=(r,t,e)=>t in r?OE(r,t,{enumerable:!0,configurable:!0,writable:!0,value:e}):r[t]=e,IE=(r,t)=>{for(var e in t||(t={}))Mg.call(t,e)&&Og(r,e,t[e]);if(Si)for(var e of Si(t))Cg.call(t,e)&&Og(r,e,t[e]);return r},FE=(r,t)=>GE(r,BE(t)),DE=(r,t)=>{var e={};for(var s in r)Mg.call(r,s)&&t.indexOf(s)<0&&(e[s]=r[s]);if(r!=null&&Si)for(var s of Si(r))t.indexOf(s)<0&&Cg.call(r,s)&&(e[s]=r[s]);return e};class UE extends Qt{constructor(...t){let e=t[0];e instanceof Bt&&(e={sprite:e,scale:t[1]});const s=e,{sprite:i,scale:n}=s,o=DE(s,["sprite","scale"]);let a=n!=null?n:20;typeof a=="number"&&(a=new z(a,a));const l=new rt({uFilterMatrix:{value:new M,type:"mat3x3<f32>"},uScale:{value:a,type:"vec2<f32>"},uRotation:{value:new Float32Array([0,0,0,0]),type:"mat2x2<f32>"}}),u=yt.from({vertex:Rg,fragment:wg,name:"displacement-filter"}),h=bt.from({vertex:{source:Ka,entryPoint:"mainVertex"},fragment:{source:Ka,entryPoint:"mainFragment"}}),c=i.texture.source;super(FE(IE({},o),{gpuProgram:h,glProgram:u,resources:{filterUniforms:l,uMapTexture:c,uMapSampler:c.style}})),this._sprite=e.sprite,this._sprite.renderable=!1}apply(t,e,s,i){const n=this.resources.filterUniforms.uniforms;t.calculateSpriteMatrix(n.uFilterMatrix,this._sprite);const o=this._sprite.worldTransform,a=Math.sqrt(o.a*o.a+o.b*o.b),l=Math.sqrt(o.c*o.c+o.d*o.d);a!==0&&l!==0&&(n.uRotation[0]=o.a/a,n.uRotation[1]=o.b/a,n.uRotation[2]=o.c/l,n.uRotation[3]=o.d/l),this.resources.uMapTexture=this._sprite.texture.source,t.applyFilter(this,e,s,i)}get scale(){return this.resources.filterUniforms.uniforms.uScale}}var Gg=`
+in vec2 vTextureCoord;
+in vec4 vColor;
+
+out vec4 finalColor;
+
+uniform float uNoise;
+uniform float uSeed;
+uniform sampler2D uTexture;
+
+float rand(vec2 co)
+{
+    return fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+void main()
+{
+    vec4 color = texture(uTexture, vTextureCoord);
+    float randomValue = rand(gl_FragCoord.xy * uSeed);
+    float diff = (randomValue - 0.5) *  uNoise;
+
+    // Un-premultiply alpha before applying the color matrix. See
