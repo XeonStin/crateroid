@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>弹坑星球 CRATEROID</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐛</text></svg>">
+<script>
+  // 全局错误收集（调试与自动化用）
+  window.__errs = [];
+  window.addEventListener('error', e => window.__errs.push(`${e.message} @ ${(e.filename||'').split('/').pop()}:${e.lineno}`));
+  window.addEventListener('unhandledrejection', e => window.__errs.push('promise: ' + (e.reason && (e.reason.stack || e.reason.message) || e.reason)));
+</script>
+</head>
+<body>
+  <!-- Pixi 画布容器 -->
+  <div id="game-canvas"></div>
+
+  <!-- 对局 HUD -->
+  <div id="hud" class="hidden">
+    <div id="hud-top">
+      <div class="hud-box" id="wind-box">
+        <span class="hud-label">风</span>
+        <span id="wind-arrow">·</span>
+        <div id="wind-bar"><div id="wind-fill"></div><div class="wind-center"></div></div>
+      </div>
+      <div class="hud-box" id="round-box">
+        <span id="round-label">R1</span>
+        <span id="timer">45</span>
+      </div>
+      <button class="hud-btn" id="btn-pause">⏸</button>
+    </div>
+    <div id="team-pips"></div>
+    <div id="fuel-wrap" class="hidden"><span>🔥</span><div id="fuel-bar"><div id="fuel-fill"></div></div></div>
+    <div id="msg-feed"></div>
+    <div id="controls-hint" class="hidden"></div>
+
+    <div id="banner" class="hidden">
+      <div id="banner-title"></div>
+      <div id="banner-sub"></div>
+    </div>
+
+    <div id="power-wrap" class="hidden">
+      <div id="power-bar"><div id="power-fill"></div></div>
+      <div id="angle-readout">45°</div>
+    </div>
+
+    <div id="weapon-bar"></div>
+    <button id="btn-skip" title="跳过回合 (P)">⏭ 跳过</button>
+  </div>
+
+  <!-- 触控虚拟按键 -->
+  <div id="touch-controls"></div>
+
+  <!-- 菜单 screens -->
+  <div id="menus">
+    <div class="screen" id="menu-title"></div>
+    <div class="screen" id="menu-team"></div>
+    <div class="screen" id="menu-map"></div>
+    <div class="screen" id="menu-tutorial"></div>
+    <div class="screen" id="menu-challenge"></div>
+    <div class="screen" id="menu-stats"></div>
+    <div class="screen" id="menu-settings"></div>
+    <div class="screen" id="menu-pause"></div>
+  </div>
+
+  <!-- 结算 -->
+  <div id="gameover" class="hidden">
+    <div class="go-card">
+      <div id="go-title"></div>
+      <div id="go-sub"></div>
+      <div id="go-detail"></div>
+      <div class="menu-btns row">
+        <button class="mbtn big" id="go-retry">🔄 再来一局</button>
+        <button class="mbtn" id="go-menu">🏠 主菜单</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 竖屏提示 -->
+  <div id="rotate-overlay">
+    <div>📱<br>请横屏游玩<br><small>旋转手机获得最佳体验</small></div>
+  </div>
+
+  <script type="importmap">
+  { "imports": { "pixi.js": "./vendor/pixi.min.js" } }
+  </script>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
