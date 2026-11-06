@@ -4,7 +4,7 @@ const KEY = 'crateroid.save.v1';
 const DEFAULTS = {
   settings: {
     sfx: 0.8, music: 0.5, shake: true,
-    aimMode: 'slingshot',      // 触屏: slingshot 弹弓 | charge 拖拽+开火键
+    aimMode: 'slingshot',      // （已废弃）旧版触屏瞄准模式，现为固定双摇杆；保留兼容旧存档
     powerMode: 'drag',         // 桌面力度: drag 拖拽距离（精确）| hold 按住蓄力（经典摆动）
     trajectory: true,          // 弹道预览
   },
@@ -33,13 +33,16 @@ export function loadSave() {
   try {
     const raw = localStorage.getItem(KEY);
     const parsed = raw ? JSON.parse(raw) : {};
-    // 深合并：老存档缺新字段时补默认值
+    // 深合并：老存档缺新字段时补默认值；子对象可能被写成 null（脏档），统一防御
+    const obj = (v) => (v && typeof v === 'object') ? v : {};
     cache = {
       ...cloneDefaults(),
       ...parsed,
-      settings: { ...DEFAULTS.settings, ...(parsed.settings || {}) },
-      stats: { ...DEFAULTS.stats, ...(parsed.stats || {}) },
-      achievements: { ...(parsed.achievements || {}) },
+      settings: { ...DEFAULTS.settings, ...obj(parsed.settings) },
+      stats: { ...DEFAULTS.stats, ...obj(parsed.stats), weaponDamage: obj(parsed.stats?.weaponDamage) },
+      achievements: obj(parsed.achievements),
+      tutorials: obj(parsed.tutorials),
+      challengeRanks: obj(parsed.challengeRanks),
     };
   } catch {
     cache = cloneDefaults();

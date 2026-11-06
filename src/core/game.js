@@ -6,7 +6,7 @@ import { Worm } from '../entities/worm.js';
 import { Crate, pickCrateType } from '../entities/crate.js';
 import { Particles } from '../entities/particles.js';
 import { explosionEffects } from '../entities/projectile.js';
-import { fireWeapon, simulateTrajectory, spawnBomblets, spawnAirstrikeBomb, MIN_SPEED, MAX_SPEED } from '../weapons/index.js';
+import { fireWeapon, simulateTrajectory, spawnBomblets, spawnAirstrikeBomb, muzzlePos, MIN_SPEED, MAX_SPEED } from '../weapons/index.js';
 import { AIBrain } from '../ai/brain.js';
 import { TutorialDirector } from './tutorial.js';
 import { TUTORIAL_SCENES } from '../levels/tutorialScenes.js';
@@ -218,7 +218,7 @@ export class Game {
       this.hud.banner('☠️ 突死模式！', '水位上涨 · 全员 1 HP');
       sfx('lose');
     }
-    if (this.suddenDeath) this.water.rise(C.WATER_RISE * 3);
+    if (this.suddenDeath) this.water.rise(C.WATER_RISE);
 
     // 教学/练习兜底：玩家虫虫万一倒下，直接原地扶起，避免无虫可操作
     if (this.tutorialLike && !this.teamAlive(0)) {
@@ -288,11 +288,11 @@ export class Game {
       this._aimHintShown = true;
       if (this.mobile && this.isPortrait()) {
         this._portraitHintShown = true;
-        this.hud.message('📱 竖屏：双指拖动/缩放可以查看远处的敌人');
+        this.hud.message('📱 竖屏：单指拖动平移，双指张合缩放');
       }
       if (this.mobile) {
-        this.hud.message('📱 按住屏幕拖拽＝拉弓瞄准，松手发射');
-        this.hud.message('◀ ▶ 行走 · ⤒ 跳跃 · 🎒 换武器');
+        this.hud.message('📱 右摇杆：方向＝发射方向，行程＝力度，松手发射');
+        this.hud.message('左摇杆行走 · ⤒ 跳跃 · 💨 冲刺 · 拖到「取消蓄力」取消');
       } else {
         this.hud.message('🖱 按住左键：鼠标离虫虫越远力度越大，松手发射');
         this.hud.message('滚轮微调力度 · Esc/右键取消瞄准 · 双击方向冲刺');
@@ -322,8 +322,7 @@ export class Game {
     if (human && this.targetingWeapon) this.input.mode = 'target';
     else if (human && (this.state === 'active' || retreat)) this.input.mode = 'aim';
     else this.input.mode = 'idle';
-    this.input.mode2 = this.settings.aimMode;
-    this.touch?.setFireMode(this.settings.aimMode);
+    this.touch?.resetStick();
     this.touch?.setControlsEnabled(human && (this.state === 'active' || retreat));
   }
 
@@ -382,6 +381,14 @@ export class Game {
   // 教学导演事件（未开始时静默）
   tutEvent(name, data) {
     if (this.tutorial && this.running) this.tutorial.event(name, data);
+  }
+
+  // 触屏冲刺按钮：沿当前移动方向（没在走则沿面向）冲刺
+  onDashBtn() {
+    const cur = this.currentWorm;
+    if (!cur || cur.isAI) return;
+    const dir = this.input.moveDir() || cur.facing || 1;
+    this.tryDash(dir);
   }
 
   // 冲刺：双击方向键 / 双击虚拟方向键（普通 1 次/回合，背水一战 2 次）
@@ -479,6 +486,8 @@ export class Game {
   _endTurnCommon() {
     this.charging = false;
     this.slingshot = null;
+    // 目标标记模式不能泄漏到下一回合（否则新回合粘在 target 模式，点地图直接开火）
+    this.cancelTargeting();
     this.hud.powerHide();
     this._postTurn();
   }
@@ -498,24 +507,30 @@ export class Game {
   }
 
   frameTurnCamera(cur) {
-    if (!this.isPortrait()) {
-      this.camera.follow(cur.x, cur.y - 60);
-      return;
+    // 回合开始默认构图：缩放到能把所有存活虫虫（含靶子）都装进画面，
+    // 中心对准包围盒；不需要拉远时保持默认缩放（只拉远不放大）
+    const cam = this.camera;
+    const ws = this.worms.filter(w => w.alive);
+    const def = cam.defaultZoom();
+    let zoom = def, cx = cur.x, cy = cur.y - 60;
+    if (ws.length) {
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (const w of ws) {
+        if (w.x < minX) minX = w.x;
+        if (w.x > maxX) maxX = w.x;
+        if (w.y < minY) minY = w.y;
+        if (w.y > maxY) maxY = w.y;
+      }
+      const zFit = Math.min(
+        cam.viewW / (maxX - minX + 240),
+        cam.viewH / (maxY - minY + 200),
+      );
+      zoom = Math.max(cam.minZoom(), Math.min(def, zFit));
+      cx = (minX + maxX) / 2;
+      cy = (minY + maxY) / 2 - 30;
     }
-    const frame = this.portraitFrame(cur);
-    this.camera.setZoom(frame.zoom);
-    this.camera.follow(frame.x, cur.y - 60);
-  }
-
-  // 竖屏构图：距离可在可读缩放内同时容纳双方时取中点，否则保证当前虫虫在画面内
-  portraitFrame(cur) {
-    const foe = this.nearestEnemy(cur);
-    const def = this.camera.defaultZoom();
-    if (!foe) return { x: cur.x, zoom: def };
-    const need = Math.max(320, Math.abs(foe.x - cur.x) + 160);
-    const zFit = this.camera.viewW / need;
-    if (zFit < 0.5) return { x: cur.x, zoom: def };
-    return { x: (cur.x + foe.x) / 2, zoom: Math.min(def, zFit) };
+    cam.setZoom(zoom);
+    cam.follow(cx, cy);
   }
 
   // ---------------- 弹道与爆炸 ----------------
@@ -552,7 +567,6 @@ export class Game {
 
     const eff = explosionEffects(this.worms, x, y, r, dmg);
     const wasAlive = new Map(eff.map(e => [e.worm.id, e.worm.alive]));
-    const wasHp = new Map(eff.map(e => [e.worm.id, e.worm.hp]));
     for (const e of eff) {
       this.damageWorm(e.worm, e.dmg, opts.origin, opts.weaponId);
       if (e.worm.alive) e.worm.applyKnockback(e.kx * (opts.kbX ?? 1), e.ky);
@@ -770,7 +784,11 @@ export class Game {
         if (c.tryPickup(w)) this.pickupCrate(c, w);
       }
     }
-    this.crates = this.crates.filter(c => c.alive);
+    let n = 0;
+    for (let i = 0; i < this.crates.length; i++) {
+      if (this.crates[i].alive) this.crates[n++] = this.crates[i];
+    }
+    this.crates.length = n;
   }
 
   pickupCrate(crate, worm) {
@@ -852,24 +870,37 @@ export class Game {
     for (const w of this.worms) w.step(dt, this.terrain, this);
     // 喷气背包燃料条随消耗实时更新（HUD 内部有变化检测）
     if (this.currentWorm) this.hud.setFuel(this.currentWorm.jetFuel);
-    // 投射物
+    // 投射物（原地压缩代替 filter：update 每固定步都跑，filter 的短命数组被 6 步/帧放大）
     for (const p of this.projectiles) if (p.alive) p.step(dt, this.terrain, this.windAccel(), this.water.level);
-    this.projectiles = this.projectiles.filter(p => p.alive);
+    let n = 0;
+    for (let i = 0; i < this.projectiles.length; i++) {
+      const p = this.projectiles[i];
+      if (p.alive) this.projectiles[n++] = p;
+    }
+    this.projectiles.length = n;
     for (const pl of this.planes) pl.step(dt);
-    this.planes = this.planes.filter(p => p.alive);
+    n = 0;
+    for (let i = 0; i < this.planes.length; i++) {
+      const p = this.planes[i];
+      if (p.alive) this.planes[n++] = p;
+    }
+    this.planes.length = n;
     this.handleCrates(dt);
     this._updateRespawns();
 
     // 浮动文字/弹道闪光
-    if (this._popups) {
+    if (this._popups && this._popups.length) {
       for (const p of this._popups) {
         p.life -= dt;
         if (!p.tracer) { p.t.y += p.vy * dt; p.t.alpha = Math.min(1, p.life * 2); p.t.scale.set(1 + (1.1 - p.life) * 0.3); }
       }
-      this._popups = this._popups.filter(p => {
-        if (p.life <= 0) { p.t.destroy(); return false; }
-        return true;
-      });
+      n = 0;
+      for (let i = 0; i < this._popups.length; i++) {
+        const p = this._popups[i];
+        if (p.life > 0) this._popups[n++] = p;
+        else p.t.destroy();
+      }
+      this._popups.length = n;
     }
 
     this._updateState(dt);
@@ -941,9 +972,16 @@ export class Game {
         this._projT = (this._projT || 0) + dt;
         if (this._projT > 10) {
           this.hud.message('⏱ 弹道异常，强制结束回合');
+          this._stopWormIntent(cur);
           this.state = 'postturnWait';
           this.stateTimer = 0.1;
           break;
+        }
+        // 困难 AI「发射后撤退」：brain 在开火后进入 retreat phase，
+        // 投射物飞行期间继续驱动它走位（回合状态已切到 projectile，active 分支不再调 brain）
+        if (this.brain && this.brain.phase === 'retreat') {
+          const done = this.brain.update(dt * (this.aiFast ? 4 : 1));
+          if (done) this.brain = null;
         }
         if (this.retreatLeft > 0 && !cur.isAI) {
           this.retreatLeft -= dt;
@@ -952,12 +990,18 @@ export class Game {
             this._lastRetreat = Math.ceil(this.retreatLeft);
             this.hud.setControlsHint(this._lastRetreat > 0 ? `撤退！${this._lastRetreat}s` : '');
           }
-          if (this.retreatLeft <= 0) { this.hud.setControlsHint(''); this.touch?.setControlsEnabled(false); }
+          if (this.retreatLeft <= 0) {
+            // 撤退窗口结束：清掉移动意图，否则最后的 walkDir 冻结、虫虫无输入持续行走
+            this._stopWormIntent(cur);
+            this.hud.setControlsHint('');
+            this.touch?.setControlsEnabled(false);
+          }
         }
         const busy = this.projectiles.length > 0 || this.planes.length > 0;
         const settled = this.worms.every(w => !w.alive || w.onGround || w.y > this.water.level);
         // 撤退时间必须给满：即使弹丸已落地，也要等玩家用完 5 秒撤退窗口
         if (!busy && settled && this.retreatLeft <= 0) {
+          this._stopWormIntent(cur);
           this.state = 'postturnWait';
           this.stateTimer = 0.45;
         }
@@ -990,9 +1034,9 @@ export class Game {
       cur.wantJet = false;
       if (this._jumpEdge) { cur.wantJump = true; this._jumpEdge = false; }
     }
-    // 蓄力：hold 模式力度条来回摆动（0→1→0，1.6s 单程）；drag 模式由鼠标距离决定
+    // 蓄力：hold 模式力度条来回摆动（0→1→0，1.6s 单程）；drag/stick 模式由指针/摇杆行程决定
     if (this.charging) {
-      if (this._chargeStyle !== 'drag') {
+      if (this._chargeStyle === 'hold') {
         const t = (this.time - this._chargeStart) % 3.2;
         this.chargePower = t < 1.6 ? t / 1.6 : (3.2 - t) / 1.6;
       }
@@ -1006,6 +1050,12 @@ export class Game {
     if (cur.walkDir !== 0) cur.facing = cur.walkDir;
     if (this._jumpEdge) { cur.wantJump = true; this._jumpEdge = false; }
     if (cur.jetFuel > 0 && !cur.wantJump) cur.wantJet = this.input.jumpHeld() && !cur.onGround;
+  }
+
+  // 清空当前虫虫的移动意图（撤退结束/弹道阶段转场时调用，防止冻结的 walkDir 让虫继续走）
+  _stopWormIntent(worm) {
+    if (!worm) return;
+    worm.walkDir = 0; worm.wantJump = false; worm.wantJet = false;
   }
 
   _postTurn() {
@@ -1110,9 +1160,11 @@ export class Game {
   onAimCancel() {
     this.slingshot = null;
     this.charging = false;
+    this._chargeStyle = null;
     this.chargePower = 0;
     this._powerOffset = 0;
     this.hud.powerHide();
+    this.touch?.setCancelArmed(false);
     this.tutEvent('cancelAim');
   }
 
@@ -1190,16 +1242,71 @@ export class Game {
     }
   }
 
+  // ---------------- 触屏右摇杆：方向=发射方向，行程=力度，松手发射 ----------------
+  onStickStart() {
+    if (this.tutLock) return;
+    if (this.state !== 'active' || this.currentWorm?.isAI) return;
+    if (!this.currentWorm?.alive) return;
+    if (C.WEAPON_BY_ID[this.selectedWeapon]?.targeting) {
+      // 空袭/奶牛：推杆直接进入目标标记模式（之后轻点地图确认落点）
+      if (!this.targetingWeapon) this.enterTargeting(this.selectedWeapon);
+      return;
+    }
+    this.charging = true;
+    this._chargeStart = this.time;
+    this._chargeStyle = 'stick';
+    this._powerOffset = 0;
+    this.chargePower = 0.06;
+    this.hud.powerUpdate(this.chargePower, this.currentWorm.aimAngle);
+    this.touch?.setCancelArmed(true);
+  }
+
+  onStickMove(angleDeg, power) {
+    if (this.tutLock) return;
+    if (!this.charging || this._chargeStyle !== 'stick') return;
+    if (this.state !== 'active' || this.currentWorm?.isAI) return;
+    const cur = this.currentWorm;
+    cur.aimAngle = angleDeg;
+    cur.facing = Math.cos(angleDeg * Math.PI / 180) >= 0 ? 1 : -1;
+    this.chargePower = Math.min(1, Math.max(0.06, power));
+    this.hud.powerUpdate(this.chargePower, cur.aimAngle);
+  }
+
+  onStickEnd(angleDeg, power) {
+    if (this.tutLock) return;
+    if (!this.charging || this._chargeStyle !== 'stick') return;
+    this.charging = false;
+    this._chargeStyle = null;
+    this._powerOffset = 0;
+    this.chargePower = 0;
+    this.hud.powerHide();
+    this.touch?.setCancelArmed(false);
+    const p = Math.max(0, Math.min(1, power));
+    // 松手时摇杆已推回中心（行程≈0）= 取消瞄准，不消耗回合
+    if (p < 0.06) { this.tutEvent('cancelAim'); return; }
+    if (this.state === 'active' && !this.currentWorm?.isAI) {
+      this.fireWeapon(this.currentWorm, this.selectedWeapon, angleDeg, p);
+    }
+  }
+
   onTarget(wx, wy) {
     if (this.tutLock) return;
     if (this.targetingWeapon && !this.currentWorm?.isAI) this.confirmTarget(wx, wy);
+  }
+
+  // 触屏轻点地图（瞄准模式）：目标类武器（空袭/奶牛）= 进入标记模式，其余忽略
+  onTapAim(wx, wy) {
+    if (this.tutLock) return;
+    if (this.state !== 'active' || this.currentWorm?.isAI) return;
+    if (this.targetingWeapon || !this.currentWorm?.alive) return;
+    if (C.WEAPON_BY_ID[this.selectedWeapon]?.targeting) this.enterTargeting(this.selectedWeapon);
   }
 
   onJumpPress() {
     this._jumpEdge = true;
   }
 
-  onZoom(mx, my, delta) {
+  onZoom(mx, my, delta, continuous) {
     // 拖拽力度模式下，瞄准中滚轮 = 力度微调（每次 ±2%）
     if (this.charging && this._chargeStyle === 'drag' && this.state === 'active' && !this.currentWorm?.isAI) {
       this._powerOffset = (this._powerOffset || 0) + (delta < 0 ? 0.02 : -0.02);
@@ -1210,7 +1317,11 @@ export class Game {
       return;
     }
     const w = this.camera.screenToWorld(mx, my);
-    this.camera.setZoom(this.camera.tzoom * (delta < 0 ? 1.13 : 1 / 1.13), w.x, w.y);
+    // 双指捏合：原始像素增量做指数映射（~320px 捏合 = 2.7 倍），避免轻捏就猛跳
+    const z = continuous
+      ? this.camera.tzoom * Math.exp(delta / 320)
+      : this.camera.tzoom * (delta < 0 ? 1.13 : 1 / 1.13);
+    this.camera.setZoom(z, w.x, w.y);
     this.tutEvent('cameraZoom', { delta });
   }
 
@@ -1232,11 +1343,13 @@ export class Game {
     const g = this.aimUI;
     const cur = this.currentWorm;
     // 增量重绘：状态未变化时跳过 clear+重建（固定步长下每帧最多重建 6 次，是 CPU 热点）
+    // key 必须含虫虫坐标：行走时状态/角度都不变，但瞄准线要跟着虫虫走
     const key = [
       this.state,
       cur?.id ?? -1,
       cur?.alive ? 1 : 0,
       cur?.isAI ? 1 : 0,
+      Math.round(cur?.x ?? 0), Math.round(cur?.y ?? 0),
       Math.round(cur?.aimAngle ?? 0),
       this.charging ? Math.round(this.chargePower * 100) : -1,
       this.slingshot ? `${Math.round(this.slingshot.angle)}_${Math.round(this.slingshot.power * 100)}` : '-',
@@ -1274,10 +1387,11 @@ export class Game {
   }
 
   _drawTrajectory(g, cur, w) {
-    const m = { x: cur.x, y: cur.bodyY - 6 };
     const angle = this.slingshot ? this.slingshot.angle : cur.aimAngle;
     const power = this.slingshot ? this.slingshot.power : this.chargePower;
     if (power < 0.03) return;
+    // 与真实发射同源：起点直接用 muzzlePos（修复前这里是手写 -sin，与旧 muzzlePos 的 +sin 不一致）
+    const m = muzzlePos(cur, angle);
     // 缓存模拟结果：仅在角度/力度跨步变化时重新积分
     const key = `${w.id}|${Math.round(angle * 2)}|${Math.round(power * 60)}`;
     if (key !== this._trajKey || !this._trajM || Math.abs(this._trajM.x - m.x) > 2 || Math.abs(this._trajM.y - m.y) > 2) {
@@ -1285,7 +1399,7 @@ export class Game {
       this._trajM = { x: m.x, y: m.y };
       const speed = MIN_SPEED + (MAX_SPEED - MIN_SPEED) * power;
       const a = angle * Math.PI / 180;
-      this._trajPts = simulateTrajectory(this.terrain, m.x + Math.cos(a) * 10, m.y - Math.sin(a) * 10,
+      this._trajPts = simulateTrajectory(this.terrain, m.x, m.y,
         Math.cos(a) * speed, -Math.sin(a) * speed, w, this.windAccel(), this.water.level, 34);
     }
     const pts = this._trajPts || [];
@@ -1314,10 +1428,8 @@ export class Game {
     if (pInView) this.camera.follow(p.x, p.y);
     else if (this.planes[0]) this.camera.follow(this.planes[0].x, this.planes[0].y);
     else if (cur && this.state !== 'active') this.camera.follow(cur.x, cur.y - 60);
-    else if (cur && this.state === 'active' && this.isPortrait() && cur.isAI) {
-      // 竖屏 AI 回合：能同时容纳双方时看中点，否则保证 AI 虫虫在画面内
-      this.camera.follow(this.portraitFrame(cur).x, cur.y - 60);
-    } else if (cur && this.state === 'active' && (cur.isAI || cur.walkDir !== 0 || !cur.onGround)) {
+    else if (cur && this.state === 'active' && (cur.isAI || cur.walkDir !== 0 || !cur.onGround)) {
+      // 回合开始的构图（frameTurnCamera）已保证全体虫虫入画；操作/观战阶段就近跟随
       this.camera.follow(cur.x, cur.y - 60);
     }
     this.camera.update(1 / 60);

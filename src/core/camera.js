@@ -38,12 +38,9 @@ export class Camera {
   }
 
   minZoom() {
-    const fit = Math.max(this.viewW / this.worldW, this.viewH / this.worldH);
-    if (this.viewH > this.viewW) {
-      // 竖屏：允许缩小到能看见更宽的战场（纵向多出的区域由天空/水面填充）
-      return Math.max(0.45, this.viewW / this.worldW);
-    }
-    return fit;
+    // 最小倍率 = 完整看到整个战场（横竖屏一致，全图召唤空袭需要）
+    // 取两个方向的较小比值：短边方向正好放下全图，长边方向多出的区域由天空/水面填充
+    return Math.max(0.08, Math.min(this.viewW / this.worldW, this.viewH / this.worldH));
   }
 
   // 默认缩放：竖屏适度拉远，保证角色/地形不会占满整屏
@@ -86,16 +83,20 @@ export class Camera {
   _clampZoom() { this.tzoom = Math.min(3, Math.max(this.minZoom(), this.tzoom)); }
 
   // 视野边界：左右/下方严格不出世界；顶部允许 220px 天空余量（追踪高抛弹道）
+  // 返回复用对象（update/_clampX/_clampY 每帧多次调用，避免每次分配）
   _bounds() {
+    const b = this._b || (this._b = { minX: 0, maxX: 0, minY: 0, maxY: 0 });
     const halfW = this.viewW / (2 * this.zoom), halfH = this.viewH / (2 * this.zoom);
     const minX = halfW, maxX = this.worldW - halfW;
-    const minY = halfH - 220, maxY = this.worldH - halfH;
-    return {
-      minX: maxX < minX ? this.worldW / 2 : minX,
-      maxX: maxX < minX ? this.worldW / 2 : maxX,
-      minY: maxY < minY ? this.worldH / 2 : minY,
-      maxY: maxY < minY ? this.worldH / 2 : maxY,
-    };
+    let minY = halfH - 220, maxY = this.worldH - halfH;
+    // 整个世界高度已能放进视野时垂直居中：否则天空余量会把画面顶高、切掉底部水域
+    // （-0.5 容差：恰好整屏放下时 halfH 浮点上会略小于 worldH/2）
+    if (halfH >= this.worldH / 2 - 0.5) { minY = this.worldH / 2; maxY = this.worldH / 2; }
+    b.minX = maxX < minX ? this.worldW / 2 : minX;
+    b.maxX = maxX < minX ? this.worldW / 2 : maxX;
+    b.minY = maxY < minY ? this.worldH / 2 : minY;
+    b.maxY = maxY < minY ? this.worldH / 2 : maxY;
+    return b;
   }
 
   _clampX(v) {

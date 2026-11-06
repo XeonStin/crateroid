@@ -23,8 +23,8 @@ src/
     game.js                     对局主控：回合状态机、伤害/爆炸、回合流转、统计、成就
     tutorial.js                 教学导演：分步目标、持久提示面板、世界标记、场景切换
     camera.js                   跟随/缩放/震动/边界钳制
-    input.js                    键鼠+触摸统一输入（右键取消、双击冲刺、中键/Shift 平移、双指平移缩放）
-    touch.js                    虚拟按键（仅触屏构建）
+    input.js                    键鼠+触摸统一输入（触摸单指平移/轻点确认目标、双指张合缩放；右键取消、双击冲刺、中键/Shift 平移）
+    touch.js                    虚拟双摇杆（左移动/右蓄力）+ 跳跃/冲刺/跳过/取消蓄力（仅触屏构建）
     audio.js                    WebAudio 程序化 SFX + chiptune BGM
     save.js                     localStorage 存档（设置/战绩/成就/教学/挑战评级）
   world/
@@ -74,14 +74,23 @@ vendor/pixi/*.bin                PixiJS 分片（12 片，importmap 映射 'pixi
   ```js
   g.startMatch(g.menus.challengeConfig(g.tutorialLevel, 5)); // 0-based
   ```
-  触屏弹弓可直接调 `g.onAimDrag(dx,dy)`、`g.onAimRelease(dx,dy)`；桌面蓄力可调 `g.onAimMove/onChargeStart/onChargeEnd`。
+  触屏蓄力摇杆可直接调 `g.onStickStart()` / `g.onStickMove(angleDeg, power)` / `g.onStickEnd(angleDeg, power)`（angle: 0=右 90=上，power 0~1；行程<0.06 视为取消）；桌面蓄力可调 `g.onAimMove/onChargeStart/onChargeEnd`。`g.onAimDrag/onAimRelease` 为旧弹弓遗留钩子，触屏输入不再触发。
+
+## 触屏操作方案（2026-11 重做）
+
+- 底部三行从下往上：**双摇杆**（左=行走；右=蓄力，方向=发射方向、行程=力度、松手发射，越过起始死区后低力度也能发射，取消只走按钮）→ **武器栏（背包格，常驻）** → **蓄力状态条（左对齐）+「取消蓄力」按钮（右）**。
+- 蓄力摇杆左侧一列两键：⤒ 跳跃/喷气（上）+ 💨 冲刺（下，沿当前移动方向/面向）；⏭ 跳过回合在右上角。
+- 「取消蓄力」按钮：蓄力时点亮，把蓄力摇杆拖到按钮上（或直接点按）即取消，不消耗回合；摇杆推回中心松手是低力度发射，不是取消。
+- 视角：画布**单指拖动=平移**，**双指张开=放大、捏合=缩小**（连续指数映射 exp(Δpx/320)，灵敏度约为旧版的 1/4）；目标类武器（空袭/奶牛）轻点地图进入标记、再点确认。
+- 最小缩放 = 整个战场完整可见（全图召唤空袭用）；此时相机垂直居中（`Camera._bounds` 的 -0.5 容差别删，恰好整屏时浮点会差一点点）。
+- **回合默认构图**：`frameTurnCamera()`（turnStart 与进入 active 各调一次）按所有存活虫虫的包围盒取 `min(默认缩放, 适配缩放)`，保证画面同时装下所有虫虫和靶子；只拉远不放大。
 
 ## 修改后验证清单（最低要求）
 
 1. `?debug=1&quick=1` 开局 → `window.__errs` 为空、`hasCrateroid` true。
 2. 打两局（含爆炸/粒子/换图）→ `renderer.render` 不抛错。
 3. 快进一整局 AI 对战 → 正常分出胜负、`g.matchStats` 有数。
-4. 触屏模式（`?touch=1` 844×390）：弹弓拖拽出弹道点、松手发射、虚拟键行走；教学面板不压住武器栏。
+4. 触屏模式（`?touch=1` 844×390）：右摇杆推出蓄力（方向=发射方向）、松手发射（低力度也可以）、拖到「取消蓄力」取消；左摇杆行走、💨 冲刺按钮；单指平移、双指张合缩放；教学面板不压住武器栏。
 5. 教学 4 课 + 练习靶场：每步 `#tut-title` 与 `#tp-goal` 正确推进；场景切换后 `__errs` 为空；练习靶场靶子死亡 2s 后复活且回合始终为玩家。
 6. AI 回合耗时：`g.update` 均值应 <0.1ms（当前基线 0.02ms）。
 
@@ -111,7 +120,14 @@ vendor/pixi/*.bin                PixiJS 分片（12 片，importmap 映射 'pixi
 22. **奶牛地形破坏**：`Game.cowStomp` 每次落地都要 `terrain.carve`；AI 模拟不复制地形破坏，只按真实物理打伤害。
 23. **视角教学事件**：中键/Shift+左键/双指拖动走 `Game.onPan` 并触发 `cameraPan`；滚轮/双指捏合走 `Game.onZoom` 并触发 `cameraZoom`。不要恢复旧 `onPan` 的 aimMode 拦截，否则第一课视角步骤无法完成。
 24. **冲刺指示**：HUD 的 `#dash-ind` 由 `setDash(left,max)` 更新；`nextTurn` 重置、`tryDash` 扣减、教学冲刺步骤 enter 时也要同步。
-25. **手机视口**：画布与相机尺寸以 `visualViewport` 为准；`#game-canvas` / `#hud` / `#touch-controls` / `#menus` 使用 `--vvw/--vvh`（JS 写入），不要改回 `resizeTo: window` / 100vh。部分手机浏览器地址栏伸缩不派发 `resize`，主循环每帧 `applyViewport()` 兜底。竖屏已支持：`Camera.minZoom/defaultZoom` 有独立分支，回合开始时 `frameTurnCamera()` 尝试同时框住虫虫和最近敌人。
+25. **手机视口**：画布与相机尺寸以 `visualViewport` 为准；`#game-canvas` / `#hud` / `#touch-controls` / `#menus` 使用 `--vvw/--vvh`（JS 写入），不要改回 `resizeTo: window` / 100vh。部分手机浏览器地址栏伸缩不派发 `resize`，主循环每帧 `applyViewport()` 兜底。竖屏已支持：`Camera.minZoom/defaultZoom` 有独立分支；回合开始 `frameTurnCamera()` 按全部存活虫虫包围盒定缩放。
+26. **onZoom 签名**：`Input` 双指缩放传 `(mx,my,Δpx,true)`（continuous），`main.js` 接线必须原样转发第 4 参——丢掉会静默回落到旧的 1.13 离散档位，表现为「轻捏就猛跳/方向反了」。双指事件里两根手指各自触发一次 pinch 计算，exp 映射可累乘所以无需去重。
+27. **摇杆与蓄力状态**：`touch.js` 的 `resetStick()` 幂等，`updateInputMode()` 每次回合/模式切换都会调；`Game.onStickMove/onStickEnd` 都要求 `_chargeStyle==='stick'`，别把 `_humanControl` 的摆动条件从 `=== 'hold'` 改回 `!== 'drag'`（会把摇杆蓄力变成来回摆动）。蓄力摇杆松手一律发射（`onStickEnd` 只拦 `power<0.06` 的贴中心误触），别再把「死区内松手」当取消——取消只走「取消蓄力」按钮（`onAimCancel`）。
+28. **水面 level 语义**：`water.level/target` 是水面 y 坐标（y 向下为正），**上涨 = 数值变小**。`rise(px)` 内部做 `target = max(target - px, minLevel)`，别改回加法——加法是「退水」，与突死横幅相反（曾把突死做成逐回合退水）。`minLevel ≈ H*0.62` 防全图淹没。
+29. **muzzlePos 角度约定**：角度 0=右 90=上，vy 用 `-sin`；`muzzlePos` 的 y 必须是 `bodyY - 6 - sin(a)*dist`。写成 `+sin` 时 90° 竖直向上的弹体生成在脚底，且炮口落入自身体碰撞半径——叠加 AI 模拟的发射者豁免失效（必须按 `worm.id === owner.id` 比较，模拟里虫虫是 SimWorm 副本，`===` 永不成立），30° 以上候选全部首子步自爆，AI 只会平射。弹道预览 `_drawTrajectory` 起点与真实发射同源走 `muzzlePos`，别再手写三角函数。
+30. **pointercancel 不是抬起**：系统手势/来电打断时 `pointercancel`/`touchcancel` 的语义是「终止但不触发动作」（与 canvas 侧 `Input._cancel` 一致）——蓄力摇杆的 cancel 绝不能走 `onStickEnd`（=发射），按钮的 cancel 不能触发冲刺/跳过；`Input._down` 里 `pointers.size > 2` 要冻结 `pinchDist`（置 0），否则抬回两指会用陈旧间距猛跳一次缩放。
+31. **后台补步只能固定步长**：rAF 停转兜底必须是 `for(i<10) game.update(FIXED)` 循环；单步 `update(FIXED*10)` 会让虫虫一帧下落 ~150px 穿透浮岛直接落水、投射物子步穿墙穿人。
+32. **AI 模拟克隆**：`brain.js` 探测走位的虫虫副本必须 `w.clone()`（SimWorm 构造器克隆）；`{...w}` spread 只拷自有属性、会丢原型上的 `bodyY` getter → muzzlePos 拿 NaN、探测弹恒飞到天空。困难 AI 走位到位后必须 `makeSim` 重建 + `bestSoFar=null`，否则拿旧位置的解打新位置。
 
 ## 发布
 

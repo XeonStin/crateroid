@@ -70,6 +70,12 @@ export class Crate {
       if (terrain.isSolid(this.x, this.y)) {
         let guard = 0;
         while (terrain.isSolid(this.x, this.y) && guard++ < 40) this.y -= 1;
+        if (terrain.isSolid(this.x, this.y)) {
+          // 40px 内推不出（被风吹进峭壁/浮岛侧壁）：视为损毁，避免埋在墙里永远捡不到
+          this.game.particles.sparkle(this.x, this.y, this.type.color, 8);
+          this.destroy();
+          return;
+        }
         this.parachute = false;
         this.chute.visible = false;
         this.game.sfx('crate');
@@ -106,6 +112,6 @@ export class Crate {
   destroy() {
     if (!this.alive) return;
     this.alive = false;
-    this.view.destroy();
+    this.view.destroy({ children: true });
   }
 }

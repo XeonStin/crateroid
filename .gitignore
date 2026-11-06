@@ -1,3 +1,4 @@
 testshots/
 *.log
 .DS_Store
+.zcode/

@@ -4,11 +4,14 @@ export const WORLD_W = 1800;
 export const WORLD_H = 1000;
 
 // 普通对战可选地图宽度（高度保持 1000，主题地形的基准高度不变）
+// 选「自定义」时用滑块在 500~2000 之间任调（选图界面）
 export const MAP_SIZES = {
-  small:  { name: '小', w: 1350, desc: '短兵相接，节奏更快' },
+  small:  { name: '小', w: 800, desc: '贴脸混战，一屏看完' },
   medium: { name: '中', w: 1800, desc: '标准战场' },
   large:  { name: '大', w: 2400, desc: '远程对轰，弹道空间更大' },
 };
+export const MAP_W_MIN = 500;
+export const MAP_W_MAX = 2000;
 
 export const GRAVITY = 900;          // px/s²
 export const WORM_R = 11;            // 虫虫碰撞半径
@@ -25,7 +28,7 @@ export const TURN_TIME = 45;         // 每回合操作秒数
 export const RETREAT_TIME = 5;       // 发射后撤退秒数
 export const BANNER_TIME = 1.5;
 export const SUDDEN_DEATH_ROUND = 11; // 第 N 回合进入突死（回合=双方各行动一轮）
-export const WATER_RISE = 16;        // 突死每回合上涨 px
+export const WATER_RISE = 48;        // 突死每回合上涨 px（水面 y 每回合减小值）
 export const CRATE_CHANCE = 0.3;     // 每回合补给箱概率
 export const MAX_CRATES = 2;
 
@@ -41,7 +44,7 @@ export const WEAPONS = [
   { id: 'shotgun',  name: '散弹枪',   icon: '🔫', ammo: 3, hitscan: true, shots: 2, pellets: 5, spread: 5.5, dmg: 11, kb: 60, range: 260, crater: 13 },
   { id: 'airstrike',name: '空袭',     icon: '✈️', ammo: 2, targeting: true, bombs: 5, radius: 36, dmg: 32 },
   { id: 'driller',  name: '钻地弹',   icon: '⛏️', ammo: 2, charge: true,  wind: 0,    gravity: 0.55, bounce: false, radius: 24, dmg: 30, drill: 90 },
-  { id: 'holy',     name: '神圣手雷', icon: '🐑', ammo: 0, charge: true,  wind: 0.15, gravity: 1.0,  bounce: true,  fuse: 1.85, radius: 84, dmg: 78, holy: true },
+  { id: 'holy',     name: '神圣手雷', icon: '🐑', ammo: 0, charge: true,  wind: 0.15, gravity: 1.0,  bounce: true,  fuse: 3.0,  radius: 84, dmg: 78, holy: true },
   { id: 'cow',      name: '奶牛空袭', icon: '🐮', ammo: 0, targeting: true, bounces: 5, dmg: 26, radius: 40 },
 ];
 export const WEAPON_BY_ID = Object.fromEntries(WEAPONS.map(w => [w.id, w]));

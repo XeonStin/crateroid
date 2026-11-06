@@ -87,24 +87,24 @@ export class AIBrain {
     return false;
   }
 
-  // 困难走位探测：少量快速模拟比较立足点
+  // 困难走位探测：少量快速模拟比较立足点（dx=0 的现站位分由 quickScoreHere 覆盖，不重复算）
   probeMoveSpot() {
     const sim = this.sim;
     const me = this.worm;
     let bestX = null, bestScore = -Infinity;
-    for (const dx of [0, -45, 45, -90, 90]) {
+    for (const dx of [-45, 45, -90, 90]) {
       const nx = me.x + dx;
       if (nx < 30 || nx > sim.terrain.W - 30) continue;
       const gy = sim.terrain.findSurfaceY(nx | 0, Math.max(0, me.y - 60));
       if (gy === null || gy > sim.waterY - 25 || Math.abs(gy - me.y) > 42) continue; // 去不了/悬崖
-      // 快速探测：3 角度 × 2 力度
+      // 快速探测：2 角度 × 2 力度
       let s = 0;
       const probeSim = {
         terrain: sim.terrain, waterY: sim.waterY, windAccel: sim.windAccel,
-        worms: sim.worms.map(w => ({ ...w })),
+        worms: sim.worms.map(w => w.clone()),
       };
       const fakeOwner = probeSim.worms.find(w => w.id === me.id);
-      for (const a of [30, 75, 120, 150]) {
+      for (const a of [40, 140]) {
         for (const p of [0.45, 0.9]) {
           const r = simulateShot(probeSim, fakeOwner, 'bazooka', a, p);
           s += scoreShot(probeSim, fakeOwner, r);
@@ -118,10 +118,10 @@ export class AIBrain {
 
   quickScoreHere() {
     const sim = this.sim;
-    const probeSim = { terrain: sim.terrain, waterY: sim.waterY, windAccel: sim.windAccel, worms: sim.worms.map(w => ({ ...w })) };
+    const probeSim = { terrain: sim.terrain, waterY: sim.waterY, windAccel: sim.windAccel, worms: sim.worms.map(w => w.clone()) };
     const fakeOwner = probeSim.worms.find(w => w.id === this.worm.id);
     let s = 0;
-    for (const a of [30, 75, 120, 150]) for (const p of [0.45, 0.9]) {
+    for (const a of [40, 140]) for (const p of [0.45, 0.9]) {
       s += scoreShot(probeSim, fakeOwner, simulateShot(probeSim, fakeOwner, 'bazooka', a, p));
     }
     return s;
@@ -131,6 +131,11 @@ export class AIBrain {
     const d = this.walkTarget - this.worm.x;
     if (Math.abs(d) < 10 || this.timer < -2.5) {
       this.worm.walkDir = 0;
+      // 走位改变了自身位置：必须基于新位置重建模拟并清掉旧最优解，
+      // 否则拿到的是「旧位置的解」，从新位置开火系统性偏移
+      this.sim = makeSim(this.game);
+      if (!this.diff.simulateWind) this.sim.windAccel = 0;
+      this.bestSoFar = null;
       const special = this.weaponIds.find(id => WEAPON_BY_ID[id].targeting);
       const specialAllowed = this.diff.smartWeapon || (this.diff.refine > 0 && Math.random() < 0.35);
       if (special && specialAllowed && Math.random() < 0.75) { this.specialWeapon = special; this.phase = 'special'; this.timer = 0.5; return false; }
@@ -157,7 +162,9 @@ export class AIBrain {
   upSearch(dt) {
     this.searchDeadline -= dt;
     let n = 0;
-    while (n < 14) {
+    // 每固定步 10 次模拟：修复炮口自爆后单次模拟成本大增（真跑完整弹道），
+    // 14/步会使 g.update 均值超出 0.1ms 预算（实测 0.11~0.12），10/步摊薄到 ~0.09
+    while (n < 10) {
       const r = this.searchIter.next();
       if (r.done) { this.finishSearch(); return false; }
       n++;

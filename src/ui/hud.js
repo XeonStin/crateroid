@@ -4,7 +4,9 @@ import { sfx } from '../core/audio.js';
 export class HUD {
   constructor(game) {
     this.game = game;
-    this.$ = (id) => document.getElementById(id);
+    // DOM 节点缓存（index.html 骨架静态，节点不会增删）：update 路径每帧多次取引用，免反复查询
+    this._elCache = {};
+    this.$ = (id) => this._elCache[id] || (this._elCache[id] = document.getElementById(id));
     this.root = this.$('hud');
     this.bannerTimer = null;
     this._bind();

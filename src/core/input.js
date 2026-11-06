@@ -1,14 +1,13 @@
 // ============ 输入：键盘 + 鼠标 + 触摸统一抽象 ============
 // 游戏侧设置 mode：'aim'（可瞄准）| 'target'（标记目标点）| 'idle'（观战可平移）
-// 回调：onAimDrag(dx,dy) 弹弓拖拽 / onAimRelease(dx,dy) / onAimMove(wx,wy) 鼠标绝对瞄准
-//       onChargeStart() onChargeEnd() / onTarget(wx,wy) / onZoom(focusX,focusY,dy)
+// 回调：onAimMove(wx,wy) 鼠标绝对瞄准 / onChargeStart() onChargeEnd()
+//       onStickStart/Move/End 右摇杆蓄力 / onTarget(wx,wy) / onZoom(focusX,focusY,dy,continuous)
 
 export class Input {
   constructor(canvas, camera) {
     this.canvas = canvas;
     this.cam = camera;
     this.mode = 'idle';
-    this.mode2 = null;              // 触控瞄准模式: slingshot | charge
     this.keys = new Set();
     this.virtual = { left: false, right: false, jump: false, fire: false };
     this.pointers = new Map();      // id -> {x,y}
@@ -16,12 +15,13 @@ export class Input {
     // 回调（由 game/touch 注入）
     this.onAimDrag = null; this.onAimRelease = null; this.onAimCancel = null;
     this.onAimMove = null; this.onChargeStart = null; this.onChargeEnd = null;
+    this.onStickStart = null; this.onStickMove = null; this.onStickEnd = null;
+    this.onTapAim = null;
     this.onTarget = null; this.onZoom = null; this.onPan = null;
     this.onJumpPress = null;
 
-    this._aiming = false;           // 触摸弹弓中
     this._mouseCharge = false;
-    this._start = { x: 0, y: 0 };
+    this._tapStart = null;          // 触摸按下起点（判定轻点确认目标）
     this._coarse = (navigator.maxTouchPoints > 0)
       || (window.matchMedia && matchMedia('(pointer: coarse)').matches)
       || ('ontouchstart' in window);
@@ -53,9 +53,9 @@ export class Input {
       this.pointers.clear();
       this.pinchDist = 0;
       this._pinchMid = null;
-      this._aiming = false;
       this._panning = null;
       this._mouseCharge = false;
+      this._tapStart = null;
       this.virtual.left = false; this.virtual.right = false;
       this.virtual.jump = false; this.virtual.fire = false;
     });
@@ -68,24 +68,29 @@ export class Input {
       this.canvas.addEventListener('pointercancel', (e) => this._cancel(), opt);
     } else {
       // 老 WebView（无 Pointer Events）回退：触摸/鼠标事件适配为统一对象
-      const adapt = (e, touch) => ({
-        pointerType: touch ? 'touch' : 'mouse',
-        pointerId: touch ? (e.changedTouches[0]?.identifier ?? 0) : 1,
-        clientX: touch ? e.changedTouches[0]?.clientX : e.clientX,
-        clientY: touch ? e.changedTouches[0]?.clientY : e.clientY,
+      // 触摸必须遍历 changedTouches：只取 [0] 会让双指缩放/双指同抬失效
+      const adaptTouch = (t) => ({
+        pointerType: 'touch',
+        pointerId: t.identifier ?? 0,
+        clientX: t.clientX,
+        clientY: t.clientY,
+        preventDefault: () => {},
+      });
+      const adaptMouse = (e) => ({
+        pointerType: 'mouse',
+        pointerId: 1,
+        clientX: e.clientX,
+        clientY: e.clientY,
         preventDefault: () => e.preventDefault(),
       });
-      const posOf = (e, touch) => {
-        const t = touch ? e.changedTouches[0] : e;
-        return t ? { x: t.clientX, y: t.clientY } : null;
-      };
-      this.canvas.addEventListener('touchstart', (e) => { e.preventDefault(); const p = posOf(e, true); if (p) this._down(adapt(e, true), p); }, opt);
-      this.canvas.addEventListener('touchmove', (e) => { e.preventDefault(); this._move(adapt(e, true), posOf(e, true)); }, opt);
-      this.canvas.addEventListener('touchend', (e) => { this._up(adapt(e, true), posOf(e, true)); }, opt);
+      const posOf = (t) => ({ x: t.clientX, y: t.clientY });
+      this.canvas.addEventListener('touchstart', (e) => { e.preventDefault(); for (const t of e.changedTouches) this._down(adaptTouch(t), posOf(t)); }, opt);
+      this.canvas.addEventListener('touchmove', (e) => { e.preventDefault(); for (const t of e.changedTouches) this._move(adaptTouch(t), posOf(t)); }, opt);
+      this.canvas.addEventListener('touchend', (e) => { for (const t of e.changedTouches) this._up(adaptTouch(t), posOf(t)); }, opt);
       this.canvas.addEventListener('touchcancel', () => this._cancel(), opt);
-      this.canvas.addEventListener('mousedown', (e) => { const p = posOf(e, false); if (p) this._down(adapt(e, false), p); }, opt);
-      this.canvas.addEventListener('mousemove', (e) => { const p = posOf(e, false); if (p) this._move(adapt(e, false), p); }, opt);
-      this.canvas.addEventListener('mouseup', (e) => { this._up(adapt(e, false), posOf(e, false)); }, opt);
+      this.canvas.addEventListener('mousedown', (e) => { this._down(adaptMouse(e), posOf(e)); }, opt);
+      this.canvas.addEventListener('mousemove', (e) => { this._move(adaptMouse(e), posOf(e)); }, opt);
+      this.canvas.addEventListener('mouseup', (e) => { this._up(adaptMouse(e), posOf(e)); }, opt);
     }
     this.canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
@@ -132,9 +137,9 @@ export class Input {
 
   // 指针取消（系统手势/来电等）：终止瞄准但不发射
   _cancel() {
-    this._aiming = false;
     this._panning = null;
     this._mouseCharge = false;
+    this._tapStart = null;
     this.pointers.clear();
     this.pinchDist = 0;
     this._pinchMid = null;
@@ -147,10 +152,17 @@ export class Input {
     const p = pArg || this.pos(e);
     this.pointers.set(e.pointerId, p);
 
-    // 双指 → 捏合/平移，取消瞄准
+    // 三指以上：冻结捏合状态并忽略（否则抬回两指时用陈旧间距会猛跳一次缩放）
+    if (this.pointers.size > 2) {
+      this.pinchDist = 0;
+      this._pinchMid = null;
+      return;
+    }
+
+    // 双指 → 捏合/平移
     if (this.pointers.size === 2) {
-      if (this._aiming) { this._aiming = false; this.onAimCancel?.(); }
       this._panning = null;
+      this._tapStart = null;
       const [a, b] = [...this.pointers.values()];
       this.pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
       this._pinchMid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
@@ -158,17 +170,9 @@ export class Input {
     }
 
     if (this.isTouch(e)) {
-      if (this.mode === 'aim' && this.mode2 === 'slingshot') {
-        this._aiming = true;
-        this._start = p;
-        this.onAimDrag(0, 0);
-      } else if (this.mode === 'target') {
-        const w = this.cam.screenToWorld(p.x, p.y);
-        this.onTarget?.(w.x, w.y);
-      } else {
-        // 观战单指平移
-        this._panning = p;
-      }
+      // 触屏单指：一律拖动平移视角（瞄准走右摇杆，标记目标走轻点）
+      this._panning = p;
+      this._tapStart = { x: p.x, y: p.y, t: performance.now() };
     } else {
       // 鼠标
       if (e.button === 2) {
@@ -201,7 +205,7 @@ export class Input {
     const p = pArg || this.pos(e);
     if (this.pointers.has(e.pointerId)) this.pointers.set(e.pointerId, p);
 
-    // 双指：中点拖动 = 平移，间距变化 = 缩放
+    // 双指：中点拖动 = 平移，间距变化 = 缩放（张开放大 / 捏合缩小，连续平滑）
     if (this.pointers.size === 2) {
       const [a, b] = [...this.pointers.values()];
       const d = Math.hypot(a.x - b.x, a.y - b.y);
@@ -213,7 +217,8 @@ export class Input {
           if (Math.abs(dx) + Math.abs(dy) > 0.5) this.onPan?.(dx, dy);
         }
         if (Math.abs(d - this.pinchDist) > 0.5) {
-          this.onZoom?.(mx, my, (d - this.pinchDist) * 2.2);
+          // 传原始像素增量 + continuous 标记，游戏侧用平滑指数映射（约 320px 捏合 = 2.7 倍）
+          this.onZoom?.(mx, my, d - this.pinchDist, true);
         }
       }
       this.pinchDist = d;
@@ -222,9 +227,7 @@ export class Input {
     }
 
     if (this.isTouch(e)) {
-      if (this._aiming) {
-        this.onAimDrag?.(p.x - this._start.x, p.y - this._start.y);
-      } else if (this._panning) {
+      if (this._panning) {
         this.onPan?.(p.x - this._panning.x, p.y - this._panning.y);
         this._panning = p;
       }
@@ -251,12 +254,16 @@ export class Input {
     }
 
     if (this.isTouch(e)) {
-      if (this._aiming) {
-        this._aiming = false;
-        const dx = p.x - this._start.x, dy = p.y - this._start.y;
-        if (Math.hypot(dx, dy) < 14) this.onAimCancel?.();
-        else this.onAimRelease?.(dx, dy);
+      // 轻点（几乎没拖动）：标记模式确认落点；瞄准模式选中目标类武器（空袭/奶牛）
+      if (this._tapStart) {
+        const moved = Math.hypot(p.x - this._tapStart.x, p.y - this._tapStart.y);
+        if (moved < 12 && performance.now() - this._tapStart.t < 600) {
+          const w = this.cam.screenToWorld(p.x, p.y);
+          if (this.mode === 'target') this.onTarget?.(w.x, w.y);
+          else if (this.mode === 'aim') this.onTapAim?.(w.x, w.y);
+        }
       }
+      this._tapStart = null;
       this._panning = null;
     } else {
       if (this._mouseCharge) {

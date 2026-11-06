@@ -3,7 +3,8 @@
 //   - 直接改写 t.mask（1=实心）
 //   - 可改写 t.waterY
 //   - t.noDecor = true 可关闭随机地表装饰（避免挡住靶子/旗杆）
-import { WORLD_W as W, WORLD_H as H } from '../config.js';
+// 注意：掩码步长必须用 t.W/t.H（当前地形实例的实际尺寸），不要用全局常量——
+// 将来教学关配了自定义 worldW 时，常量步长会写错行甚至整片场景无声错位
 
 function reset(t) {
   t.mask.fill(0);
@@ -12,6 +13,7 @@ function reset(t) {
 
 // 从 topY 向下填满实心地面
 function ground(t, topY) {
+  const { W, H } = t;
   const y0 = Math.max(0, topY | 0);
   for (let x = 0; x < W; x++) {
     for (let y = y0; y < H; y++) t.mask[y * W + x] = 1;
@@ -19,6 +21,7 @@ function ground(t, topY) {
 }
 
 function rect(t, x0, y0, x1, y1, solid = true) {
+  const { W, H } = t;
   const ax = Math.max(0, Math.min(W - 1, x0 | 0));
   const bx = Math.max(0, Math.min(W - 1, x1 | 0));
   const ay = Math.max(0, Math.min(H - 1, y0 | 0));
@@ -84,9 +87,9 @@ export const TUTORIAL_SCENES = {
   terrainKill(t) {
     reset(t);
     t.waterY = 680;
-    rect(t, 0, 520, 430, H - 1);        // 玩家所在高台
-    rect(t, 650, 560, 800, 572);        // 左靶脚下的薄地面（12px）
-    rect(t, 1020, 620, 1270, H - 1);    // 右岸（靶子站在离水边 8px 处）
+    rect(t, 0, 520, 430, t.H - 1);        // 玩家所在高台
+    rect(t, 650, 560, 800, 572);          // 左靶脚下的薄地面（12px）
+    rect(t, 1020, 620, 1270, t.H - 1);    // 右岸（靶子站在离水边 8px 处）
   },
 
   // 第四课 · 补给与特殊武器：地面 + 需要喷气背包才能上去的高台

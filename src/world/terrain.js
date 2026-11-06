@@ -345,22 +345,23 @@ export class Terrain {
   drillColumn(cx, yFrom, depth, r) {
     const { W, H, mask } = this;
     const y0 = Math.max(0, yFrom | 0), y1 = Math.min(H - 1, (yFrom + depth) | 0);
+    let changed = false;
     for (let y = y0; y <= y1; y++) {
       for (let x = Math.max(0, cx - r | 0); x <= Math.min(W - 1, cx + r | 0); x++) {
         const dx = x - cx;
-        if (dx * dx <= r * r - 1) mask[y * W + x] = 0;
+        if (dx * dx <= r * r - 1) {
+          const i = y * W + x;
+          if (mask[i]) { mask[i] = 0; changed = true; }
+        }
       }
     }
+    // 钻地弹每帧都会调到这里：没挖到实心像素时跳过瓦片重传（每块脏瓦片是一次全量 GPU 上传）
+    if (!changed) return;
     this._damageTiles(cx - r - 1, y0, cx + r + 1, y1, (ctx) => {
       ctx.beginPath();
       ctx.roundRect(cx - r, y0, r * 2, y1 - y0, r);
       ctx.fill();
     });
-  }
-
-  // 挖出后找虫虫落脚点（若脚下悬空自然下落即可，这里只做辅助查询）
-  groundY(x, fromY) {
-    return this.findSurfaceY(x, Math.max(0, fromY - 40));
   }
 }
 

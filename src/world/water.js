@@ -4,10 +4,11 @@ import * as PIXI from 'pixi.js';
 
 export class Water {
   constructor(themeKey, W = WORLD_W, H = WORLD_H) {
-    this.level = 1150;        // 当前水面 y
+    this.level = 1150;        // 当前水面 y（y 向下为正：数值变小 = 水位上涨）
     this.target = 1150;       // 目标（上涨动画）
     this.t = 0;
     this.W = W; this.H = H;   // 跟随地图尺寸（大/中/小）
+    this.minLevel = Math.round(H * 0.62); // 突死水位上限（淹没谷地、高地可站）
     this.view = new PIXI.Graphics();
     this.view.zIndex = 500;
     this.themeKey = themeKey;
@@ -15,7 +16,8 @@ export class Water {
 
   setLevel(y) { this.level = this.target = y; }
 
-  rise(px) { this.target = Math.min(this.target + px, this.H + 320); }
+  // 上涨 = 水面 y 减小；钳在 minLevel 防止全图淹没
+  rise(px) { this.target = Math.max(this.target - px, this.minLevel); }
 
   update(dt) {
     this.t += dt;

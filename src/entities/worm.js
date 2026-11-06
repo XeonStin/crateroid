@@ -1,6 +1,6 @@
 // ============ 虫虫实体：Q版形象 / 移动物理 / 生命 / 表情 ============
 import * as PIXI from 'pixi.js';
-import { WORM_R, WALK_SPEED, JUMP_VY, GRAVITY, STEP_UP, MAX_FALL_NO_DMG, FALL_DMG_K, AIR_CONTROL, DASH_SPEED, DASH_TIME, TEAM_INFO } from '../config.js';
+import { WORM_R, WALK_SPEED, JUMP_VY, GRAVITY, STEP_UP, MAX_FALL_NO_DMG, FALL_DMG_K, AIR_CONTROL, DASH_SPEED, TEAM_INFO } from '../config.js';
 
 const BODY_W = 24, BODY_H = 30;
 
@@ -290,11 +290,16 @@ export class Worm {
     if (!this.onGround) {
       const wasVy = this.vy;
       this.vy += GRAVITY * dt * (this.wantJet && this.jetFuel > 0 ? 0.25 : 1);
-      // 水平击退漂移
-      this.x += this.vx * dt;
+      // 水平击退漂移：带地形碰撞（脚/头两点检查），否则会被炸进峭壁永久卡死
+      const knx = this.x + this.vx * dt;
+      if (knx > 10 && knx < terrain.W - 10
+        && !terrain.isSolid(knx, this.y - 3)
+        && !terrain.isSolid(knx, this.y - BODY_H + 2)) {
+        this.x = knx;
+      } else {
+        this.vx = 0;
+      }
       this.vx *= Math.pow(0.35, dt);
-      if (this.x < 10) { this.x = 10; this.vx = 0; }
-      if (this.x > terrain.W - 10) { this.x = terrain.W - 10; this.vx = 0; }
       this.y += this.vy * dt;
 
       // 头顶碰撞
@@ -303,7 +308,13 @@ export class Worm {
       }
       // 落地
       if (this.vy > 0 && terrain.isSolid(this.x, this.y)) {
-        const gy = this.findStandY(terrain, this.x, this.y - 2);
+        let gy = this.findStandY(terrain, this.x, this.y - 2);
+        if (gy === null) {
+          // 高速下落单帧可穿透超过 STEP_UP（~22px）：向上搜真实地表，避免半截埋土走不动
+          for (let sy = Math.round(this.y) - 1; sy >= this.y - 44 && sy > 0; sy--) {
+            if (!terrain.isSolid(this.x, sy) && terrain.isSolid(this.x, sy + 1)) { gy = sy; break; }
+          }
+        }
         this.y = gy ?? this.y;
         this.onGround = true; this.vy = 0; this.vx = 0; this.jumpsUsed = 0;
         this.squashT = 0.25;
@@ -487,6 +498,7 @@ export class Worm {
     this.vx = 0; this.vy = 0;
     this.onGround = true;
     this.jumpsUsed = 0;
+    this.jetFuel = 0; // 死前捡的喷气背包不能带到下一条命
     this.walkDir = 0;
     this.wantJump = false;
     this.wantJet = false;

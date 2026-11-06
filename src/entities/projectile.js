@@ -138,7 +138,8 @@ export class Projectile {
         const worms = this.game ? this.game.worms : (this.simWorms || []);
         for (const worm of worms) {
           if (!worm.alive) continue;
-          if (worm === this.owner && this.time < 0.3) continue;
+          // 0.3s 发射者豁免：按 id 比较（AI 模拟里虫虫是 SimWorm 副本，=== 永不成立）
+          if (this.owner && worm.id === this.owner.id && this.time < 0.3) continue;
           const dx = worm.x - this.x, dy = worm.bodyY - this.y;
           if (dx * dx + dy * dy < (WORM_R + 5) ** 2) {
             if (w.bounce) {
@@ -279,7 +280,7 @@ export class Projectile {
     if (!this.alive) return;
     this.alive = false;
     if (this.view) {
-      this.view.destroy();
+      this.view.destroy({ children: true });
       this.view = null;
     }
     this.onExplode?.(this.x, this.y, this);
@@ -363,7 +364,7 @@ export class Plane {
     }
     if (this.x < -200 || this.x > this.game.terrain.W + 200) {
       this.alive = false;
-      this.view.destroy();
+      this.view.destroy({ children: true });
     }
   }
 }

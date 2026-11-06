@@ -7,7 +7,7 @@ import { Game } from './core/game.js';
 import { HUD } from './ui/hud.js';
 import { Menus } from './ui/menus.js';
 import { loadSave, persist } from './core/save.js';
-import { initAudio, unlockAudio, setVolumes, sfx } from './core/audio.js';
+import { initAudio, unlockAudio, setVolumes, setMusicMode, sfx } from './core/audio.js';
 import { WEAPONS } from './config.js';
 import * as planner from './ai/planner.js';
 
@@ -72,6 +72,7 @@ async function boot() {
   const touch = new TouchControls(input, {
     onWeaponPanel: () => document.getElementById('weapon-bar').classList.toggle('collapsed'),
     onSkip: () => game && game.skipTurn(),
+    onDash: () => game && game.onDashBtn(),
   });
 
   const game = new Game({ app, layers, camera, input, touch, settings, mobile });
@@ -98,6 +99,7 @@ async function boot() {
     restartMatch() { if (lastCfg) { game.hud.hideGameover(); game.startMatch(lastCfg); } game.paused = false; },
     quitToTitle() {
       game.running = false; game.paused = false;
+      setMusicMode('menu');
       game.hud.hide();
       menus.show('menu-title');
     },
@@ -115,8 +117,12 @@ async function boot() {
   input.onAimMove = (wx, wy) => game.onAimMove(wx, wy);
   input.onChargeStart = (wx, wy) => game.onChargeStart(wx, wy);
   input.onChargeEnd = () => game.onChargeEnd();
+  input.onStickStart = () => game.onStickStart();
+  input.onStickMove = (a, p) => game.onStickMove(a, p);
+  input.onStickEnd = (a, p) => game.onStickEnd(a, p);
+  input.onTapAim = (wx, wy) => game.onTapAim(wx, wy);
   input.onTarget = (wx, wy) => game.onTarget(wx, wy);
-  input.onZoom = (mx, my, dy) => game.onZoom(mx, my, dy);
+  input.onZoom = (mx, my, dy, continuous) => game.onZoom(mx, my, dy, continuous);
   input.onPan = (dx, dy) => game.onPan(dx, dy);
   input.onJumpPress = () => game.onJumpPress();
   input.onDigit = (n) => { const w = WEAPONS[n - 1]; if (w) game.selectWeapon(w.id); };
@@ -210,11 +216,12 @@ async function boot() {
     if (DEBUG) debugTick(dt);
   });
   // 兜底：rAF 停转（真后台/被节流）超过 400ms 时用定时器补步进
+  // 必须按固定步长逐步步进：单步 dt=1/6s 会让虫虫一帧下落 ~150px 直接穿透浮岛
   setInterval(() => {
     const stalled = performance.now() - lastFrameAt > 400;
     if ((stalled || document.hidden) && game.running && !game.paused && !menusVisible()) {
       lastFrameAt = performance.now();
-      game.update(FIXED * 10);
+      for (let i = 0; i < 10; i++) game.update(FIXED);
     }
   }, 250);
 

@@ -5,8 +5,9 @@ import { WORM_R } from '../config.js';
 export const MIN_SPEED = 330, MAX_SPEED = 1180;
 
 export function muzzlePos(worm, angleDeg, dist = 17) {
+  // 角度约定 0=右 90=上（与 launchVelocity 的 -sin 一致）：竖直向上时炮口在头顶
   const a = angleDeg * Math.PI / 180;
-  return { x: worm.x + Math.cos(a) * dist, y: worm.bodyY - 6 + Math.sin(a) * dist };
+  return { x: worm.x + Math.cos(a) * dist, y: worm.bodyY - 6 - Math.sin(a) * dist };
 }
 
 export function launchVelocity(angleDeg, power) {
@@ -76,16 +77,17 @@ function shotgunBlast(game, worm, w, angle) {
     for (let t = 8; t < w.range; t += 4) {
       if (game.terrain.isSolid(sx + dx * t, sy + dy * t)) { hitT = t; break; }
     }
-    // 射线 vs 虫虫（取最近）
-    let hitWorm = null;
+    // 射线 vs 虫虫（取最近：多虫在弹道上时命中 proj 最小者）
+    let hitWorm = null, hitProj = Infinity;
     for (const other of game.worms) {
       if (!other.alive || other === worm) continue;
       const ox = other.x - sx, oy = other.bodyY - sy;
       const proj = ox * dx + oy * dy;
       if (proj < 0 || proj > hitT) continue;
       const perp2 = ox * ox + oy * oy - proj * proj;
-      if (perp2 < (WORM_R + 4) ** 2) { hitWorm = other; hitT = proj; break; }
+      if (perp2 < (WORM_R + 4) ** 2 && proj < hitProj) { hitWorm = other; hitProj = proj; }
     }
+    if (hitWorm) hitT = hitProj;
     const ex = sx + dx * hitT, ey = sy + dy * hitT;
     game.drawShotgunTracer(sx + dx * 14, sy + dy * 14, ex, ey);
     if (hitWorm) {

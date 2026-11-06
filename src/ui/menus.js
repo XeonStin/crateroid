@@ -1,5 +1,5 @@
 // ============ 菜单系统：标题 / 组队 / 选图 / 挑战 / 战绩 / 设置 / 暂停 ============
-import { THEMES, DIFFICULTY, PLAYER_COLORS, ENEMY_COLORS, HATS, WORM_NAMES, WEAPONS, WORLD_W, MAP_SIZES, ACHIEVEMENTS } from '../config.js';
+import { THEMES, DIFFICULTY, PLAYER_COLORS, ENEMY_COLORS, HATS, WORM_NAMES, WEAPONS, WORLD_W, MAP_SIZES, MAP_W_MIN, MAP_W_MAX, ACHIEVEMENTS } from '../config.js';
 import { CHALLENGES } from '../levels/challenges.js';
 import { TUTORIALS } from '../levels/tutorials.js';
 import { loadSave, persist, resetSave } from '../core/save.js';
@@ -181,6 +181,9 @@ export class Menus {
         <label>地图大小 <select id="map-size"></select></label>
         <label>AI 难度 <select id="map-diff"></select></label>
       </div>
+      <div class="row-center">
+        <label>自定义宽度 <input type="range" id="map-custom" min="${MAP_W_MIN}" max="${MAP_W_MAX}" step="50" value="800"> <span id="map-custom-val">800px</span></label>
+      </div>
       <div class="menu-btns row">
         <button class="mbtn" id="map-back">← 返回</button>
         <button class="mbtn big" id="map-start">🚀 开战！</button>
@@ -188,7 +191,16 @@ export class Menus {
     for (const [k, d] of Object.entries(DIFFICULTY)) $('map-diff').append(new Option(d.name, k));
     $('map-diff').value = 'normal';
     for (const [k, s] of Object.entries(MAP_SIZES)) $('map-size').append(new Option(`${s.name} · ${s.w}px`, k));
+    $('map-size').append(new Option('自定义 · 用下面滑块', 'custom'));
     $('map-size').value = 'medium';
+    // 自定义宽度滑块：拖动即切到「自定义」档
+    $('map-custom').oninput = (e) => {
+      $('map-custom-val').textContent = e.target.value + 'px';
+      $('map-size').value = 'custom';
+    };
+    $('map-size').onchange = () => {
+      if ($('map-size').value === 'custom') $('map-custom-val').textContent = $('map-custom').value + 'px';
+    };
     $('map-dice').onclick = () => { $('map-seed').value = Math.floor(Math.random() * 99999); };
     // 今日固定种子（每天不同的地图，可和朋友对同一张图）
     $('map-today').onclick = () => {
@@ -225,16 +237,26 @@ export class Menus {
 
   buildMatchConfig(themeKey, seed, difficulty, sizeKey = 'medium') {
     const n = this.team.playerCount, en = this.team.enemyCount;
-    const W = MAP_SIZES[sizeKey]?.w || WORLD_W;
+    let W;
+    if (sizeKey === 'custom') {
+      const slider = document.getElementById('map-custom');
+      W = Math.max(MAP_W_MIN, Math.min(MAP_W_MAX, (slider && +slider.value) || 800));
+    } else {
+      W = MAP_SIZES[sizeKey]?.w || WORLD_W;
+    }
+    // 出生区按地图宽度比例缩放，窄图（自定义 500px）也不会叠在一起
+    const margin = Math.min(140, W * 0.12);
+    const px0 = margin, px1 = W * 0.35;
+    const ex0 = W * 0.65, ex1 = W - margin;
     const playerWorms = this.team.players.slice(0, n).map((p, i) => ({
-      x: 140 + (W * 0.3 - 140) * (n === 1 ? 0.5 : i / (n - 1)) + jitter(46),
+      x: px0 + (px1 - px0) * (n === 1 ? 0.5 : i / (n - 1)) + jitter(46),
       name: p.name, color: p.color, hat: p.hat,
     }));
     const names = [...WORM_NAMES].sort(() => Math.random() - 0.5);
     const enemyWorms = [];
     for (let i = 0; i < en; i++) {
       enemyWorms.push({
-        x: W * 0.7 + (W * 0.92 - W * 0.7) * (en === 1 ? 0.5 : i / (en - 1)) + jitter(46),
+        x: ex0 + (ex1 - ex0) * (en === 1 ? 0.5 : i / (en - 1)) + jitter(46),
         name: names[i], color: ENEMY_COLORS[i % ENEMY_COLORS.length], hat: HATS[(i + 3) % HATS.length],
       });
     }
@@ -375,16 +397,6 @@ export class Menus {
     slider('🎵 音乐音量', 'music', () => setVolumes(st.sfx, st.music));
     toggle('📳 屏幕震动', 'shake', () => { this.hooks.game.camera.enabled = st.shake; });
     toggle('📈 弹道预览', 'trajectory');
-    // 触控瞄准模式
-    const row = el('div', 'set-row');
-    row.innerHTML = `<span>📱 触屏瞄准</span>
-      <select id="set-aimmode">
-        <option value="slingshot">弹弓拖拽（松手发射）</option>
-        <option value="charge">拖拽瞄准 + 🔥蓄力</option>
-      </select>`;
-    row.querySelector('select').value = st.aimMode;
-    row.querySelector('select').onchange = (e) => { st.aimMode = e.target.value; persist(); this.hooks.game.updateInputMode?.(); };
-    rows.appendChild(row);
     // 桌面力度控制方式
     const prow = el('div', 'set-row');
     prow.innerHTML = `<span>🖱 桌面力度控制</span>

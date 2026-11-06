@@ -226,7 +226,7 @@ body { position: fixed; inset: 0; }
 
 #weapon-bar {
   position: absolute; bottom: calc(10px + var(--sab)); left: 50%; transform: translateX(-50%);
-  display: flex; gap: 6px; background: var(--panel); padding: 7px; border-radius: 14px;
+  display: flex; gap: 6px; background: var(--panel); padding: 13px 7px 7px; border-radius: 14px;
   box-shadow: 0 4px 14px rgba(0,0,0,.3); max-width: 94vw; overflow-x: auto;
   transition: opacity .2s;
 }
@@ -257,17 +257,24 @@ body { position: fixed; inset: 0; }
   background: var(--panel); border: 0; color: #fff; border-radius: 10px;
   padding: 8px 14px; font-size: 14px; cursor: pointer;
 }
-/* 触屏：武器栏抬高到虚拟按键上方，避免重叠 */
+/* 触屏底部三行（从下往上）：摇杆 → 武器栏（背包格） → 蓄力状态（左）+ 取消蓄力（右） */
 body.touch #weapon-bar {
-  bottom: calc(92px + var(--sab));
+  bottom: calc(130px + var(--sab));
+  gap: 4px; padding: 11px 5px 5px;
+  max-width: calc(100vw - 120px);
   transform: translateX(-50%) scale(.92);
   transform-origin: bottom center;
 }
-body.touch #power-wrap { bottom: calc(170px + var(--sab)); }
+body.touch .wchip { width: 46px; height: 46px; font-size: 19px; }
+body.touch #power-wrap {
+  bottom: calc(206px + var(--sab)); left: calc(14px + var(--sal));
+  transform: none;
+}
+body.touch #power-bar { width: 140px; }
 
-/* ---------------- 触控按钮 ---------------- */
+/* ---------------- 触控摇杆与按钮 ---------------- */
 #touch-controls { position: fixed; top: 0; left: 0; width: var(--vvw); height: var(--vvh); z-index: 12; pointer-events: none; }
-#touch-controls.disabled .tbtn { opacity: .25; pointer-events: none; }
+#touch-controls.disabled .tbtn, #touch-controls.disabled .joy { opacity: .25; pointer-events: none; }
 .tbtn {
   position: absolute; pointer-events: auto; border: 0; color: #fff; cursor: pointer;
   background: rgba(20, 24, 44, .55); backdrop-filter: blur(3px);
@@ -277,14 +284,46 @@ body.touch #power-wrap { bottom: calc(170px + var(--sab)); }
   touch-action: none;
 }
 .tbtn.active { transform: scale(.92); background: rgba(255, 217, 61, .5); }
-.tbtn.bl { bottom: calc(18px + var(--sab)); width: 58px; height: 58px; }
-#tb-left { left: calc(16px + var(--sal)); }
-#tb-right { left: calc(86px + var(--sal)); }
-#tb-jump { left: calc(151px + var(--sal)); bottom: calc(24px + var(--sab)); background: rgba(107, 217, 104, .4); }
-.tbtn.br { width: 56px; height: 56px; font-size: 22px; }
-#tb-fire { right: calc(96px + var(--sar)); bottom: calc(18px + var(--sab)); background: rgba(255, 107, 129, .5); font-size: 26px; }
-#tb-weapon { right: calc(18px + var(--sar)); bottom: calc(92px + var(--sab)); }
-#tb-skip { right: calc(18px + var(--sar)); bottom: calc(18px + var(--sab)); width: 48px; height: 48px; font-size: 17px; }
+
+/* 虚拟摇杆：基座 + 可拖动摇杆头 */
+.joy {
+  position: absolute; pointer-events: auto; touch-action: none;
+  width: 104px; height: 104px; border-radius: 50%;
+  background: rgba(20, 24, 44, .38); border: 2px solid rgba(255, 255, 255, .22);
+  backdrop-filter: blur(3px);
+}
+.joy .joy-knob {
+  position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px;
+  border-radius: 50%; pointer-events: none;
+  background: rgba(255, 255, 255, .3); border: 2px solid rgba(255, 255, 255, .4);
+  transition: transform .04s linear;
+}
+.joy.active { border-color: rgba(255, 217, 61, .65); }
+#joy-move { left: calc(34px + var(--sal)); bottom: calc(12px + var(--sab)); }
+#joy-aim {
+  right: calc(34px + var(--sar)); bottom: calc(12px + var(--sab));
+  background: rgba(64, 20, 30, .42); border-color: rgba(255, 130, 140, .4);
+}
+#joy-aim .joy-knob { background: rgba(255, 120, 130, .5); border-color: rgba(255, 160, 160, .5); }
+#joy-aim.active .joy-knob { background: rgba(255, 150, 110, .75); }
+
+/* 蓄力摇杆左侧一列：⤒ 跳跃（上）+ 💨 冲刺（下），跟随摇杆内移 */
+#tb-jump { right: calc(146px + var(--sar)); bottom: calc(66px + var(--sab)); width: 54px; height: 54px; background: rgba(107, 217, 104, .4); }
+#tb-dash { right: calc(150px + var(--sar)); bottom: calc(12px + var(--sab)); width: 46px; height: 46px; font-size: 19px; background: rgba(90, 160, 255, .35); }
+/* ⏭ 跳过回合：右上角 */
+#tb-skip { top: calc(56px + var(--sat)); right: calc(12px + var(--sar)); bottom: auto; width: 46px; height: 46px; font-size: 17px; }
+
+/* 第三行右侧「取消蓄力」：蓄力时点亮，摇杆拖到上面（或点按）即取消 */
+#tb-cancel {
+  bottom: calc(206px + var(--sab)); right: calc(22px + var(--sar));
+  width: auto; height: 42px; padding: 0 14px; border-radius: 12px;
+  font-size: 14px; white-space: nowrap;
+  background: rgba(255, 90, 80, .55); opacity: .35; pointer-events: none;
+}
+#tb-cancel.armed { opacity: 1; pointer-events: auto; animation: cancelPulse 1s ease-in-out infinite; }
+#tb-cancel.hit { background: rgba(255, 45, 45, .9); transform: scale(1.12); }
+@keyframes cancelPulse { 50% { box-shadow: 0 0 0 7px rgba(255, 90, 80, .28); } }
+
 /* 触屏时隐藏桌面跳过按钮，避免重叠 */
 body.touch #btn-skip { display: none; }
 
@@ -505,9 +544,9 @@ body.touch #tp-goal { margin-top: 4px; }
 @media (orientation: landscape) {
   body.touch #tut-panel { right: calc(84px + var(--sar)); }
 }
-/* 窄横屏：武器栏收窄，给右下角按钮让位（仍可横向滚动） */
+/* 窄横屏：武器栏收窄留边（仍可横向滚动），摇杆行在其下方不冲突 */
 @media (orientation: landscape) and (max-width: 700px) {
-  body.touch #weapon-bar { max-width: calc(100vw - 180px); }
+  body.touch #weapon-bar { max-width: calc(100vw - 40px); }
 }
 /* 横屏但可视高度很短（手机浏览器地址栏未收起）：压缩面板，避免压住武器栏 */
 @media (orientation: landscape) and (max-height: 460px) {
@@ -546,18 +585,20 @@ body.touch #tp-goal { margin-top: 4px; }
     max-width: 72vw;
   }
 
-  /* 武器栏放到右侧按键上方；8 格压缩成一排放得下 */
+  /* 竖屏底部三行：摇杆（12~124）→ 武器栏（140~190）→ 蓄力状态+取消蓄力（198~）；跳跃/冲刺列在蓄力摇杆左侧 */
   body.touch #weapon-bar {
-    bottom: calc(232px + var(--sab));
-    gap: 2px;
-    padding: 4px;
+    bottom: calc(140px + var(--sab));
+    gap: 2px; padding: 9px 4px 4px;
     max-width: 98vw;
     transform: translateX(-50%) scale(.98);
   }
   body.touch .wchip { width: 42px; height: 42px; font-size: 18px; }
-  body.touch #power-wrap { bottom: calc(292px + var(--sab)); }
-  /* 竖屏底部一行放不下跳跃 + 开火：跳跃上移，和左右行走键形成 D-pad */
-  body.touch #tb-jump { bottom: calc(84px + var(--sab)); }
+  body.touch #power-wrap { bottom: calc(198px + var(--sab)); }
+  body.touch #joy-move { width: 112px; height: 112px; }
+  body.touch #joy-aim { width: 112px; height: 112px; }
+  body.touch #tb-jump { right: calc(150px + var(--sar)); bottom: calc(78px + var(--sab)); width: 50px; height: 50px; }
+  body.touch #tb-dash { right: calc(154px + var(--sar)); bottom: calc(22px + var(--sab)); width: 44px; height: 44px; }
+  body.touch #tb-cancel { bottom: calc(198px + var(--sab)); right: calc(14px + var(--sar)); padding: 0 10px; font-size: 13px; }
 }
 /* 小屏竖屏：隐藏步骤胶囊，给目标/键位留空间 */
 @media (orientation: portrait) and (max-height: 700px) {

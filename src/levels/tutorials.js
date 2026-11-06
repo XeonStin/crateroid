@@ -68,9 +68,9 @@ export const TUTORIALS = [
       steps: [
         {
           id: 'walk', title: '① 左右移动',
-          text: '按住 A / D 在坑里左右走动。手机上按住左下角的 ◀ ▶ 按钮。',
-          touchText: '按住左下角的 ◀ ▶ 在坑里左右走动。',
-          keys: ['A / D', '移动'], touchKeys: ['◀ ▶', '移动'],
+          text: '按住 A / D 在坑里左右走动。手机上把左摇杆推向左/右。',
+          touchText: '按住左下角摇杆，向左/向右推即可在坑里走动。',
+          keys: ['A / D', '移动'], touchKeys: ['左摇杆 左右推', '移动'],
           goal: '向左、向右各走一段距离',
           check: (d) => (d.vars.minRel ?? 0) <= -35 && (d.vars.maxRel ?? 0) >= 35,
         },
@@ -85,8 +85,8 @@ export const TUTORIALS = [
         {
           id: 'double', title: '③ 斜向二段跳',
           text: '先按 W / 空格起跳，在空中再按一次跳跃 = 二段跳。起跳后按住 D（手机按住 ▶）就能斜向跳出坑。',
-          touchText: '先按 ⤒ 起跳，空中再按一次 ⤒ = 二段跳；同时按住 ▶ 斜向飞出坑。',
-          keys: ['W / 空格 ×2', '空中按住 D'], touchKeys: ['⤒ ×2', '空中按住 ▶'],
+          touchText: '先按 ⤒ 起跳，空中再按一次 ⤒ = 二段跳；同时把左摇杆推向右边斜向飞出坑。',
+          keys: ['W / 空格 ×2', '空中按住 D'], touchKeys: ['⤒ ×2', '空中左摇杆推右'],
           goal: '用二段跳跳到大坑外面',
           marker: { x: 810, y: 512, label: '从这边出去', color: 0x6bd968 },
           check: (d) => {
@@ -97,8 +97,8 @@ export const TUTORIALS = [
         {
           id: 'dash', title: '④ 冲刺',
           text: '在平地上快速双击 D（手机快速双击 ▶）即可冲刺。冲刺每回合 1 次，用来快速转移或躲爆炸。',
-          touchText: '快速双击 ▶ 即可冲刺。冲刺每回合 1 次，用来快速转移或躲爆炸。',
-          keys: ['双击 D', '冲刺'], touchKeys: ['双击 ▶', '冲刺'],
+          touchText: '点蓄力摇杆左边的 💨 冲刺按钮即可冲刺（沿当前移动方向）。冲刺每回合 1 次，用来快速转移或躲爆炸。',
+          keys: ['双击 D', '冲刺'], touchKeys: ['💨 冲刺按钮', '冲刺'],
           goal: '使用一次冲刺',
           enter: (d) => {
             d.game.dashLeft = Math.max(1, d.game.dashLeft);
@@ -109,23 +109,23 @@ export const TUTORIALS = [
         {
           id: 'cameraPan', title: '⑤ 移动视角',
           text: '按住鼠标中键拖动（或按住 Shift 再按左键拖动）可以平移视角。手机上用两根手指同时拖动屏幕。',
-          touchText: '用两根手指同时拖动屏幕，平移视角。',
-          keys: ['中键拖动 / Shift+左键', '移动视角'], touchKeys: ['双指拖动', '移动视角'],
+          touchText: '单指按住屏幕拖动，即可平移视角。',
+          keys: ['中键拖动 / Shift+左键', '移动视角'], touchKeys: ['单指拖动', '移动视角'],
           goal: '平移一次视角',
           check: (d) => d.hasEvent('cameraPan', (x) => Math.abs(x.dx) + Math.abs(x.dy) > 2),
         },
         {
           id: 'cameraZoom', title: '⑥ 缩放视角',
           text: '滚动鼠标滚轮缩放视角。注意：按住左键瞄准时滚轮是微调力度，想缩放请先松开左键。手机上双指捏合/张开缩放。',
-          touchText: '双指捏合或张开即可缩放视角。',
-          keys: ['滚轮', '缩放'], touchKeys: ['双指捏合', '缩放'],
+          touchText: '双指张开放大、捏合缩小；缩到最小可以看全地图。',
+          keys: ['滚轮', '缩放'], touchKeys: ['双指张开/捏合', '缩放'],
           goal: '缩放一次视角',
           check: (d) => d.hasEvent('cameraZoom'),
         },
         {
           id: 'goal', title: '⑦ 走到终点',
           text: '沿着平地走到右侧的终点旗杆，本课就完成了。',
-          keys: ['A / D', '行走'], touchKeys: ['◀ ▶', '行走'],
+          keys: ['A / D', '行走'], touchKeys: ['左摇杆', '行走'],
           goal: '走到终点旗杆',
           marker: { x: 1240, y: 512, label: '终点', color: 0x6bd968 },
           check: (d) => {
@@ -158,9 +158,9 @@ export const TUTORIALS = [
       steps: [
         {
           id: 'drag', title: '① 拖拽瞄准',
-          text: '按住鼠标左键并拖动瞄准（手机：按住屏幕向反方向拖）。把角度抬到 45° 左右，HUD 会显示角度。',
-          touchText: '按住屏幕向左下方拖（像拉弹弓），把角度抬到 45° 左右。HUD 会显示角度。',
-          keys: ['按住左键拖动', '瞄准'], touchKeys: ['按住屏幕拖拽', '瞄准'],
+          text: '按住鼠标左键并拖动瞄准（手机：推右下角蓄力摇杆，方向=发射方向）。把角度抬到 45° 左右，HUD 会显示角度。',
+          touchText: '把右下角蓄力摇杆斜向上推：摇杆方向就是发射方向，推到 45° 左右。HUD 会显示角度。',
+          keys: ['按住左键拖动', '瞄准'], touchKeys: ['右摇杆方向', '瞄准'],
           goal: '把瞄准角度调到 38°~55°',
           check: (d) => {
             const a = aiming(d);
@@ -170,8 +170,8 @@ export const TUTORIALS = [
         {
           id: 'power', title: '② 控制力度',
           text: '鼠标离虫虫越远力度越大。按住不放，把力度拖到 50%~75% 之间。',
-          touchText: '拖得越远力度越大。按住不放，把力度拖到 50%~75%。',
-          keys: ['拖拽距离', '力度'], touchKeys: ['拖拽距离', '力度'],
+          touchText: '摇杆推得越远力度越大。把行程推到 50%~75%。',
+          keys: ['拖拽距离', '力度'], touchKeys: ['摇杆行程', '力度'],
           goal: '把力度控制在 50%~75%',
           check: (d) => {
             const a = aiming(d);
@@ -189,8 +189,8 @@ export const TUTORIALS = [
         {
           id: 'fine', title: '③ 力度微调',
           text: '按住左键蓄力，等力度条经过 57%~65% 时松手；拖动瞄准时也可以慢慢微调距离。',
-          touchText: '慢慢拖动，把力度调到 57%~65% 之间，练一练精细控制。',
-          keys: ['蓄力', '微调'], touchKeys: ['拖拽', '微调'],
+          touchText: '慢慢推杆，把力度调到 57%~65% 之间，练一练精细控制。',
+          keys: ['蓄力', '微调'], touchKeys: ['慢慢推杆', '微调'],
           goal: '把力度调到 57%~65%',
           when: (g) => g.mobile || g.settings?.powerMode === 'hold',
           check: (d) => {
@@ -200,16 +200,16 @@ export const TUTORIALS = [
         },
         {
           id: 'cancel', title: '④ 取消瞄准',
-          text: '不想打了？按 Esc 或点鼠标右键取消瞄准（手机：轻点一下屏幕、不要拖动）。取消不会消耗回合。',
-          touchText: '不想打了？轻点一下屏幕、不要拖动即可取消瞄准，不消耗回合。',
-          keys: ['Esc / 右键', '取消'], touchKeys: ['轻点屏幕', '取消'],
+          text: '不想打了？按 Esc 或点鼠标右键取消瞄准（手机：把摇杆拖到「取消蓄力」按钮上，或直接点按它）。取消不会消耗回合。',
+          touchText: '不想打了？把蓄力摇杆拖到上方「取消蓄力」按钮上（或直接点按它），即可取消，不消耗回合。松手都会发射，哪怕力度很小。',
+          keys: ['Esc / 右键', '取消'], touchKeys: ['取消蓄力按钮', '取消'],
           goal: '取消一次瞄准',
           check: (d) => d.hasEvent('cancelAim'),
         },
         {
           id: 'hit', title: '⑤ 命中靶子',
           text: '重新瞄准：角度 45° 左右、力度约 60%，松手发射，命中靶子！',
-          keys: ['瞄准 + 松手', '发射'], touchKeys: ['拖拽 + 松手', '发射'],
+          keys: ['瞄准 + 松手', '发射'], touchKeys: ['推出摇杆松手', '发射'],
           goal: '用火箭弹命中靶子',
           marker: (d) => enemyMarker(d, 0, '打中它'),
           enter: (d) => noteHitBase(d, 0, 'hitBase'),
@@ -243,14 +243,14 @@ export const TUTORIALS = [
           {
             id: 'fire', title: '① 发射火箭弹',
             text: '按住左键瞄准，松手发射。先把炮口抬高，让弹道落到靶子附近。',
-            keys: ['按住瞄准', '松手发射'], touchKeys: ['拖拽瞄准', '松手发射'],
+            keys: ['按住瞄准', '松手发射'], touchKeys: ['摇杆瞄准', '松手发射'],
             goal: '发射一枚火箭弹',
             check: (d) => d.hasEvent('shot', (x) => x.weaponId === 'bazooka'),
           },
           {
             id: 'kill', title: '② 击倒靶子',
             text: '火箭弹触地爆炸，把爆炸范围覆盖到靶子身上。继续调整角度和力度，直到击倒它。',
-            keys: ['瞄准 + 力度', '爆炸'], touchKeys: ['拖拽瞄准', '爆炸'],
+            keys: ['瞄准 + 力度', '爆炸'], touchKeys: ['摇杆瞄准', '爆炸'],
             goal: '用火箭弹击倒靶子',
             marker: (d) => enemyMarker(d, 0, '火箭弹靶'),
             check: (d) => enemyKilled(d, 0, ['bazooka']),
@@ -484,8 +484,8 @@ export const TUTORIALS = [
         {
           id: 'jetpack', title: '③ 喷气背包',
           text: '先按跳跃起跳，起跳后继续按住跳跃键垂直升空。升到高台上方后再按住 D 横移过去，松开跳跃键落到台上。二段跳上不去，喷气背包才行。',
-          touchText: '先按 ⤒ 起跳，按住 ⤒ 垂直喷气；升到高台上方再按 ▶ 横移，松开 ⤒ 落到台上。',
-          keys: ['起跳', '按住喷气', '松开 + D'], touchKeys: ['⤒ 起跳', '按住 ⤒', '松开 + ▶'],
+          touchText: '先按 ⤒ 起跳，按住 ⤒ 垂直喷气；升到高台上方再把左摇杆推向右横移，松开 ⤒ 落到台上。',
+          keys: ['起跳', '按住喷气', '松开 + D'], touchKeys: ['⤒ 起跳', '按住 ⤒', '左摇杆右移'],
           goal: '用喷气背包飞上高台',
           marker: { x: 740, y: 322, label: '飞上高台', color: 0x53c8ff },
           enter: (d) => {
@@ -504,8 +504,8 @@ export const TUTORIALS = [
         {
           id: 'airstrike', title: '④ 空袭',
           text: '按 5 选择 ✈️ 空袭，然后点地图进入标记模式，再点一次确认落点。飞机会投下 5 颗炸弹。',
-          touchText: '点武器栏选 ✈️ 空袭，点地图标记落点，再点一次确认。飞机会投下 5 颗炸弹。',
-          keys: ['5', '点地图两次'], touchKeys: ['点武器栏 ✈️', '点地图两次'],
+          touchText: '点武器栏选 ✈️ 空袭，轻点地图（或把蓄力摇杆轻推一下）进入标记模式，再点一次确认落点。可以先缩小看全图再召唤。',
+          keys: ['5', '点地图两次'], touchKeys: ['点武器栏 ✈️', '推杆 + 点地图'],
           goal: '用空袭命中「空袭靶」',
           ammoId: 'airstrike',
           marker: (d) => enemyMarker(d, 0, '空袭靶'),
@@ -517,8 +517,8 @@ export const TUTORIALS = [
         },
         {
           id: 'holy', title: '⑤ 神圣手雷',
-          text: '按 7 选择 🐑 神圣手雷。它和普通手雷一样会碰撞弹跳，约 2 秒后爆炸；爆炸半径高达 84，把坑里的「神圣靶」覆盖住即可。',
-          touchText: '点武器栏选 🐑 神圣手雷，扔进「神圣靶」所在的坑里；它会弹跳约 2 秒后爆炸，半径 84，覆盖面很大。',
+          text: '按 7 选择 🐑 神圣手雷。它和普通手雷一样会碰撞弹跳，3 秒引信；爆炸半径高达 84，把坑里的「神圣靶」覆盖住即可。',
+          touchText: '点武器栏选 🐑 神圣手雷，扔进「神圣靶」所在的坑里；它和普通手雷一样弹跳 3 秒后爆炸，半径 84，覆盖面很大。',
           keys: ['7', '超大爆炸'], touchKeys: ['点武器栏 🐑', '超大爆炸'],
           goal: '用神圣手雷命中任意靶子',
           ammoId: 'holy',
@@ -531,8 +531,8 @@ export const TUTORIALS = [
         {
           id: 'cow', title: '⑥ 奶牛空袭',
           text: '按 8 选择 🐮 奶牛空袭，点地图选落点。奶牛会从天而降，一路弹跳碾压 5 次。',
-          touchText: '点武器栏选 🐮 奶牛空袭，点地图选落点。奶牛会一路弹跳碾压。',
-          keys: ['8', '点地图'], touchKeys: ['点武器栏 🐮', '点地图'],
+          touchText: '点武器栏选 🐮 奶牛空袭，蓄力摇杆轻推进入标记，再点地图选落点。奶牛会一路弹跳碾压。',
+          keys: ['8', '点地图'], touchKeys: ['点武器栏 🐮', '推杆 + 点地图'],
           goal: '用奶牛空袭命中「奶牛靶」',
           ammoId: 'cow',
           marker: (d) => enemyMarker(d, 2, '奶牛靶'),

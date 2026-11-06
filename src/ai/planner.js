@@ -2,7 +2,7 @@
 // 与真实物理共用 Projectile 积分，保证 AI 预判与实际弹道一致
 import { Projectile, explosionEffects } from '../entities/projectile.js';
 import { muzzlePos, launchVelocity } from '../weapons/index.js';
-import { WORM_R, GRAVITY, WEAPON_BY_ID } from '../config.js';
+import { WORM_R, GRAVITY, WEAPON_BY_ID, MAX_FALL_NO_DMG, FALL_DMG_K } from '../config.js';
 
 export class SimTerrain {
   constructor(mask, W, H) { this.mask = mask; this.W = W; this.H = H; }
@@ -30,6 +30,8 @@ class SimWorm {
     this.flying = false; this.onGround = true;
   }
   get bodyY() { return this.y - 16.5; }
+  // 探测走位用副本：必须走构造器克隆——spread({...w}) 会丢掉原型上的 bodyY getter
+  clone() { return new SimWorm(this); }
 }
 
 export function makeSim(game) {
@@ -63,7 +65,8 @@ function settleWorm(w, sim, dmgMap) {
     if (w.vy > 0 && sim.terrain.isSolid(w.x, w.y)) {
       let guard = 0;
       while (sim.terrain.isSolid(w.x, w.y) && guard++ < 40) w.y -= 1;
-      if (w.vy > 460) addDmg(dmgMap, w, (w.vy - 460) * 0.085);
+      // 摔伤参数与真实 Worm.step 保持一致（MAX_FALL_NO_DMG / FALL_DMG_K）
+      if (w.vy > MAX_FALL_NO_DMG) addDmg(dmgMap, w, (w.vy - MAX_FALL_NO_DMG) * FALL_DMG_K);
       w.flying = false; return;
     }
   }
@@ -78,7 +81,8 @@ function addDmg(dmgMap, worm, dmg) {
 export function simulateShot(sim, owner, weaponId, angle, power) {
   const w = WEAPON_BY_ID[weaponId];
   const dmgMap = new Map();
-  let endX = 0, endY = 0;
+  // NaN：出界/落水的弹没有落点，scoreShot 的 Number.isFinite 会跳过落点接近分
+  let endX = NaN, endY = NaN;
 
   if (w.hitscan) {
     // 散弹枪射线
@@ -108,7 +112,11 @@ export function simulateShot(sim, owner, weaponId, angle, power) {
     p.simWorms = sim.worms;
     p.onExplode = (ex, ey, proj) => {
       endX = ex; endY = ey;
-      const eff = explosionEffects(sim.worms, ex, ey, proj.weapon.radius, proj.weapon.dmg);
+      // 集束主爆按真实路径折减（game.projectileExplode: 0.6 径 / 0.5 伤）
+      const isCl = !!proj.weapon.cluster;
+      const r = isCl ? proj.weapon.radius * 0.6 : proj.weapon.radius;
+      const dmg = isCl ? proj.weapon.dmg * 0.5 : proj.weapon.dmg;
+      const eff = explosionEffects(sim.worms, ex, ey, r, dmg);
       const kbX = proj.weapon.id === 'cow' ? 0.2 : 1; // 与真实奶牛击退保持一致
       for (const e of eff) {
         addDmg(dmgMap, e.worm, e.dmg);
@@ -118,7 +126,8 @@ export function simulateShot(sim, owner, weaponId, angle, power) {
         for (let i = 0; i < proj.weapon.cluster; i++) {
           const ba = -Math.PI / 2 + (i - (proj.weapon.cluster - 1) / 2) * 0.36 + (Math.random() - 0.5) * 0.14;
           const sp = 125 + Math.random() * 75;
-          spawn('bomblet', ex, ey - 4, Math.cos(ba) * sp, Math.sin(ba) * sp, null);
+          // 子雷 owner 传发射者（与真实 spawnBomblets 一致，保留发射者豁免语义）
+          spawn('bomblet', ex, ey - 4, Math.cos(ba) * sp, Math.sin(ba) * sp, own);
         }
       }
     };
@@ -186,7 +195,8 @@ export function* searchCandidates(sim, owner, weaponIds, opts) {
     const angles = [];
     for (let a = 8; a <= 172; a += angleStep) angles.push(a);
     const powers = [];
-    for (let p = 0.25; p <= 1.001; p += powerStep) powers.push(Math.min(1, p));
+    for (let p = 0.25; p < 1; p += powerStep) powers.push(p);
+    powers.push(1); // 满力必须显式覆盖（浮点步进到不了 1.0）
 
     const tryShot = function* (angle, power) {
       const r = simulateShot(sim, owner, weaponId, angle, power);
@@ -217,7 +227,8 @@ function clampP(p) { return Math.max(0.12, Math.min(1, p)); }
 
 // 空袭/奶牛目标启发式：选择最暴露的敌人
 export function pickTargetWorm(sim, owner) {
-  let best = null, bestScore = -1;
+  // -Infinity：唯一敌人哪怕被遮挡+友军邻近（惩罚后为负）也要选出来，不能弃用特殊武器
+  let best = null, bestScore = -Infinity;
   for (const w of sim.worms) {
     if (!w.alive || w.team === owner.team) continue;
     // 上方遮挡检测
