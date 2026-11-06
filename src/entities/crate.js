@@ -3,22 +3,25 @@ import * as PIXI from 'pixi.js';
 import { CRATE_TYPES, GRAVITY } from '../config.js';
 
 export function pickCrateType(rng = Math.random) {
-  const total = CRATE_TYPES.reduce((s, t) => s + t.weight, 0);
+  const pool = CRATE_TYPES.filter((t) => (t.weight || 0) > 0);
+  const total = pool.reduce((s, t) => s + t.weight, 0);
   let r = rng() * total;
-  for (const t of CRATE_TYPES) { r -= t.weight; if (r <= 0) return t; }
-  return CRATE_TYPES[0];
+  for (const t of pool) { r -= t.weight; if (r <= 0) return t; }
+  return pool[0];
 }
 
 export class Crate {
-  // kind: 'health' | 'weapon' | 'tool'; payload: 武器箱时的 weaponId
-  constructor(game, x, kind, payload) {
+  // kind: 'health' | 'weapon' | 'tool' | 'kit'; payload: 武器箱/补给箱内容
+  constructor(game, x, kind, payload, opts = {}) {
     this.game = game;
     this.x = x;
-    this.y = -30;
+    this.y = opts.y ?? -30;
     this.vy = 0;
     this.kind = kind;
     this.payload = payload;
-    this.type = CRATE_TYPES.find(t => t.id === kind);
+    this.fast = !!opts.fast;      // 教学关补给快速伞降
+    this.type = CRATE_TYPES.find(t => t.id === kind)
+      || { id: kind, icon: kind === 'kit' ? '🎒' : '📦', color: 0xffb545 };
     this.alive = true;
     this.parachute = true;
     this.t = 0;
@@ -52,12 +55,18 @@ export class Crate {
     if (!this.alive) return;
     this.t += dt;
     if (this.parachute) {
-      // 伞降：缓慢下落 + 风漂移
-      this.vy = Math.min(this.vy + GRAVITY * dt, 85);
+      // 伞降：缓慢下落 + 风漂移（教学补给箱下落更快）
+      this.vy = Math.min(this.vy + GRAVITY * dt, this.fast ? 165 : 85);
       this.x += windAccel * 0.05 * dt; // 轻微风漂
       this.x += Math.sin(this.t * 2) * 8 * dt;
       this.y += this.vy * dt;
       this.chute.rotation = Math.sin(this.t * 2.4) * 0.12;
+      if (this.y > this.game.water.level) {
+        // 落在水面上：直接损毁，避免补给箱永远掉出世界
+        this.game.splashAt(this.x, this.game.water.level);
+        this.destroy();
+        return;
+      }
       if (terrain.isSolid(this.x, this.y)) {
         let guard = 0;
         while (terrain.isSolid(this.x, this.y) && guard++ < 40) this.y -= 1;

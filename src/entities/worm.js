@@ -30,6 +30,9 @@ export class Worm {
     this.walkDir = 0;
     this.wantJump = false;
     this.wantJet = false;
+    this.hitLog = [];                     // 受击武器记录（教学判定用）
+    this.lastHitWeapon = null;
+    this._drowned = false;
 
     // 动画状态
     this.squashT = 0; this.stretchT = 0;
@@ -42,6 +45,7 @@ export class Worm {
     // 变换缓存（避免静止时每帧把 transform 标脏）
     this._vx = NaN; this._vy = NaN;
     this._lsx = 1; this._lsy = 1; this._lrot = 0; this._lpy = 0;
+    this._tint = 0xffffff;
 
     this.view = new PIXI.Container();
     this.view.zIndex = 1000;
@@ -59,6 +63,12 @@ export class Worm {
     c.addChild(this.teamRing);
     this.bodyG = new PIXI.Container();
     c.addChild(this.bodyG);
+
+    // 喷气背包（画在身体后面；有燃料时显示，用完自动隐藏）
+    this.jetpack = new PIXI.Graphics();
+    this.jetpack.visible = false;
+    this.bodyG.addChild(this.jetpack);
+    this._jetKey = null;
 
     const col = new PIXI.Color(this.color);
     const [cr, cg, cb] = [col.red * 255, col.green * 255, col.blue * 255];
@@ -168,6 +178,28 @@ export class Worm {
     }
   }
 
+  // 喷气背包外观：小罐体 + 背带，喷气时带火焰
+  _drawJetpack(flame) {
+    const g = this.jetpack;
+    g.clear();
+    const s = -this.facing;           // 背后方向
+    const x = s * 14;
+    // 背带
+    g.moveTo(x - s * 7, -23).lineTo(x - s * 2, -9)
+      .stroke({ width: 2, color: 0x8a5a33 });
+    // 罐体
+    g.roundRect(x - 5, -25, 10, 16, 4).fill(0x53c8ff);
+    g.roundRect(x - 5, -25, 10, 16, 4).stroke({ width: 1.5, color: 0x2a7fbf });
+    g.circle(x, -22.5, 2.2).fill(0xdff3ff);
+    // 喷嘴
+    g.rect(x - 2, -10, 4, 3).fill(0x8d99ae);
+    // 喷气火焰
+    if (flame) {
+      g.moveTo(x - 3, -7).lineTo(x, 2).lineTo(x + 3, -7).fill(0xffb545);
+      g.moveTo(x - 1.4, -7).lineTo(x, -1).lineTo(x + 1.4, -7).fill(0xffe9a8);
+    }
+  }
+
   // ---------- 物理 ----------
   step(dt, terrain, game) {
     if (!this.alive) return;
@@ -176,10 +208,12 @@ export class Worm {
     // 落水
     if (this.y > waterY + 2) { game.drownWorm(this); return; }
 
-    // 喷气背包
-    if (this.wantJet && this.jetFuel > 0) {
+    // 喷气背包（起跳后才能推进）
+    if (this.wantJet && this.jetFuel > 0 && !this.onGround) {
       this.vy -= GRAVITY * 1.6 * dt;
-      this.jetFuel -= dt * 34;
+      // 限制上升速度：否则按住几帧就会冲出屏幕，无法稳稳落到高台
+      if (this.vy < -360) this.vy = -360;
+      this.jetFuel = Math.max(0, this.jetFuel - dt * 34);
       if ((game.time * 8 | 0) % 2 === 0) {
         game.particles.spawn({ x: this.x, y: this.y - 4, vx: (Math.random() - 0.5) * 30, vy: 80, life: 0.3, size: 4, color: 0xffb545, shrink: true });
         if (Math.random() < 0.3) game.sfx('jet');
@@ -243,10 +277,12 @@ export class Worm {
         this.vy = JUMP_VY; this.onGround = false; this.jumpsUsed = 1;
         this.stretchT = 0.2;
         game.sfx('jump');
+        game.tutEvent?.('jump', { worm: this, double: false });
       } else if (this.jumpsUsed < 2) {
         this.vy = JUMP_VY * 0.92; this.jumpsUsed = 2;
         this.stretchT = 0.2;
         game.sfx('boing');
+        game.tutEvent?.('jump', { worm: this, double: true });
       }
     }
 
@@ -340,6 +376,18 @@ export class Worm {
       this._lsx = sx; this._lsy = sy;
     }
 
+    // 喷气背包：拾取后显示，燃料耗尽后恢复原外观
+    const jetOn = this.jetFuel > 0;
+    const jetFlame = jetOn && this.wantJet && !this.onGround;
+    const jetKey = `${jetOn ? 1 : 0}|${this.facing}|${jetFlame ? 1 : 0}`;
+    if (jetKey !== this._jetKey) {
+      this._jetKey = jetKey;
+      if (this.jetpack) {
+        this.jetpack.visible = jetOn;
+        if (jetOn) this._drawJetpack(jetFlame);
+      }
+    }
+
     // 行走摆动
     let rot = 0, ipy = 0;
     if (this.walkDir !== 0 && this.onGround) {
@@ -415,8 +463,12 @@ export class Worm {
       this.bubble.alpha = Math.min(1, this.bubbleT * 3);
     }
 
-    // 受伤闪白
-    this.bodyG.tint = this.hurtFlash > 0 ? 0xff8888 : 0xffffff;
+    // 受伤闪白（变化检测，避免静止时每帧把 tint 标脏）
+    const tint = this.hurtFlash > 0 ? 0xff8888 : 0xffffff;
+    if (tint !== this._tint) {
+      this._tint = tint;
+      this.bodyG.tint = tint;
+    }
 
     // 指示箭头浮动
     if (this.arrow.visible) this.arrow.y = -BODY_H - 40 + Math.sin(time * 5) * 3;
@@ -427,12 +479,48 @@ export class Worm {
     if (this.tomb) this.tomb.y = Math.sin(time * 1.2) * 1;
   }
 
+  // 原地复活（教学/练习靶场）：保留同一对象与 id，重建外观
+  revive(hp, x, y) {
+    this.alive = true;
+    this.hp = hp;
+    this.x = x; this.y = y;
+    this.vx = 0; this.vy = 0;
+    this.onGround = true;
+    this.jumpsUsed = 0;
+    this.walkDir = 0;
+    this.wantJump = false;
+    this.wantJet = false;
+    this.dashT = 0;
+    this.hurtFlash = 0;
+    this.stunnedT = 0;
+    this.dyingT = 0;
+    this.squashT = 0;
+    this.stretchT = 0;
+    this.bubbleT = 0;
+    this._drowned = false;
+    this.lastHitWeapon = null;
+    this.hitLog = [];
+    this.tomb = null;
+    // 重建外观（die() 会把子节点换成墓碑）
+    if (this.view) this.view.destroy({ children: true });
+    this.view = new PIXI.Container();
+    this.view.zIndex = 1000;
+    this._vx = NaN; this._vy = NaN;
+    this._lsx = 1; this._lsy = 1; this._lrot = 0; this._lpy = 0;
+    this._tint = 0xffffff;
+    this._hpKey = null; this._eyeKey = null;
+    this.buildView();
+    this.view.visible = true;
+    this.view.position.set(x, y);
+  }
+
   die(game, epitaph) {
     this.alive = false;
     this.walkDir = 0;
     this.bubble.visible = false;
     this.arrow.visible = false;
-    this.view.removeChildren();
+    // 释放旧身体/血条/文字（只 removeChildren 会泄漏 GPU 资源）
+    for (const child of this.view.removeChildren()) child.destroy({ children: true });
     // 墓碑
     const t = new PIXI.Container();
     const g = new PIXI.Graphics();

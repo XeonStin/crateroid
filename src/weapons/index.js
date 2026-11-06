@@ -29,7 +29,7 @@ export function fireWeapon(game, worm, weaponId, angle, power, targetX, opts = {
     game.consumeAmmo(worm, weaponId);
     if (weaponId === 'airstrike') {
       const dir = targetX < worm.x ? -1 : 1; // 飞机从虫虫一侧进入
-      game.planes.push(new Plane(game, targetX, dir > 0 ? 1 : -1));
+      game.planes.push(new Plane(game, targetX, dir > 0 ? 1 : -1, worm));
     } else if (weaponId === 'cow') {
       spawnCow(game, worm, targetX);
     }
@@ -38,7 +38,8 @@ export function fireWeapon(game, worm, weaponId, angle, power, targetX, opts = {
   }
 
   if (w.hitscan) {
-    game.consumeAmmo(worm, weaponId);
+    // 散弹枪两发一组：只在第一发扣 1 发弹药，第二发免费打完
+    if (!(game._shotgunUsedThisTurn > 0)) game.consumeAmmo(worm, weaponId);
     shotgunBlast(game, worm, w, angle);
     game.onShotgunShot(worm, w, opts);
     return false;
@@ -99,7 +100,6 @@ function shotgunBlast(game, worm, w, angle) {
   }
   if (anyWormHit) {
     game.sfx('hurt');
-    if (worm.team === 0 && game.matchStats) game.matchStats.hits++;
   }
   game.camShake(3);
 }
@@ -108,7 +108,7 @@ function spawnCow(game, worm, targetX) {
   const p = new Projectile({
     weaponId: 'cow', owner: worm,
     x: Math.max(30, Math.min(game.terrain.W - 30, targetX)), y: -40,
-    vx: 40, vy: 60, game,
+    vx: 0, vy: 60, game,
     onExplode: (x, y, proj) => game.projectileExplode(x, y, proj),
   });
   game.projectiles.push(p);
@@ -116,9 +116,9 @@ function spawnCow(game, worm, targetX) {
 }
 
 // 空袭炸弹（由飞机投放）
-export function spawnAirstrikeBomb(game, x, y, dir) {
+export function spawnAirstrikeBomb(game, x, y, dir, owner = null) {
   const p = new Projectile({
-    weaponId: 'bomb', owner: null, x, y,
+    weaponId: 'bomb', owner, x, y,
     vx: dir * 60, vy: 40, game,
     onExplode: (bx, by, proj) => game.projectileExplode(bx, by, proj),
   });
@@ -126,12 +126,13 @@ export function spawnAirstrikeBomb(game, x, y, dir) {
 }
 
 // 集束炸弹分裂
-export function spawnBomblets(game, x, y, count) {
+export function spawnBomblets(game, x, y, count, owner = null) {
   for (let i = 0; i < count; i++) {
-    const a = -Math.PI / 2 + (i - (count - 1) / 2) * 0.5 + (Math.random() - 0.5) * 0.2;
-    const sp = 170 + Math.random() * 90;
+    // 收窄散布：子雷落在爆点附近，避免整片区域都炸不到
+    const a = -Math.PI / 2 + (i - (count - 1) / 2) * 0.36 + (Math.random() - 0.5) * 0.14;
+    const sp = 125 + Math.random() * 75;
     const p = new Projectile({
-      weaponId: 'bomblet', owner: null, x, y: y - 4,
+      weaponId: 'bomblet', owner, x, y: y - 4,
       vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, game,
       onExplode: (bx, by, proj) => game.projectileExplode(bx, by, proj),
     });

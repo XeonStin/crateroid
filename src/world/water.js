@@ -3,10 +3,11 @@ import { WORLD_W, WORLD_H } from '../config.js';
 import * as PIXI from 'pixi.js';
 
 export class Water {
-  constructor(themeKey) {
+  constructor(themeKey, W = WORLD_W, H = WORLD_H) {
     this.level = 1150;        // 当前水面 y
     this.target = 1150;       // 目标（上涨动画）
     this.t = 0;
+    this.W = W; this.H = H;   // 跟随地图尺寸（大/中/小）
     this.view = new PIXI.Graphics();
     this.view.zIndex = 500;
     this.themeKey = themeKey;
@@ -14,7 +15,7 @@ export class Water {
 
   setLevel(y) { this.level = this.target = y; }
 
-  rise(px) { this.target = Math.min(this.target + px, WORLD_H + 320); }
+  rise(px) { this.target = Math.min(this.target + px, this.H + 320); }
 
   update(dt) {
     this.t += dt;
@@ -34,20 +35,20 @@ export class Water {
     const segs = 60, amp = isLava ? 3 : 6;
     const pts = [0, y + 4];
     for (let i = 0; i <= segs; i++) {
-      const x = (WORLD_W / segs) * i;
+      const x = (this.W / segs) * i;
       const wy = y + Math.sin(i * 0.55 + this.t * (isLava ? 1.2 : 2)) * amp;
       pts.push(x, wy);
     }
-    pts.push(WORLD_W, 2000, 0, 2000);
+    pts.push(this.W, 2000, 0, 2000);
     g.poly(pts).fill({ color: isLava ? 0xff5a1e : 0x2f86d6, alpha: isLava ? 0.92 : 0.68 });
     // 表层亮带
     const pts2 = [0, y + 4];
     for (let i = 0; i <= segs; i++) {
-      const x = (WORLD_W / segs) * i;
+      const x = (this.W / segs) * i;
       const wy = y + Math.sin(i * 0.55 + this.t * (isLava ? 1.2 : 2)) * amp;
       pts2.push(x, wy);
     }
-    pts2.push(WORLD_W, y + 16, 0, y + 16);
+    pts2.push(this.W, y + 16, 0, y + 16);
     g.poly(pts2).fill({ color: isLava ? 0xffc23d : 0x9fd4ff, alpha: isLava ? 0.85 : 0.5 });
   }
 }

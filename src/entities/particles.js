@@ -21,6 +21,7 @@ function dotTexture() {
 export class Particles {
   constructor(mobile) {
     this.pool = [];
+    this.free = [];
     this.active = [];
     this.mobile = mobile;
     this.layer = new PIXI.Container();
@@ -31,12 +32,14 @@ export class Particles {
       s.anchor.set(0.5);
       s.visible = false;
       this.layer.addChild(s);
-      this.pool.push({ view: s, x: 0, y: 0, vx: 0, vy: 0, life: 0, maxLife: 1, size: 3, color: 0xffffff, gravity: 0, fade: true, shrink: false });
+      const p = { view: s, x: 0, y: 0, vx: 0, vy: 0, life: 0, maxLife: 1, size: 3, color: 0xffffff, gravity: 0, fade: true, shrink: false };
+      this.pool.push(p);
+      this.free.push(p);
     }
   }
 
   spawn(opts) {
-    const p = this.pool.find(p => !p.view.visible);
+    const p = this.free.pop();
     if (!p) return;
     const scale = this.mobile ? 0.6 : 1;
     p.x = opts.x; p.y = opts.y;
@@ -66,7 +69,14 @@ export class Particles {
     for (let i = this.active.length - 1; i >= 0; i--) {
       const p = this.active[i];
       p.life -= dt;
-      if (p.life <= 0) { p.view.visible = false; this.active.splice(i, 1); continue; }
+      if (p.life <= 0) {
+        p.view.visible = false;
+        this.free.push(p);
+        // swap-pop：避免每帧 splice 搬移数组
+        this.active[i] = this.active[this.active.length - 1];
+        this.active.pop();
+        continue;
+      }
       p.vy += p.gravity * dt;
       p.x += p.vx * dt; p.y += p.vy * dt;
       this._draw(p);
@@ -74,7 +84,10 @@ export class Particles {
   }
 
   clear() {
-    for (const p of this.active) p.view.visible = false;
+    for (const p of this.active) {
+      p.view.visible = false;
+      this.free.push(p);
+    }
     this.active.length = 0;
   }
 

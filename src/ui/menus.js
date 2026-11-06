@@ -1,5 +1,5 @@
 // ============ 菜单系统：标题 / 组队 / 选图 / 挑战 / 战绩 / 设置 / 暂停 ============
-import { THEMES, DIFFICULTY, PLAYER_COLORS, ENEMY_COLORS, HATS, WORM_NAMES, WEAPONS, WORLD_W, ACHIEVEMENTS } from '../config.js';
+import { THEMES, DIFFICULTY, PLAYER_COLORS, ENEMY_COLORS, HATS, WORM_NAMES, WEAPONS, WORLD_W, MAP_SIZES, ACHIEVEMENTS } from '../config.js';
 import { CHALLENGES } from '../levels/challenges.js';
 import { TUTORIALS } from '../levels/tutorials.js';
 import { loadSave, persist, resetSave } from '../core/save.js';
@@ -97,10 +97,10 @@ export class Menus {
       const done = !!save.tutorials?.[lv.id];
       const card = el('button', 'ch-card');
       card.innerHTML = `
-        <div class="ch-num">${i + 1}</div>
+        <div class="ch-num">${lv.practice ? '∞' : i + 1}</div>
         <div class="ch-info"><div class="ch-name">${lv.icon} ${lv.name}</div><div class="ch-desc">${lv.desc}</div></div>
-        <div class="ch-rank" style="color:#6bd968">${done ? '✓' : ''}</div>`;
-      card.onclick = () => { sfx('click'); this.hooks.startMatch(this.challengeConfig(lv)); };
+        <div class="ch-rank" style="color:${lv.practice ? '#9fd4ff' : '#6bd968'}">${lv.practice ? '靶场' : done ? '✓' : ''}</div>`;
+      card.onclick = () => { sfx('click'); this.hooks.startMatch(this.challengeConfig(lv, 0)); };
       list.appendChild(card);
     });
   }
@@ -178,6 +178,7 @@ export class Menus {
         <button class="mbtn small" id="map-today">📅 今日种子</button>
       </div>
       <div class="row-center">
+        <label>地图大小 <select id="map-size"></select></label>
         <label>AI 难度 <select id="map-diff"></select></label>
       </div>
       <div class="menu-btns row">
@@ -186,6 +187,8 @@ export class Menus {
       </div>`;
     for (const [k, d] of Object.entries(DIFFICULTY)) $('map-diff').append(new Option(d.name, k));
     $('map-diff').value = 'normal';
+    for (const [k, s] of Object.entries(MAP_SIZES)) $('map-size').append(new Option(`${s.name} · ${s.w}px`, k));
+    $('map-size').value = 'medium';
     $('map-dice').onclick = () => { $('map-seed').value = Math.floor(Math.random() * 99999); };
     // 今日固定种子（每天不同的地图，可和朋友对同一张图）
     $('map-today').onclick = () => {
@@ -202,7 +205,7 @@ export class Menus {
       let seed = 0;
       if (seedStr) { for (const ch of seedStr) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0; }
       else seed = Math.floor(Math.random() * 1e9);
-      this.hooks.startMatch(this.buildMatchConfig(themeKey, seed, $('map-diff').value));
+      this.hooks.startMatch(this.buildMatchConfig(themeKey, seed, $('map-diff').value, $('map-size').value));
     };
   }
 
@@ -220,9 +223,9 @@ export class Menus {
     }
   }
 
-  buildMatchConfig(themeKey, seed, difficulty) {
+  buildMatchConfig(themeKey, seed, difficulty, sizeKey = 'medium') {
     const n = this.team.playerCount, en = this.team.enemyCount;
-    const W = WORLD_W;
+    const W = MAP_SIZES[sizeKey]?.w || WORLD_W;
     const playerWorms = this.team.players.slice(0, n).map((p, i) => ({
       x: 140 + (W * 0.3 - 140) * (n === 1 ? 0.5 : i / (n - 1)) + jitter(46),
       name: p.name, color: p.color, hat: p.hat,
@@ -235,7 +238,7 @@ export class Menus {
         name: names[i], color: ENEMY_COLORS[i % ENEMY_COLORS.length], hat: HATS[(i + 3) % HATS.length],
       });
     }
-    return { theme: themeKey, seed, difficulty, playerWorms, enemyWorms, challenge: null };
+    return { theme: themeKey, seed, difficulty, playerWorms, enemyWorms, challenge: null, worldW: W };
   }
 
   // ---------------- 挑战 ----------------
@@ -262,12 +265,31 @@ export class Menus {
     });
   }
 
-  challengeConfig(lv) {
+  challengeConfig(lv, stageIndex = 0) {
+    if (lv.stages?.length) {
+      const idx = Math.max(0, Math.min(lv.stages.length - 1, stageIndex | 0));
+      const st = lv.stages[idx];
+      return {
+        theme: st.theme || lv.theme || 'islands',
+        seed: st.seed ?? lv.seed ?? 1,
+        difficulty: lv.difficulty || 'easy',
+        playerWorms: (st.player ? [st.player] : []).map((p) => ({ ...p })),
+        enemyWorms: (st.enemies || []).map((p) => ({ ...p, isAI: true })),
+        challenge: lv,
+        tutStage: idx,
+        scene: st.scene,
+        waterY: st.waterY,
+        ammoPlayer: st.ammoPlayer,
+        ammoEnemy: st.ammoEnemy,
+        respawn: !!st.respawn,
+      };
+    }
     return {
       theme: lv.theme, seed: lv.seed, difficulty: lv.difficulty,
       playerWorms: lv.playerWorms.map((p) => ({ ...p })),
       enemyWorms: lv.enemies.map((p) => ({ ...p, isAI: true })),
       challenge: lv,
+      scene: lv.scene,
       ammoPlayer: lv.ammoPlayer, ammoEnemy: lv.ammoEnemy,
     };
   }

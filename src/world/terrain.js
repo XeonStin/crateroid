@@ -26,8 +26,8 @@ function makeNoise1D(rng, size = 512) {
 }
 
 export class Terrain {
-  constructor() {
-    this.W = WORLD_W; this.H = WORLD_H;
+  constructor(W = WORLD_W, H = WORLD_H) {
+    this.W = W; this.H = H;
     this.mask = new Uint8Array(this.W * this.H);
     this.canvas = document.createElement('canvas');
     this.canvas.width = this.W; this.canvas.height = this.H;
@@ -105,8 +105,10 @@ export class Terrain {
   }
 
   // ---------------- 生成 ----------------
-  generate(themeKey, seed) {
+  // modifier(terrain)：教学关自定义场景在纹理绘制前改写掩码/水位
+  generate(themeKey, seed, modifier = null) {
     const theme = this.theme = THEMES[themeKey];
+    this.noDecor = false;
     const rng = mulberry32(seed || Math.floor(Math.random() * 1e9));
     const n1 = makeNoise1D(rng), n2 = makeNoise1D(rng), n3 = makeNoise1D(rng), n4 = makeNoise1D(rng);
     const { W, H, mask } = this;
@@ -197,8 +199,10 @@ export class Terrain {
       }
     }
 
+    if (modifier) modifier(this);
+
     this._paint(rng);
-    this._decorate(rng);
+    if (!this.noDecor) this._decorate(rng);
     for (const t of this.tiles) this._blitTile(t);
   }
 

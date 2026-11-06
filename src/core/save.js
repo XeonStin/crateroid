@@ -20,6 +20,14 @@ const DEFAULTS = {
 
 let cache = null;
 
+// 老 WebView 可能没有 structuredClone：回退到 JSON 深拷贝
+function cloneDefaults() {
+  if (typeof structuredClone === 'function') {
+    try { return structuredClone(DEFAULTS); } catch { /* fall through */ }
+  }
+  return JSON.parse(JSON.stringify(DEFAULTS));
+}
+
 export function loadSave() {
   if (cache) return cache;
   try {
@@ -27,28 +35,56 @@ export function loadSave() {
     const parsed = raw ? JSON.parse(raw) : {};
     // 深合并：老存档缺新字段时补默认值
     cache = {
-      ...structuredClone(DEFAULTS),
+      ...cloneDefaults(),
       ...parsed,
       settings: { ...DEFAULTS.settings, ...(parsed.settings || {}) },
       stats: { ...DEFAULTS.stats, ...(parsed.stats || {}) },
       achievements: { ...(parsed.achievements || {}) },
     };
   } catch {
-    cache = structuredClone(DEFAULTS);
+    cache = cloneDefaults();
   }
   return cache;
 }
 
-export function persist() {
+let _saveTimer = null;
+
+function writeNow() {
   if (!cache) return;
   try { localStorage.setItem(KEY, JSON.stringify(cache)); } catch { /* 隐私模式忽略 */ }
+}
+
+// 高频统计（每次伤害）用 300ms 合并写；关键进度（通关/成就）用 persistNow
+export function persist() {
+  if (!cache) return;
+  if (_saveTimer) return;
+  _saveTimer = setTimeout(() => {
+    _saveTimer = null;
+    writeNow();
+  }, 300);
+}
+
+export function persistNow() {
+  if (_saveTimer) {
+    clearTimeout(_saveTimer);
+    _saveTimer = null;
+  }
+  writeNow();
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', persistNow);
+  window.addEventListener('beforeunload', persistNow);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) persistNow();
+  });
 }
 
 export function recordMatch(win) {
   const s = loadSave().stats;
   s.matches++;
   if (win === 1) s.wins++; else if (win === -1) s.losses++; else s.draws++;
-  persist();
+  persistNow();
 }
 
 export function recordWeaponDamage(weaponId, dmg) {
@@ -69,7 +105,7 @@ export function unlockAchievement(id) {
   if (!s.achievements) s.achievements = {};
   if (s.achievements[id]) return false;
   s.achievements[id] = Date.now();
-  persist();
+  persistNow();
   return true;
 }
 
@@ -79,17 +115,21 @@ export function completeTutorial(id) {
   if (!s.tutorials) s.tutorials = {};
   if (s.tutorials[id]) return false;
   s.tutorials[id] = Date.now();
-  persist();
+  persistNow();
   return true;
 }
 
 export function setChallengeRank(levelId, rank) {
   const r = loadSave().challengeRanks;
   const order = { S: 3, A: 2, B: 1 };
-  if (!r[levelId] || order[rank] > order[r[levelId]]) { r[levelId] = rank; persist(); }
+  if (!r[levelId] || order[rank] > order[r[levelId]]) { r[levelId] = rank; persistNow(); }
 }
 
 export function resetSave() {
-  cache = structuredClone(DEFAULTS);
-  persist();
+  // 只清空战绩与挑战评级；设置/成就/教学进度保留（按钮文案也是如此）
+  const s = loadSave();
+  const fresh = cloneDefaults();
+  s.stats = fresh.stats;
+  s.challengeRanks = fresh.challengeRanks;
+  persistNow();
 }

@@ -69,6 +69,7 @@ async function boot() {
 
   let lastCfg = null;
   const menus = new Menus({
+    game,
     startMatch(cfg) {
       sfx('click');
       lastCfg = cfg;
@@ -78,6 +79,7 @@ async function boot() {
       game.hud.show();
       game.startMatch(cfg);
       game.hud.updateTeamPips(game.worms);
+      game._pipsDirty = false;
     },
     resumeGame() { game.paused = false; },
     restartMatch() { if (lastCfg) { game.hud.hideGameover(); game.startMatch(lastCfg); } game.paused = false; },

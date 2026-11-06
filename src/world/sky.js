@@ -70,8 +70,9 @@ export class Sky {
   update(dt, camX, viewW) {
     this.t += dt;
     this._fc = ((this._fc || 0) + 1) % 2;
-    if (!this._sunPlaced && viewW > 0) {
-      this._sunPlaced = true;
+    // 太阳/月亮按屏幕宽度摆放，并在窗口尺寸变化时重新定位
+    if (viewW > 0 && viewW !== this._lastViewW) {
+      this._lastViewW = viewW;
       this.sun.position.set(viewW * 0.84, 110);
     }
     // 视差：背景以相机 x 的 6% 速率反向移动

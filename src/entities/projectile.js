@@ -133,14 +133,18 @@ export class Projectile {
         return;
       }
 
-      // 直接命中虫虫（非弹跳类，忽略刚发射时的自己）
-      if (!w.bounce && !(w.id === 'cow')) {
+      // 直接命中虫虫：非弹跳类立即爆炸；手雷/神圣手雷从虫虫身上弹开
+      if (w.id !== 'cow') {
         const worms = this.game ? this.game.worms : (this.simWorms || []);
         for (const worm of worms) {
           if (!worm.alive) continue;
           if (worm === this.owner && this.time < 0.3) continue;
           const dx = worm.x - this.x, dy = worm.bodyY - this.y;
           if (dx * dx + dy * dy < (WORM_R + 5) ** 2) {
+            if (w.bounce) {
+              this.bounceOffWorm(worm);
+              break;
+            }
             this.explode(terrain, waterY);
             return;
           }
@@ -164,12 +168,15 @@ export class Projectile {
       }
     }
 
+    // 已在子步里爆炸（例如奶牛最后一次弹跳）：不再更新拖尾/视图
+    if (!this.alive) return;
+
     // 拖尾
     if (this.game) {
       const tid = this.weapon.id;
       if (tid === 'bazooka') this.game.particles.trail(this.x, this.y, 0xdddddd, 2);
       else if (tid === 'holy') this.game.particles.trail(this.x, this.y, 0xffe9a8, 2);
-      if (this.weapon.id === 'cow') { this.cowT += dt; this.view.rotation = Math.sin(this.cowT * 10) * 0.3; }
+      if (this.weapon.id === 'cow' && this.view) { this.cowT += dt; this.view.rotation = Math.sin(this.cowT * 10) * 0.3; }
     }
     if (this.view) {
       this.view.position.set(this.x, this.y);
@@ -177,8 +184,27 @@ export class Projectile {
     }
   }
 
-  bounceOff(terrain) {
-    // 用局部实心采样估算表面法线（比按运动方向近似准确）
+  // 弹跳类投射物撞到虫虫：沿法线弹出并反射速度（不立即爆炸）
+  bounceOffWorm(worm) {
+    let dx = this.x - worm.x, dy = this.y - worm.bodyY;
+    let d = Math.hypot(dx, dy);
+    if (d < 0.001) { dx = 0; dy = -1; d = 1; }
+    const nx = dx / d, ny = dy / d;
+    const out = WORM_R + 7;
+    this.x = worm.x + nx * out;
+    this.y = worm.bodyY + ny * out;
+    const dot = this.vx * nx + this.vy * ny;
+    if (dot < 0) {
+      const e = 0.62;
+      this.vx -= (1 + e) * dot * nx;
+      this.vy -= (1 + e) * dot * ny;
+    }
+    this.vx *= 0.92;
+    this.vy *= 0.92;
+    if (this.game) this.game.sfx('bounce');
+  }
+
+  bounceOff(terrain) {    // 用局部实心采样估算表面法线（比按运动方向近似准确）
     const R = 6;
     const s = (x, y) => (terrain.isSolid(x, y) ? 1 : 0);
     const gx = s(this.x + R, this.y) - s(this.x - R, this.y);
@@ -223,8 +249,10 @@ export class Projectile {
       this.explode(terrain, waterY);
       return;
     }
-    this.vx = Math.abs(this.vx) * 0.85 + 60;
-    this.vy = -260;
+    // 几乎垂直上跳：奶牛落在目标点附近，连续 5 次踩踏都覆盖同一片区域。
+    // 横向速度压到 15% 以内，不再向右/左弹开。
+    this.vx = Math.max(-36, Math.min(36, this.vx * 0.15));
+    this.vy = -320;
   }
 
   stepDrill(dt, terrain, waterY) {
@@ -250,16 +278,20 @@ export class Projectile {
   explode(terrain, waterY) {
     if (!this.alive) return;
     this.alive = false;
-    if (this.view) this.view.destroy();
+    if (this.view) {
+      this.view.destroy();
+      this.view = null;
+    }
     this.onExplode?.(this.x, this.y, this);
   }
 }
 
 // ---------------- 空袭运输机（卡通造型，朝右设计、按方向镜像） ----------------
 export class Plane {
-  constructor(game, targetX, dir) {
+  constructor(game, targetX, dir, owner = null) {
     this.game = game;
     this.dir = dir > 0 ? 1 : -1;
+    this.owner = owner;
     this.x = this.dir > 0 ? -120 : game.terrain.W + 120;
     this.y = 130 + Math.random() * 60;
     this.vx = this.dir * 340;
@@ -326,7 +358,7 @@ export class Plane {
     if (this.x > dropStart && this.x < dropEnd && this.dropped < n) {
       if (Math.abs(this.x - (dropStart + (dropEnd - dropStart) * (this.dropped / (n - 1)))) < 12) {
         this.dropped++;
-        this.game.spawnAirstrikeBomb(this.x, this.y + 8, this.dir);
+        this.game.spawnAirstrikeBomb(this.x, this.y + 8, this.dir, this.owner);
       }
     }
     if (this.x < -200 || this.x > this.game.terrain.W + 200) {

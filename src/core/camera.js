@@ -4,6 +4,7 @@ import { WORLD_W, WORLD_H } from '../config.js';
 export class Camera {
   constructor() {
     this.x = WORLD_W / 2; this.y = WORLD_H / 2;
+    this.worldW = WORLD_W; this.worldH = WORLD_H;
     this.zoom = 0.7;
     this.tx = this.x; this.ty = this.y; this.tzoom = this.zoom;
     this.viewW = 1280; this.viewH = 720;
@@ -12,6 +13,12 @@ export class Camera {
   }
 
   resize(w, h) { this.viewW = w; this.viewH = h; this._clampZoom(); }
+
+  // 普通对战可选大/中/小地图：相机边界必须跟随当前地形尺寸
+  setWorldSize(w, h) {
+    this.worldW = w; this.worldH = h;
+    this._clampZoom();
+  }
 
   shake(amp) {
     if (!this.enabled) return;
@@ -31,7 +38,7 @@ export class Camera {
   }
 
   minZoom() {
-    return Math.max(this.viewW / WORLD_W, this.viewH / WORLD_H);
+    return Math.max(this.viewW / this.worldW, this.viewH / this.worldH);
   }
 
   follow(x, y, snap = false) {
@@ -68,13 +75,13 @@ export class Camera {
   // 视野边界：左右/下方严格不出世界；顶部允许 220px 天空余量（追踪高抛弹道）
   _bounds() {
     const halfW = this.viewW / (2 * this.zoom), halfH = this.viewH / (2 * this.zoom);
-    const minX = halfW, maxX = WORLD_W - halfW;
-    const minY = halfH - 220, maxY = WORLD_H - halfH;
+    const minX = halfW, maxX = this.worldW - halfW;
+    const minY = halfH - 220, maxY = this.worldH - halfH;
     return {
-      minX: maxX < minX ? WORLD_W / 2 : minX,
-      maxX: maxX < minX ? WORLD_W / 2 : maxX,
-      minY: maxY < minY ? WORLD_H / 2 : minY,
-      maxY: maxY < minY ? WORLD_H / 2 : maxY,
+      minX: maxX < minX ? this.worldW / 2 : minX,
+      maxX: maxX < minX ? this.worldW / 2 : maxX,
+      minY: maxY < minY ? this.worldH / 2 : minY,
+      maxY: maxY < minY ? this.worldH / 2 : maxY,
     };
   }
 
@@ -95,8 +102,12 @@ export class Camera {
 
   // 应用到容器
   applyTo(container) {
-    const sx = (Math.random() * 2 - 1) * this.shakeAmp * (this.shakeT > 0 ? this.shakeT / 0.45 : 0);
-    const sy = (Math.random() * 2 - 1) * this.shakeAmp * (this.shakeT > 0 ? this.shakeT / 0.45 : 0);
+    let sx = 0, sy = 0;
+    if (this.enabled && this.shakeAmp > 0 && this.shakeT > 0) {
+      const k = this.shakeAmp * (this.shakeT / 0.45);
+      sx = (Math.random() * 2 - 1) * k;
+      sy = (Math.random() * 2 - 1) * k;
+    }
     container.position.set(this.viewW / 2 + sx, this.viewH / 2 + sy);
     container.scale.set(this.zoom);
     container.pivot.set(this.x, this.y);

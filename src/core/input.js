@@ -48,7 +48,17 @@ export class Input {
       if (!e.repeat && (e.code === 'KeyD' || e.code === 'ArrowRight')) this._dirTap(1);
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
-    window.addEventListener('blur', () => this.keys.clear());
+    window.addEventListener('blur', () => {
+      this.keys.clear();
+      this.pointers.clear();
+      this.pinchDist = 0;
+      this._pinchMid = null;
+      this._aiming = false;
+      this._panning = null;
+      this._mouseCharge = false;
+      this.virtual.left = false; this.virtual.right = false;
+      this.virtual.jump = false; this.virtual.fire = false;
+    });
 
     const opt = { passive: false };
     if (window.PointerEvent) {
@@ -125,6 +135,9 @@ export class Input {
     this._aiming = false;
     this._panning = null;
     this._mouseCharge = false;
+    this.pointers.clear();
+    this.pinchDist = 0;
+    this._pinchMid = null;
     this.onAimCancel?.();
   }
 
@@ -137,8 +150,10 @@ export class Input {
     // 双指 → 捏合/平移，取消瞄准
     if (this.pointers.size === 2) {
       if (this._aiming) { this._aiming = false; this.onAimCancel?.(); }
+      this._panning = null;
       const [a, b] = [...this.pointers.values()];
       this.pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+      this._pinchMid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
       return;
     }
 
@@ -161,6 +176,11 @@ export class Input {
         this._cancel();
         return;
       }
+      // 中键拖动（或 Shift + 左键）平移视角
+      if (e.button === 1 || (e.button === 0 && (this.keys.has('ShiftLeft') || this.keys.has('ShiftRight')))) {
+        this._panning = p;
+        return;
+      }
       if (this.mode === 'target') {
         const w = this.cam.screenToWorld(p.x, p.y);
         this.onTarget?.(w.x, w.y);
@@ -181,15 +201,23 @@ export class Input {
     const p = pArg || this.pos(e);
     if (this.pointers.has(e.pointerId)) this.pointers.set(e.pointerId, p);
 
-    // 双指捏合
+    // 双指：中点拖动 = 平移，间距变化 = 缩放
     if (this.pointers.size === 2) {
       const [a, b] = [...this.pointers.values()];
       const d = Math.hypot(a.x - b.x, a.y - b.y);
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
       if (this.pinchDist > 0) {
-        const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-        this.onZoom?.(mx, my, (d - this.pinchDist) * 2.2);
+        const last = this._pinchMid;
+        if (last) {
+          const dx = mx - last.x, dy = my - last.y;
+          if (Math.abs(dx) + Math.abs(dy) > 0.5) this.onPan?.(dx, dy);
+        }
+        if (Math.abs(d - this.pinchDist) > 0.5) {
+          this.onZoom?.(mx, my, (d - this.pinchDist) * 2.2);
+        }
       }
       this.pinchDist = d;
+      this._pinchMid = { x: mx, y: my };
       return;
     }
 
@@ -201,15 +229,15 @@ export class Input {
         this._panning = p;
       }
     } else {
-      if (this._mouseCharge) {
+      if (this._panning) {
+        this.onPan?.(p.x - this._panning.x, p.y - this._panning.y);
+        this._panning = p;
+      } else if (this._mouseCharge) {
         const w = this.cam.screenToWorld(p.x, p.y);
         this.onAimMove?.(w.x, w.y);
       } else if (this.mode === 'aim' || this.mode === 'target') {
         const w = this.cam.screenToWorld(p.x, p.y);
         this.onAimMove?.(w.x, w.y);
-      } else if (this._panning) {
-        this.onPan?.(p.x - this._panning.x, p.y - this._panning.y);
-        this._panning = p;
       }
     }
   }
@@ -217,7 +245,10 @@ export class Input {
   _up(e, pArg) {
     const p = pArg || this.pos(e);
     this.pointers.delete(e.pointerId);
-    if (this.pointers.size < 2) this.pinchDist = 0;
+    if (this.pointers.size < 2) {
+      this.pinchDist = 0;
+      this._pinchMid = null;
+    }
 
     if (this.isTouch(e)) {
       if (this._aiming) {

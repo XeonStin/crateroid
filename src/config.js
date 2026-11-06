@@ -3,6 +3,13 @@
 export const WORLD_W = 1800;
 export const WORLD_H = 1000;
 
+// 普通对战可选地图宽度（高度保持 1000，主题地形的基准高度不变）
+export const MAP_SIZES = {
+  small:  { name: '小', w: 1350, desc: '短兵相接，节奏更快' },
+  medium: { name: '中', w: 1800, desc: '标准战场' },
+  large:  { name: '大', w: 2400, desc: '远程对轰，弹道空间更大' },
+};
+
 export const GRAVITY = 900;          // px/s²
 export const WORM_R = 11;            // 虫虫碰撞半径
 export const WALK_SPEED = 88;        // px/s
@@ -29,12 +36,12 @@ export const SUBSTEPS = 4;           // 投射物每帧子步
 export const WEAPONS = [
   { id: 'bazooka',  name: '火箭弹',   icon: '🚀', ammo: Infinity, charge: true,  wind: 1.0,  gravity: 1.0,  bounce: false, radius: 46, dmg: 48 },
   { id: 'grenade',  name: '手雷',     icon: '💣', ammo: Infinity, charge: true,  wind: 0.15, gravity: 1.0,  bounce: true,  fuse: 3.0,  radius: 42, dmg: 44 },
-  { id: 'cluster',  name: '集束炸弹', icon: '🧨', ammo: 2, charge: true,  wind: 0.1,  gravity: 1.0,  bounce: true,  fuse: 2.2, radius: 30, dmg: 26, cluster: 5 },
+  { id: 'cluster',  name: '集束炸弹', icon: '🧨', ammo: 2, charge: true,  wind: 0.1,  gravity: 1.0,  bounce: false, fuse: 2.2, radius: 30, dmg: 26, cluster: 5 },
   // 散弹枪：瞬发 5 弹丸散布；每颗命中虫虫单发伤害，命中地形打小洞
   { id: 'shotgun',  name: '散弹枪',   icon: '🔫', ammo: 3, hitscan: true, shots: 2, pellets: 5, spread: 5.5, dmg: 11, kb: 60, range: 260, crater: 13 },
   { id: 'airstrike',name: '空袭',     icon: '✈️', ammo: 2, targeting: true, bombs: 5, radius: 36, dmg: 32 },
   { id: 'driller',  name: '钻地弹',   icon: '⛏️', ammo: 2, charge: true,  wind: 0,    gravity: 0.55, bounce: false, radius: 24, dmg: 30, drill: 90 },
-  { id: 'holy',     name: '神圣手雷', icon: '🐑', ammo: 0, charge: true,  wind: 0.15, gravity: 1.0,  bounce: true,  fuse: 3.0, radius: 68, dmg: 78, holy: true },
+  { id: 'holy',     name: '神圣手雷', icon: '🐑', ammo: 0, charge: true,  wind: 0.15, gravity: 1.0,  bounce: true,  fuse: 1.85, radius: 84, dmg: 78, holy: true },
   { id: 'cow',      name: '奶牛空袭', icon: '🐮', ammo: 0, targeting: true, bounces: 5, dmg: 26, radius: 40 },
 ];
 export const WEAPON_BY_ID = Object.fromEntries(WEAPONS.map(w => [w.id, w]));

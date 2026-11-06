@@ -2,6 +2,7 @@
 
 let ctx = null, master = null, sfxGain = null, musicGain = null;
 let unlocked = false;
+let _noiseBuf = null;
 
 export function initAudio(sfxVol = 0.8, musicVol = 0.5) {
   if (ctx) return;
@@ -45,17 +46,23 @@ function osc(type, f0, t0, dur, vol, f1, dest) {
 }
 
 function noise(t0, dur, vol, filterFreq, sweepTo) {
-  const len = Math.max(1, (dur * ctx.sampleRate) | 0);
-  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-  const d = buf.getChannelData(0);
-  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-  const src = ctx.createBufferSource(); src.buffer = buf;
+  // 复用 1 秒白噪声缓冲：爆炸/喷气等高频音效不再每次分配大 buffer
+  if (!_noiseBuf) {
+    const len = Math.max(1, ctx.sampleRate | 0);
+    _noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = _noiseBuf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const src = ctx.createBufferSource();
+  src.buffer = _noiseBuf;
+  src.loop = true;
   const f = ctx.createBiquadFilter(); f.type = 'lowpass';
   f.frequency.setValueAtTime(filterFreq, t0);
   if (sweepTo) f.frequency.exponentialRampToValueAtTime(sweepTo, t0 + dur);
   const g = ctx.createGain(); env(g, t0, 0.005, dur, vol);
   src.connect(f); f.connect(g); g.connect(sfxGain);
-  src.start(t0); src.stop(t0 + dur + 0.1);
+  src.start(t0, Math.random() * 0.5);
+  src.stop(t0 + dur + 0.1);
 }
 
 // ---------------- SFX 库 ----------------

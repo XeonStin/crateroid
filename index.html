@@ -30,6 +30,7 @@
       <div class="hud-box" id="round-box">
         <span id="round-label">R1</span>
         <span id="timer">45</span>
+        <span id="dash-ind" class="hidden" title="本回合剩余冲刺">💨 1/1</span>
       </div>
       <button class="hud-btn" id="btn-pause">⏸</button>
     </div>
@@ -37,6 +38,25 @@
     <div id="fuel-wrap" class="hidden"><span>🔥</span><div id="fuel-bar"><div id="fuel-fill"></div></div></div>
     <div id="msg-feed"></div>
     <div id="controls-hint" class="hidden"></div>
+
+    <!-- 教学常驻提示面板：步骤 + 键位 + 当前目标，不自动消失 -->
+    <div id="tut-panel" class="hidden">
+      <div class="tp-head">
+        <span class="tp-badge" id="tp-badge">📖</span>
+        <span id="tp-name"></span>
+        <span id="tp-progress"></span>
+        <button id="tp-prev" class="hidden" title="返回上一场景">⏮ 上一场景</button>
+        <button id="tp-skip" class="hidden" title="跳过本场景">⏭ 跳过场景</button>
+      </div>
+      <div id="tp-intro"></div>
+      <div id="tp-steps"></div>
+      <div class="tp-card">
+        <div id="tp-title"></div>
+        <div id="tp-text"></div>
+        <div id="tp-keys"></div>
+        <div id="tp-goal"></div>
+      </div>
+    </div>
 
     <div id="banner" class="hidden">
       <div id="banner-title"></div>

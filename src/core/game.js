@@ -8,6 +8,8 @@ import { Particles } from '../entities/particles.js';
 import { explosionEffects } from '../entities/projectile.js';
 import { fireWeapon, simulateTrajectory, spawnBomblets, spawnAirstrikeBomb, MIN_SPEED, MAX_SPEED } from '../weapons/index.js';
 import { AIBrain } from '../ai/brain.js';
+import { TutorialDirector } from './tutorial.js';
+import { TUTORIAL_SCENES } from '../levels/tutorialScenes.js';
 import * as C from '../config.js';
 import * as PIXI from 'pixi.js';
 import { recordMatch, recordWeaponDamage, recordLongestShot, setChallengeRank, unlockAchievement, completeTutorial } from './save.js';
@@ -22,6 +24,9 @@ export class Game {
     this.paused = false;
     this.debugAuto = false;
     this.aiFast = false;
+    this.tutLock = false;
+    this.tutorial = null;
+    if (this.camera && this.settings) this.camera.enabled = this.settings.shake !== false;
 
     // 瞄准 UI 层
     this.aimUI = new PIXI.Graphics();
@@ -33,17 +38,32 @@ export class Game {
   startMatch(cfg) {
     this.matchConfig = cfg;
     this.challenge = cfg.challenge || null;
-    // 清理旧场景并释放 GPU 纹理（保留复用的 aimUI）
+    const lv = this.challenge;
+    const stage = lv?.stages ? (lv.stages[cfg.tutStage ?? 0] || lv.stages[0]) : null;
+    this.stage = stage;
+    this.tutorialLevel = (lv?.tutorial || lv?.practice) ? lv : null;
+    this.practice = !!(lv?.practice || cfg.practice);
+    this.tutorialLike = !!(this.tutorialLevel || this.practice);
+    this.respawnEnabled = !!(stage?.respawn ?? cfg.respawn);
+    this.noCrates = !!(stage?.noCrates ?? lv?.noCrates);
+    this.noSuddenDeath = !!(stage?.noSuddenDeath ?? lv?.noSuddenDeath);
+    this.tutorial = null;
+    this.tutLock = false;
+    if (!this.tutorialLike) this.hud?.hideTutorial();
+    // 清理旧场景并释放 GPU 纹理（保留复用的 aimUI 与粒子池）
     for (const c of [...this.layers.world.children]) {
       if (c === this.aimUI) continue;
-      if (this.particles && c === this.particles.layer) {
-        // 粒子层使用模块级共享圆点纹理，绝不能连带销毁（否则下一局渲染崩溃）
-        c.destroy({ children: true });
-        continue;
-      }
+      // 粒子层使用模块级共享圆点纹理；整个池跨局复用，不能销毁
+      if (this.particles && c === this.particles.layer) continue;
       c.destroy({ children: true, texture: true, textureSource: true });
     }
     this.layers.world.removeChildren();
+    // aimUI 跨局复用：清掉上一局残留的弹道/标记并强制重绘
+    this.aimUI.clear();
+    this._aimKey = null;
+    this._trajKey = null;
+    this._trajPts = null;
+    this._trajM = null;
     for (const c of [...this.layers.sky.children]) {
       c.destroy({ children: true, texture: true, textureSource: true });
     }
@@ -55,27 +75,36 @@ export class Game {
     this._lastCursor = null;
     this._aimHintShown = false;
     this.dashLeft = 1;
+    this.dashMax = 1;
     this._playerBerserk = false;
     this._projT = 0;
+    this._lastRetreat = null;
+    this._lastTick = null;
     this.brain = null;
+    this.hud?.powerHide();
     // 本局数据统计（结算面板展示）
     this.matchStats = { shots: 0, hits: 0, dmgDealt: 0, dmgTaken: 0, kills: 0, longest: 0, crates: 0 };
+    this._shotHitCounted = false;
 
-    this.terrain = new Terrain();
+    this.terrain = new Terrain(cfg.worldW || C.WORLD_W, C.WORLD_H);
     this.terrain.attach(this.layers.world);
-    this.terrain.generate(cfg.theme, cfg.seed);
+    const sceneFn = cfg.scene ? TUTORIAL_SCENES[cfg.scene] : null;
+    this.terrain.generate(cfg.theme, cfg.seed, sceneFn);
+    // 地图尺寸可随「大/中/小」变化，相机边界与水面宽度都要跟随
+    this.camera.setWorldSize(this.terrain.W, this.terrain.H);
     // 主题天空渐变应用到页面背景（canvas 透明）
     const sky = C.THEMES[cfg.theme]?.sky;
     if (sky) document.body.style.background = `linear-gradient(180deg, ${sky.join(', ')})`;
 
-    this.water = new Water(cfg.theme);
-    this.water.setLevel(this.challenge?.waterY ?? this.terrain.waterY);
+    this.water = new Water(cfg.theme, this.terrain.W, this.terrain.H);
+    this.water.setLevel(stage?.waterY ?? lv?.waterY ?? cfg.waterY ?? this.terrain.waterY);
     this.layers.world.addChild(this.water.view);
 
     this.sky = new Sky(cfg.theme, this.mobile);
     this.layers.sky.addChild(this.sky.container);
 
-    this.particles = new Particles(this.mobile);
+    this.particles = this.particles || new Particles(this.mobile);
+    this.particles.clear();
     this.layers.world.addChild(this.particles.layer);
 
     // 实体层（虫虫/投射物/补给箱）
@@ -87,6 +116,7 @@ export class Game {
 
     // 虫虫
     this.worms = [];
+    this.wormHomes = new Map();
     let id = 0;
     const mk = (spec, team) => {
       const w = new Worm({
@@ -94,13 +124,15 @@ export class Game {
         name: spec.name, color: spec.color, hat: spec.hat,
         isAI: team === 1 || !!spec.isAI, hp: spec.hp ?? 100,
       });
-      const gy = this.terrain.findSurfaceY(spec.x | 0, 0) ?? 600;
+      const gy = spec.y ?? this.terrain.findSurfaceY(spec.x | 0, 0) ?? 600;
       w.y = gy;
       this.worms.push(w);
+      this.wormHomes.set(w, { x: w.x, y: w.y, hp: w.hp });
       this.layers.ents.addChild(w.view);
     };
-    for (const s of cfg.playerWorms) mk(s, 0);
-    for (const s of cfg.enemyWorms) mk(s, 1);
+    for (const s of cfg.playerWorms || []) mk(s, 0);
+    for (const s of cfg.enemyWorms || []) mk(s, 1);
+    this._pipsDirty = true;
 
     // 弹药池
     this.ammoPool = [this._makeAmmo(cfg.ammoPlayer), this._makeAmmo(cfg.ammoEnemy)];
@@ -108,6 +140,8 @@ export class Game {
     this.projectiles = [];
     this.planes = [];
     this.crates = [];
+    this.respawnQueue = [];
+    this._teamCursor = [0, 0];
     this.turnCount = 0;
     this.round = 1;
     this.suddenDeath = false;
@@ -119,7 +153,7 @@ export class Game {
     this.aiChargeWorm = null;
     this.wind = 0;
     this.matchOver = false;
-    this.surviveTurnsLeft = this.challenge?.surviveTurns ?? null;
+    this.surviveTurnsLeft = stage?.surviveTurns ?? this.challenge?.surviveTurns ?? null;
     this.brain = null;
     this.state = 'turnStart';
     this.stateTimer = 0;
@@ -128,15 +162,19 @@ export class Game {
     const baseZoom = Math.max(this.camera.minZoom(), Math.min(1.05, this.camera.viewW / 1500));
     this.camera.zoom = baseZoom;
     this.camera.tzoom = baseZoom;
-    // 教学关：初始化提示队列（每回合递进显示一条）
-    const tut = cfg.challenge?.tutorial ? cfg.challenge : null;
-    this._tutHints = tut ? [...(tut.hints || [])] : null;
-    this._tutIdx = 0;
     setMusicMode('battle');
     this.nextTurn(true);
-    if (tut) {
-      this.hud.banner(`📖 ${tut.name}`, '跟着提示慢慢来，靶子不会还手');
-      if (tut.intro) this.hud.message(tut.intro);
+    if (this.tutorialLevel) {
+      this.tutorial = new TutorialDirector(this, this.tutorialLevel, cfg.tutStage ?? 0);
+      this.tutorial.start();
+      if (this.practice) {
+        this.hud.banner('🎯 练习靶场', '无限弹药 · 靶子会复活 · 永远是你的回合');
+      } else {
+        this.hud.banner(
+          stage?.bannerTitle || this.tutorialLevel.name,
+          stage?.bannerSub || '跟着右侧的提示一步步来'
+        );
+      }
     }
     this.running = true;
   }
@@ -167,24 +205,34 @@ export class Game {
 
   nextTurn(first = false) {
     this.turnCount++;
-    this.round = Math.floor((this.turnCount - 1) / 2) + 1;
-    const team = (this.turnCount - 1) % 2;
+    this.round = this.tutorialLike ? 1 : Math.floor((this.turnCount - 1) / 2) + 1;
+    const team = this.tutorialLike ? 0 : (this.turnCount - 1) % 2;
 
-    // 突死
-    const sdRound = this.challenge?.suddenDeathRound ?? C.SUDDEN_DEATH_ROUND;
-    if (!this.suddenDeath && this.round >= sdRound && !this.challenge?.noSuddenDeath) {
+    // 突死（教学/练习关不会触发）
+    const sdRound = this.stage?.suddenDeathRound ?? this.challenge?.suddenDeathRound ?? C.SUDDEN_DEATH_ROUND;
+    if (!this.tutorialLike && !this.suddenDeath && this.round >= sdRound && !this.noSuddenDeath) {
       this.suddenDeath = true;
       for (const w of this.worms) if (w.alive) w.hp = 1;
+      this._pipsDirty = true;
       this.hud.banner('☠️ 突死模式！', '水位上涨 · 全员 1 HP');
       sfx('lose');
     }
     if (this.suddenDeath) this.water.rise(C.WATER_RISE * 3);
 
+    // 教学/练习兜底：玩家虫虫万一倒下，直接原地扶起，避免无虫可操作
+    if (this.tutorialLike && !this.teamAlive(0)) {
+      for (const w of this.worms) {
+        if (w.team !== 0 || w.alive) continue;
+        const home = this.wormHomes.get(w);
+        if (home) this.reviveWorm(w, home);
+      }
+    }
+
     // 依次选取该队下一只存活虫虫
     const teamWormsAll = this.teamWorms(team);
     if (!this._teamCursor) this._teamCursor = [0, 0];
     let tries = 0, cur = null;
-    while (tries++ < teamWormsAll.length + 1) {
+    while (teamWormsAll.length && tries++ < teamWormsAll.length + 1) {
       const idx = this._teamCursor[team] % teamWormsAll.length;
       this._teamCursor[team]++;
       if (teamWormsAll[idx].alive) { cur = teamWormsAll[idx]; break; }
@@ -192,17 +240,30 @@ export class Game {
     if (!cur) { this._checkWin(); return; }
 
     this.currentWorm = cur;
-    this.wind = (Math.random() * 2 - 1) * (0.4 + Math.random() * 0.6);
-    this.selectedWeapon = 'bazooka';
-    this.shotsLeft = 0;
+    this.wind = (this.tutorialLike || this.challenge?.noWind) ? 0 : (Math.random() * 2 - 1) * (0.4 + Math.random() * 0.6);
+    // 选武器：普通/挑战默认火箭弹（没弹药时自动选第一件可用武器）；
+    // 教学/练习保留玩家上次选择。避免选中 0 弹药武器后还能开火。
+    const pool = this.ammoPool[cur.team];
+    if (!this.tutorialLike) {
+      this.selectedWeapon = (pool.bazooka > 0) ? 'bazooka' : null;
+    }
+    if (!this.selectedWeapon || !(pool[this.selectedWeapon] > 0)) {
+      const avail = C.WEAPONS.find((w) => !w.hidden && pool[w.id] > 0);
+      this.selectedWeapon = avail ? avail.id : 'bazooka';
+    }
+    this.shotsLeft = C.WEAPON_BY_ID[this.selectedWeapon]?.shots || 0;
+    this._shotgunUsedThisTurn = 0;
     this._powerOffset = 0;
+    this._jumpEdge = false;
     this.chargePower = 0;
     this.charging = false;
     // 背水一战：全队只剩自己时移速+15%、冲刺+1（对 AI 同样生效）
     const teamSize = this.teamWorms(cur.team).length;
     const aliveCount = this.teamWorms(cur.team).filter(w => w.alive).length;
     cur.berserk = teamSize > 1 && aliveCount === 1;
-    this.dashLeft = cur.berserk ? 2 : 1;
+    this.dashMax = cur.berserk ? 2 : 1;
+    this.dashLeft = this.dashMax;
+    this.hud.setDash(cur.isAI ? null : this.dashLeft, this.dashMax);
     if (cur.berserk && !cur._berserkMsg) {
       cur._berserkMsg = true;
       this.hud.message(`🔥 ${cur.name} 背水一战！移速 +15% · 冲刺 ×2`);
@@ -212,17 +273,17 @@ export class Game {
     for (const w of this.worms) {
       w.walkDir = 0; w.wantJump = false; w.wantJet = false; w.dashT = 0;
     }
-    this.stateTimer = first ? 1.0 : C.BANNER_TIME;
+    this.stateTimer = first ? (this.tutorialLike ? 0.6 : 1.0) : (this.tutorialLike ? 0.45 : C.BANNER_TIME);
     this.state = 'turnStart';
-    this.turnTimer = this.challenge?.turnTime ?? C.TURN_TIME;
+    this.turnTimer = this.tutorialLike ? Infinity : (this.stage?.turnTime ?? this.challenge?.turnTime ?? C.TURN_TIME);
     this.retreatLeft = 0;
 
     cur.showArrow(true);
     this.camera.follow(cur.x, cur.y - 60);
     this.hud.setControlsHint('');
     if (!cur.isAI) sfx('voice', { pitch: 1.1 });
-    // 首回合操作提示（教学关有自己的提示序列，不重复）
-    if (!cur.isAI && !this._aimHintShown && !this.challenge?.tutorial) {
+    // 首回合操作提示（教学关有自己的持久提示面板，不重复）
+    if (!cur.isAI && !this._aimHintShown && !this.tutorialLike) {
       this._aimHintShown = true;
       if (this.mobile) {
         this.hud.message('📱 按住屏幕拖拽＝拉弓瞄准，松手发射');
@@ -233,18 +294,17 @@ export class Game {
       }
     }
 
-    this.hud.banner(
-      this.challenge ? '挑战进行中' : `第 ${this.round} 回合`,
-      `${cur.name} ${cur.isAI ? '（AI）' : ''} 的回合`
-    );
+    if (!this.tutorialLike) {
+      this.hud.banner(
+        this.challenge ? '挑战进行中' : `第 ${this.round} 回合`,
+        `${cur.name} ${cur.isAI ? '（AI）' : ''} 的回合`
+      );
+    }
     this.hud.setWind(this.wind);
-    this.hud.setRound(this.round, this.suddenDeath);
+    this.hud.setRound(this.round, this.suddenDeath,
+      this.practice ? '练习' : this.tutorialLevel ? '教学' : null);
     this.hud.setTimer(this.turnTimer, false);
     this.syncWeaponBar();
-    // 教学提示：每个玩家回合递进一条
-    if (!cur.isAI && this._tutHints && this._tutIdx < this._tutHints.length) {
-      this.hud.message(this._tutHints[this._tutIdx++]);
-    }
     this.hud.setFuel(cur.jetFuel);
     this.touch?.setJetMode(cur.jetFuel > 0);
     this.updateInputMode();
@@ -252,7 +312,7 @@ export class Game {
 
   // 当前操作者的输入模式
   updateInputMode() {
-    const human = !this.currentWorm?.isAI;
+    const human = !this.currentWorm?.isAI && !this.tutLock;
     const retreat = this.state === 'projectile' && this.retreatLeft > 0;
     if (human && this.targetingWeapon) this.input.mode = 'target';
     else if (human && (this.state === 'active' || retreat)) this.input.mode = 'aim';
@@ -274,13 +334,21 @@ export class Game {
 
   selectWeapon(id) {
     if (this.currentWorm?.isAI || this.state !== 'active') return;
+    // 散弹枪连射中锁定武器：第一发打完必须先把这一组子弹打完
+    if (this._shotgunUsedThisTurn > 0 && this.shotsLeft > 0) {
+      if (id !== this.selectedWeapon) this.hud.message('🔫 散弹枪连射中，打完这一组再换武器');
+      return;
+    }
     const w = this.weaponById(id);
     if (!w || this.ammoPool[this.currentWorm.team][id] <= 0) return;
     this.selectedWeapon = id;
-    this.shotsLeft = w.shots || 0;   // 散弹枪本回合剩余弹数
+    // 散弹枪每回合 2 发：反复点同一武器不能刷新剩余弹数
+    const used = id === 'shotgun' ? (this._shotgunUsedThisTurn || 0) : 0;
+    this.shotsLeft = Math.max(0, (w.shots || 0) - used);
     this.cancelTargeting();
     sfx('click');
     this.syncWeaponBar();
+    this.tutEvent('weapon', { id });
   }
 
   consumeAmmo(worm, weaponId) {
@@ -292,9 +360,23 @@ export class Game {
   // ---------------- 开火 ----------------
   fireWeapon(worm, weaponId, angle, power, targetX, opts) {
     if (!worm || !worm.alive) return false; // 死亡虫虫不能射击
+    const pool = this.ammoPool?.[worm.team];
+    // 散弹枪两发一组只扣 1 发弹药：第二发时池子可能已归零，仍要允许打完
+    const midBurst = weaponId === 'shotgun' && this._shotgunUsedThisTurn > 0 && this.shotsLeft > 0;
+    if (pool && !(pool[weaponId] > 0) && !midBurst) return false; // 0 弹药不能开火（挑战关约束）
+    // 新的一次开火：先清空命中标记，散弹枪这种同步结算的武器也能正确计数
+    if (worm.team === 0 && this.matchStats) this._shotHitCounted = false;
     const entered = fireWeapon(this, worm, weaponId, angle, power, targetX, opts);
-    if (!entered && worm.team === 0 && this.matchStats) this.matchStats.shots++;
+    if (!entered) {
+      if (worm.team === 0 && this.matchStats) this.matchStats.shots++;
+      if (worm.team === 0) this.tutEvent?.('shot', { weaponId, worm, angle, power });
+    }
     return entered;
+  }
+
+  // 教学导演事件（未开始时静默）
+  tutEvent(name, data) {
+    if (this.tutorial && this.running) this.tutorial.event(name, data);
   }
 
   // 冲刺：双击方向键 / 双击虚拟方向键（普通 1 次/回合，背水一战 2 次）
@@ -306,12 +388,15 @@ export class Game {
     this.dashLeft--;
     cur.dashT = C.DASH_TIME;
     cur.dashDir = dir;
+    this.hud.setDash(this.dashLeft, this.dashMax || 1);
     this.sfx('boing');
     this.hud.message('💨 冲刺！');
+    this.tutEvent('dash', { dir });
   }
 
-  // 成就解锁（去重，金色提示）
+  // 成就解锁（去重，金色提示；教学/练习不计）
   ach(id) {
+    if (this.tutorialLike) return;
     if (unlockAchievement(id)) {
       const a = C.ACHIEVEMENTS[id];
       if (a) {
@@ -329,9 +414,10 @@ export class Game {
 
   // 散弹枪每发弹调用（shots>0 时同回合可连射）
   onShotgunShot(worm, w, opts) {
+    this._shotgunUsedThisTurn = (this._shotgunUsedThisTurn || 0) + 1;
     this.shotsLeft = Math.max(0, this.shotsLeft - 1);
-    const ammo = this.ammoPool[worm.team][w.id];
-    if (opts?.aiSingle || this.shotsLeft <= 0 || ammo <= 0) {
+    // 两发一组的弹药在第一次射击时已经扣过，第二发不因池子归零而中断
+    if (opts?.aiSingle || this.shotsLeft <= 0) {
       this.shotsLeft = 0;
       this.afterFire(worm, false);
     } else {
@@ -341,6 +427,7 @@ export class Game {
 
   enterTargeting(weaponId) {
     this.targetingWeapon = weaponId;
+    this._targetMark = null;
     this.updateInputMode();
     this.hud.message(weaponId === 'airstrike' ? '📍 点击地图标记空袭点' : '📍 点击地图标记奶牛落点');
   }
@@ -348,6 +435,7 @@ export class Game {
   cancelTargeting() {
     if (!this.targetingWeapon) return;
     this.targetingWeapon = null;
+    this._targetMark = null;
     this.updateInputMode();
   }
 
@@ -364,7 +452,7 @@ export class Game {
     this.slingshot = null;
     this.state = 'projectile';
     this._projT = 0;
-    this.retreatLeft = worm.isAI ? 0 : C.RETREAT_TIME;
+    this.retreatLeft = (worm.isAI || this.tutorialLike) ? 0 : C.RETREAT_TIME;
     this.hud.powerHide();
     this.updateInputMode();
     this.syncWeaponBar();
@@ -394,7 +482,7 @@ export class Game {
   projectileExplode(x, y, proj) {
     const w = proj.weapon;
     if (w.cluster) {
-      spawnBomblets(this, x, y, w.cluster);
+      spawnBomblets(this, x, y, w.cluster, proj.owner);
       this.explode(x, y, w.radius * 0.6, w.dmg * 0.5, { owner: proj.owner, weaponId: proj.weapon.id, origin: proj.owner });
       return;
     }
@@ -402,7 +490,11 @@ export class Game {
       this.hud.banner('ALLELUIA!', '💥');
       sfx('holy');
     }
-    this.explode(x, y, w.radius, w.dmg, { owner: proj.owner, weaponId: proj.weapon.id, origin: proj.owner });
+    // 奶牛：冲击波横向击退大幅减弱，避免把虫虫推离奶牛的踩踏路线
+    this.explode(x, y, w.radius, w.dmg, {
+      owner: proj.owner, weaponId: proj.weapon.id, origin: proj.owner,
+      kbX: w.id === 'cow' ? 0.2 : 1,
+    });
   }
 
   explode(x, y, r, dmg, opts = {}) {
@@ -423,7 +515,7 @@ export class Game {
     const wasHp = new Map(eff.map(e => [e.worm.id, e.worm.hp]));
     for (const e of eff) {
       this.damageWorm(e.worm, e.dmg, opts.origin, opts.weaponId);
-      if (e.worm.alive) e.worm.applyKnockback(e.kx, e.ky);
+      if (e.worm.alive) e.worm.applyKnockback(e.kx * (opts.kbX ?? 1), e.ky);
     }
     // 擦身而过：没被波及但离爆心很近的虫虫会被吓一跳
     for (const w of this.worms) {
@@ -433,13 +525,11 @@ export class Game {
     }
     // 连杀播报：一次爆炸击倒 2/3+ 只敌人
     if (opts.origin) {
-      let killed = 0, enemyHit = 0;
+      let killed = 0;
       for (const e of eff) {
         if (e.worm.team === opts.origin.team || !wasAlive.get(e.worm.id)) continue;
-        enemyHit++;
         if (!e.worm.alive) killed++;
       }
-      if (opts.origin.team === 0 && this.matchStats && enemyHit > 0) this.matchStats.hits++;
       if (killed >= 3) {
         this.hud.banner('💥 三杀！', `${opts.origin.name} 一炸三只！`);
         this.ach('triple_kill');
@@ -461,7 +551,7 @@ export class Game {
     if (opts.origin && opts.origin.team === 0 && opts.origin.alive) {
       const dist = Math.hypot(x - opts.origin.x, y - opts.origin.bodyY);
       if (dist > 250 && eff.some(e => e.worm.team === 1)) {
-        recordLongestShot(dist);
+        if (!this.tutorialLike) recordLongestShot(dist);
         if (this.matchStats && dist > this.matchStats.longest) this.matchStats.longest = Math.round(dist);
         if (dist > 700) this.ach('long_shot');
       }
@@ -472,13 +562,18 @@ export class Game {
     const eff = explosionEffects(this.worms, p.x, p.y - 8, 40, p.weapon.dmg);
     for (const e of eff) {
       this.damageWorm(e.worm, e.dmg, p.owner, 'cow');
-      if (e.worm.alive) e.worm.applyKnockback(e.kx, e.ky);
+      // 把被踩到的虫虫往坑中心带，让它顺着刚挖出的坑掉下去，等奶牛下一次踩踏
+      const dx = e.worm.x - p.x;
+      if (e.worm.alive) e.worm.applyKnockback(Math.max(-110, Math.min(110, -dx * 2.4)), 0);
     }
+    // 每次踩踏都挖地：坑挖出来后虫虫会跟着掉进坑里，奶牛下一次踩踏继续命中
+    this.terrain.carve(p.x, p.y, 34);
+    this.particles.sparkle(p.x, p.y, this.dirtColor(), 10);
     this.particles.splash(p.x, p.y, 0xcccccc, 8);
     this.camShake(5);
   }
 
-  spawnAirstrikeBomb(x, y, dir) { spawnAirstrikeBomb(this, x, y, dir); }
+  spawnAirstrikeBomb(x, y, dir, owner) { spawnAirstrikeBomb(this, x, y, dir, owner); }
 
   // 投射物出界/落水后由 update 统一过滤
   projectileGone(p) { /* noop */ }
@@ -488,14 +583,31 @@ export class Game {
     const d = Math.max(1, Math.round(dmg));
     const wasAlive = worm.alive;
     worm.hp = Math.max(0, worm.hp - d);
+    // 教学/练习：学员不会被伤害打死（落水另有救援），避免卡关
+    if (worm.team === 0 && this.tutorialLike && worm.hp <= 0) worm.hp = 1;
     worm.hurtFlash = 0.4;
     worm.stunnedT = 0.8;
+    (worm.hitLog || (worm.hitLog = [])).push(weaponId || null);
+    if (worm.hitLog.length > 80) worm.hitLog.shift();
+    worm.lastHitWeapon = weaponId || null;
+    this.tutEvent('damage', { worm, dmg: d, weaponId: weaponId || null, source });
     this.popup(worm.x, worm.bodyY - 26, `-${d}`, 0xff6b81);
     sfx('hurt');
     if (Math.random() < 0.4) this.say(worm, C.OUCHES[Math.floor(Math.random() * C.OUCHES.length)], 1.4);
-    if (source && source.team === 0 && weaponId) recordWeaponDamage(weaponId, d);
+    if (source && source.team === 0 && weaponId && !this.tutorialLike) {
+      // 子雷/航空炸弹按母武器统计，避免战绩里出现隐藏武器
+      const statId = weaponId === 'bomblet' ? 'cluster' : weaponId === 'bomb' ? 'airstrike' : weaponId;
+      recordWeaponDamage(statId, d);
+    }
     if (this.matchStats) {
-      if (source && source.team === 0 && worm.team === 1) this.matchStats.dmgDealt += d;
+      if (source && source.team === 0 && worm.team === 1) {
+        this.matchStats.dmgDealt += d;
+        // 命中按「开火次数」计：一次射击无论多少弹丸/子雷命中，都只算 1 次
+        if (!this._shotHitCounted) {
+          this._shotHitCounted = true;
+          this.matchStats.hits++;
+        }
+      }
       if (worm.team === 0) this.matchStats.dmgTaken += d;
       if (worm.hp <= 0 && wasAlive && source && source.team === 0 && worm.team === 1) this.matchStats.kills++;
     }
@@ -506,7 +618,7 @@ export class Game {
       }
       this.killWorm(worm);
     }
-    this.hud.updateTeamPips(this.worms);
+    this._pipsDirty = true;
   }
 
   applyFallDamage(worm, dmg) {
@@ -518,13 +630,32 @@ export class Game {
     if (!worm.alive) return;
     this.splashAt(worm.x, this.water.level);
     sfx('drown');
+    // 教学/练习：学员落水不会被淘汰，直接捞回起点
+    if (worm.team === 0 && this.tutorialLike) {
+      const home = this.wormHomes.get(worm);
+      if (home) {
+        worm.x = home.x; worm.y = home.y;
+        worm.vx = 0; worm.vy = 0;
+        worm.onGround = true;
+        worm.hurtFlash = 0;
+      }
+      this.camera.follow(worm.x, worm.y - 60);
+      this.hud.message('💧 掉水里了！已经把你捞回岸边');
+      this._pipsDirty = true;
+      return;
+    }
     worm.hp = 0;
     worm.alive = false;
+    worm._drowned = true;
+    worm.lastHitWeapon = 'water';
+    (worm.hitLog || (worm.hitLog = [])).push('water');
     worm.view.visible = false;
     this.popup(worm.x, this.water.level - 30, '扑通…', 0x9fd4ff);
     this.hud.message(`💧 ${worm.name} 落水了！`);
     sfx('death');
-    this.hud.updateTeamPips(this.worms);
+    this.tutEvent('drown', { worm });
+    this._queueRespawn(worm);
+    this._pipsDirty = true;
   }
 
   killWorm(worm) {
@@ -534,7 +665,9 @@ export class Game {
     this.say(worm, C.DEATH_WORDS[Math.floor(Math.random() * C.DEATH_WORDS.length)], 2);
     worm.die(this, C.EPITAPHS[Math.floor(Math.random() * C.EPITAPHS.length)]);
     this.hud.message(`🪦 ${worm.name} 阵亡`);
-    this.hud.updateTeamPips(this.worms);
+    this.tutEvent('kill', { worm, weaponId: worm.lastHitWeapon });
+    this._queueRespawn(worm);
+    this._pipsDirty = true;
   }
 
   splashAt(x, y) {
@@ -542,9 +675,36 @@ export class Game {
     sfx('splash');
   }
 
+  // ---------------- 训练靶子复活（教学/练习） ----------------
+  _queueRespawn(worm) {
+    if (!this.respawnEnabled || this.matchOver) return;
+    if (worm.team !== 1) return;
+    if (this.respawnQueue.some((r) => r.worm === worm)) return;
+    this.respawnQueue.push({ worm, at: this.time + 2.0 });
+  }
+
+  reviveWorm(worm, home) {
+    if (!worm || worm.alive) return;
+    worm.revive(home.hp, home.x, home.y);
+    this.layers.ents.addChild(worm.view);
+    this._pipsDirty = true;
+    this.hud.message(`🎯 ${worm.name} 重新出现`);
+  }
+
+  _updateRespawns() {
+    if (!this.respawnQueue.length) return;
+    const due = this.respawnQueue.filter((r) => this.time >= r.at);
+    if (!due.length) return;
+    this.respawnQueue = this.respawnQueue.filter((r) => this.time < r.at);
+    for (const r of due) {
+      const home = this.wormHomes.get(r.worm);
+      if (home) this.reviveWorm(r.worm, home);
+    }
+  }
+
   // ---------------- 补给箱 ----------------
   maybeSpawnCrate() {
-    if (this.challenge?.noCrates) return;
+    if (this.noCrates) return;
     if (this.crates.filter(c => c.alive).length >= C.MAX_CRATES) return;
     if (Math.random() > C.CRATE_CHANCE) return;
     const type = pickCrateType();
@@ -575,25 +735,46 @@ export class Game {
 
   pickupCrate(crate, worm) {
     sfx('pickup');
+    this.tutEvent('crate', { crate, worm });
     this.particles.sparkle(crate.x, crate.y, crate.type.color, 12);
     if (this.matchStats && worm.team === 0) {
       this.matchStats.crates++;
       if (this.matchStats.crates >= 3) this.ach('crate_addict');
     }
     if (crate.kind === 'health') {
-      worm.hp = Math.min(100, worm.hp + 25);
-      this.popup(worm.x, worm.bodyY - 26, '+25', 0x6bd968);
+      const heal = crate.payload?.heal ?? 25;
+      worm.hp = Math.min(100, worm.hp + heal);
+      this.popup(worm.x, worm.bodyY - 26, `+${heal}`, 0x6bd968);
+      this.hud.message(`❤️ ${worm.name} 回复 ${heal} HP`);
     } else if (crate.kind === 'weapon' && crate.payload) {
       const { wid, n } = crate.payload;
       this.ammoPool[worm.team][wid] += n;
       this.hud.message(`🎁 ${worm.name} 获得 ${C.WEAPON_BY_ID[wid].name} ×${n}`);
     } else if (crate.kind === 'tool') {
       worm.jetFuel = 100;
-      this.hud.message(`🔧 ${worm.name} 获得喷气背包（按住跳跃推进）`);
+      this.hud.message(`🔧 ${worm.name} 获得喷气背包（起跳后按住跳跃推进）`);
       this.touch?.setJetMode(true);
+    } else if (crate.kind === 'kit' && crate.payload) {
+      const g = crate.payload;
+      if (g.weapons) {
+        for (const [wid, n] of Object.entries(g.weapons)) {
+          this.ammoPool[worm.team][wid] = (this.ammoPool[worm.team][wid] || 0) + n;
+        }
+      }
+      if (g.jetFuel) {
+        worm.jetFuel = Math.max(worm.jetFuel, g.jetFuel);
+        this.touch?.setJetMode(true);
+      }
+      const got = [];
+      if (g.jetFuel) got.push('🔧 喷气背包');
+      if (g.weapons?.airstrike) got.push('✈️ 空袭');
+      if (g.weapons?.holy) got.push('🐑 神圣手雷');
+      if (g.weapons?.cow) got.push('🐮 奶牛空袭');
+      this.hud.message(`🎒 装备到手：${got.join(' · ')}`);
+      this.hud.setFuel(worm.jetFuel);
     }
     this.syncWeaponBar();
-    this.hud.updateTeamPips(this.worms);
+    this._pipsDirty = true;
   }
 
   // ---------------- 浮动文字 ----------------
@@ -624,17 +805,20 @@ export class Game {
     this.time += dt;
 
     this.water.update(dt);
-    this.sky.update(dt, this.camera.x);
+    this.sky.update(dt, this.camera.x, this.camera.viewW);
     this.particles.update(dt);
 
     // 虫虫物理
     for (const w of this.worms) w.step(dt, this.terrain, this);
+    // 喷气背包燃料条随消耗实时更新（HUD 内部有变化检测）
+    if (this.currentWorm) this.hud.setFuel(this.currentWorm.jetFuel);
     // 投射物
     for (const p of this.projectiles) if (p.alive) p.step(dt, this.terrain, this.windAccel(), this.water.level);
     this.projectiles = this.projectiles.filter(p => p.alive);
     for (const pl of this.planes) pl.step(dt);
     this.planes = this.planes.filter(p => p.alive);
     this.handleCrates(dt);
+    this._updateRespawns();
 
     // 浮动文字/弹道闪光
     if (this._popups) {
@@ -653,6 +837,13 @@ export class Game {
     this._updateCamera();
     // 视图同步
     for (const w of this.worms) w.updateView(this.time);
+    // 血条/队伍 pips 每帧最多重建一次（一次爆炸命中多只虫时合并）
+    if (this._pipsDirty) {
+      this._pipsDirty = false;
+      this.hud.updateTeamPips(this.worms);
+    }
+    // 教学导演最后跑：可能在场景完成时重建整局
+    this.tutorial?.update(dt);
   }
 
   _updateState(dt) {
@@ -687,16 +878,18 @@ export class Game {
           }
           if (done) this.brain = null;
         } else {
-          this._humanControl(dt);
+          if (!this.tutLock) this._humanControl(dt);
         }
-        // 回合计时
-        this.turnTimer -= dt;
-        const secs = Math.ceil(this.turnTimer);
-        if (secs <= 5 && secs !== this._lastTick) { this._lastTick = secs; sfx('tick'); }
-        this.hud.setTimer(Math.max(0, this.turnTimer), this.turnTimer < 10);
-        if (this.turnTimer <= 0) {
-          this.hud.message(`${cur.name} 超时了！`);
-          this._endTurnCommon();
+        // 回合计时（教学/练习关无时限）
+        if (!this.tutorialLike) {
+          this.turnTimer -= dt;
+          const secs = Math.ceil(this.turnTimer);
+          if (secs <= 5 && secs !== this._lastTick) { this._lastTick = secs; sfx('tick'); }
+          this.hud.setTimer(Math.max(0, this.turnTimer), this.turnTimer < 10);
+          if (this.turnTimer <= 0) {
+            this.hud.message(`${cur.name} 超时了！`);
+            this._endTurnCommon();
+          }
         }
         break;
       }
@@ -740,10 +933,16 @@ export class Game {
     // 移动
     cur.walkDir = this.input.moveDir();
     if (cur.walkDir !== 0) cur.facing = cur.walkDir;
-    // 跳跃 / 喷气
+    // 跳跃 / 喷气：有喷气背包时先起跳，之后按住不放 = 喷气
     if (cur.jetFuel > 0) {
-      cur.wantJet = this.input.jumpHeld();
-      cur.wantJump = false; // 喷气时不能跳
+      if (this._jumpEdge) {
+        cur.wantJump = true;
+        cur.wantJet = false;
+        this._jumpEdge = false;
+      } else {
+        cur.wantJet = this.input.jumpHeld() && !cur.onGround;
+        cur.wantJump = false;
+      }
     } else {
       cur.wantJet = false;
       if (this._jumpEdge) { cur.wantJump = true; this._jumpEdge = false; }
@@ -763,28 +962,30 @@ export class Game {
     cur.walkDir = this.input.moveDir();
     if (cur.walkDir !== 0) cur.facing = cur.walkDir;
     if (this._jumpEdge) { cur.wantJump = true; this._jumpEdge = false; }
-    if (cur.jetFuel > 0) cur.wantJet = this.input.jumpHeld();
+    if (cur.jetFuel > 0 && !cur.wantJump) cur.wantJet = this.input.jumpHeld() && !cur.onGround;
   }
 
   _postTurn() {
     if (this.matchOver) return;
     this._projT = 0;
     this.maybeSpawnCrate();
-    // 挑战：生存判定
-    if (this.surviveTurnsLeft != null) {
-      this.surviveTurnsLeft--;
-      if (this.surviveTurnsLeft <= 0 && this.teamAlive(0)) { this.endMatch(1, '生存成功！'); return; }
-      if (!this.teamAlive(0)) { this.endMatch(-1, '全员阵亡'); return; }
-    } else {
-      this._checkWin();
-      if (this.matchOver) return;
+    if (!this.tutorialLike) {
+      // 挑战：生存判定
+      if (this.surviveTurnsLeft != null) {
+        this.surviveTurnsLeft--;
+        if (this.surviveTurnsLeft <= 0 && this.teamAlive(0)) { this.endMatch(1, '生存成功！'); return; }
+        if (!this.teamAlive(0)) { this.endMatch(-1, '全员阵亡'); return; }
+      } else {
+        this._checkWin();
+        if (this.matchOver) return;
+      }
     }
     for (const w of this.worms) w.showArrow(false);
     this.nextTurn();
   }
 
   _checkWin() {
-    if (this.matchOver) return;
+    if (this.matchOver || this.tutorialLike) return;
     const p = this.teamAlive(0), e = this.teamAlive(1);
     if (!p && !e) this.endMatch(0, '同归于尽…');
     else if (!e) this.endMatch(1, this.challenge ? (this.challenge.tutorial ? '教学完成！' : '挑战完成！') : '玩家队获胜！');
@@ -796,6 +997,7 @@ export class Game {
     this.running = false;
     this.input.mode = 'idle';
     this.touch?.setControlsEnabled(false);
+    this.hud.setDash(null);
     // 停止所有移动意图，防止结算后虫虫继续走
     for (const w of this.worms) {
       w.showArrow(false);
@@ -818,7 +1020,11 @@ export class Game {
         this.hud.banner('🎓 教学完成！', '去主菜单试试下一课或挑战关卡');
         this.hud.message('🎓 本课已记录，可在教学列表查看完成状态');
       }
-      this.hud.showGameover(result, subtitle, { stats: this.matchStats });
+      this.hud.showGameover(result, subtitle, {
+        stats: this.matchStats,
+        title: result === 1 ? '🎓 教学目标完成' : undefined,
+        hint: result === 1 ? '本课已记录 · 可在教学列表查看完成状态' : undefined,
+      });
     } else if (this.challenge && result === 1) {
       const turns = Math.ceil(this.turnCount / 2);
       const hpLeft = this.teamWorms(0).reduce((s, w) => s + Math.max(0, w.hp), 0);
@@ -833,6 +1039,7 @@ export class Game {
 
   // ---------------- 玩家输入回调（由 main 注入） ----------------
   onAimDrag(dx, dy) {
+    if (this.tutLock) return;
     if (this.state !== 'active' || this.currentWorm?.isAI) return;
     if (!this.currentWorm?.alive) return;
     // 空袭/奶牛：触屏一按即进入目标标记模式
@@ -849,6 +1056,7 @@ export class Game {
   }
 
   onAimRelease(dx, dy) {
+    if (this.tutLock) return;
     if (this.state !== 'active' || this.currentWorm?.isAI || !this.slingshot) return;
     const { angle, power } = this.slingshot;
     this.slingshot = null;
@@ -862,9 +1070,11 @@ export class Game {
     this.chargePower = 0;
     this._powerOffset = 0;
     this.hud.powerHide();
+    this.tutEvent('cancelAim');
   }
 
   onAimMove(wx, wy) {
+    if (this.tutLock) return;
     if (this.currentWorm?.isAI) return;
     const cur = this.currentWorm;
     if (this.targetingWeapon) {
@@ -900,6 +1110,7 @@ export class Game {
   }
 
   onChargeStart(wx, wy) {
+    if (this.tutLock) return;
     if (this.state !== 'active' || this.currentWorm?.isAI) return;
     if (!this.currentWorm?.alive) return;
     if (C.WEAPON_BY_ID[this.selectedWeapon]?.targeting) {
@@ -937,6 +1148,7 @@ export class Game {
   }
 
   onTarget(wx, wy) {
+    if (this.tutLock) return;
     if (this.targetingWeapon && !this.currentWorm?.isAI) this.confirmTarget(wx, wy);
   }
 
@@ -951,15 +1163,18 @@ export class Game {
       this._powerOffset = Math.max(-1, Math.min(1, this._powerOffset));
       if (this._lastCursor) this.chargePower = this._computeDragPower(this._lastCursor.x, this._lastCursor.y);
       this.hud.powerUpdate(this.chargePower, this.currentWorm.aimAngle);
+      this.tutEvent('wheel', { delta });
       return;
     }
     const w = this.camera.screenToWorld(mx, my);
     this.camera.setZoom(this.camera.tzoom * (delta < 0 ? 1.13 : 1 / 1.13), w.x, w.y);
+    this.tutEvent('cameraZoom', { delta });
   }
 
   onPan(dx, dy) {
-    if (this.state === 'active' && this.settings.aimMode === 'slingshot' && !this.currentWorm?.isAI) return;
+    // 中键/Shift+左键/双指拖动都走这里；不再按 aimMode 拦截
     this.camera.pan(dx, dy);
+    this.tutEvent('cameraPan', { dx, dy });
   }
 
   showAICharge(worm, power) {

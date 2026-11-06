@@ -60,16 +60,16 @@ export const CHALLENGES = [
   },
   {
     id: 'c5', icon: '🐑', name: '神圣一击',
-    desc: '一颗神圣手雷，三只挤在一起的敌人。你懂的。',
-    theme: 'snow', seed: 121231, difficulty: 'hard',
+    desc: '神圣手雷三连投，清掉挤在一起的敌人。1 回合解决可拿 S。',
+    theme: 'snow', seed: 121231, scene: 'holyBowl', difficulty: 'hard',
     playerWorms: [{ x: 300, name: '牧师', color: '#ffffff', hat: 'tophat' }],
     enemies: [
-      { x: 1380, name: '信徒A', color: '#ef476f', hat: 'bow', hp: 55 },
-      { x: 1440, name: '信徒B', color: '#9b5de5', hat: 'bow', hp: 55 },
-      { x: 1500, name: '信徒C', color: '#f78c6b', hat: 'bow', hp: 55 },
+      { x: 1420, name: '信徒A', color: '#ef476f', hat: 'bow', hp: 1 },
+      { x: 1440, name: '信徒B', color: '#9b5de5', hat: 'bow', hp: 1 },
+      { x: 1460, name: '信徒C', color: '#f78c6b', hat: 'bow', hp: 1 },
     ],
-    ammoPlayer: { bazooka: 0, shotgun: 0, cluster: 0, airstrike: 0, driller: 0, holy: 1 },
-    noSuddenDeath: true, noCrates: true,
+    ammoPlayer: { bazooka: 0, grenade: 0, shotgun: 0, cluster: 0, airstrike: 0, driller: 0, holy: 3 },
+    noSuddenDeath: true, noCrates: true, noWind: true,
     rankS: 1, rankSHp: 90, rankA: 3,
   },
   {

@@ -18,16 +18,9 @@ export class SimTerrain {
     for (let y = Math.max(0, yStart | 0); y < this.H; y++) if (this.mask[y * this.W + x]) return y;
     return null;
   }
-  // 模拟钻挖（仅掩码，无渲染）
-  drillColumn(cx, yFrom, depth, r) {
-    const y0 = Math.max(0, yFrom | 0), y1 = Math.min(this.H - 1, (yFrom + depth) | 0);
-    for (let y = y0; y <= y1; y++) {
-      for (let x = Math.max(0, cx - r | 0); x <= Math.min(this.W - 1, cx + r | 0); x++) {
-        const dx = x - cx;
-        if (dx * dx <= r * r - 1) this.mask[y * this.W + x] = 0;
-      }
-    }
-  }
+  // AI 每个候选中都应从同一初始地形出发；钻地弹的挖洞不参与评分，
+  // 这里保持掩码不变，避免一次候选把后续候选的模拟地形污染。
+  drillColumn() { /* no-op */ }
 }
 
 class SimWorm {
@@ -36,12 +29,20 @@ class SimWorm {
     this.x = w.x; this.y = w.y; this.vx = 0; this.vy = 0;
     this.flying = false; this.onGround = true;
   }
-  get bodyY() { return this.y - 16; }
+  get bodyY() { return this.y - 16.5; }
 }
 
 export function makeSim(game) {
+  // 复用同一块模拟掩码，避免每个 AI 回合分配 1.8MB 的 Uint8Array
+  const src = game.terrain.mask;
+  let buf = game._simMask;
+  if (!buf || buf.length !== src.length) {
+    buf = new Uint8Array(src.length);
+    game._simMask = buf;
+  }
+  buf.set(src);
   return {
-    terrain: new SimTerrain(game.terrain.mask.slice(), game.terrain.W, game.terrain.H),
+    terrain: new SimTerrain(buf, game.terrain.W, game.terrain.H),
     worms: game.worms.map(w => new SimWorm(w)),
     windAccel: game.windAccel(),
     waterY: game.water.level,
@@ -52,11 +53,12 @@ function settleWorm(w, sim, dmgMap) {
   // 击退后的简化落体模拟
   if (!w.alive || !w.flying) return;
   const dt = 1 / 60;
+  const airDecay = Math.pow(0.4, dt);
   for (let i = 0; i < 150; i++) {
     if (w.y > sim.waterY) { addDmg(dmgMap, w, 999); w.alive = false; return; } // 落水
     w.vy += GRAVITY * dt;
     w.x += w.vx * dt; w.y += w.vy * dt;
-    w.vx *= Math.pow(0.4, dt);
+    w.vx *= airDecay;
     if (w.x < 12 || w.x > sim.terrain.W - 12) w.vx = 0;
     if (w.vy > 0 && sim.terrain.isSolid(w.x, w.y)) {
       let guard = 0;
@@ -107,14 +109,15 @@ export function simulateShot(sim, owner, weaponId, angle, power) {
     p.onExplode = (ex, ey, proj) => {
       endX = ex; endY = ey;
       const eff = explosionEffects(sim.worms, ex, ey, proj.weapon.radius, proj.weapon.dmg);
+      const kbX = proj.weapon.id === 'cow' ? 0.2 : 1; // 与真实奶牛击退保持一致
       for (const e of eff) {
         addDmg(dmgMap, e.worm, e.dmg);
-        if (e.worm.alive) { e.worm.vx += e.kx; e.worm.vy += e.ky; e.worm.flying = true; }
+        if (e.worm.alive) { e.worm.vx += e.kx * kbX; e.worm.vy += e.ky; e.worm.flying = true; }
       }
       if (proj.weapon.cluster) {
         for (let i = 0; i < proj.weapon.cluster; i++) {
-          const ba = -Math.PI / 2 + (i - (proj.weapon.cluster - 1) / 2) * 0.5;
-          const sp = 170 + Math.random() * 90;
+          const ba = -Math.PI / 2 + (i - (proj.weapon.cluster - 1) / 2) * 0.36 + (Math.random() - 0.5) * 0.14;
+          const sp = 125 + Math.random() * 75;
           spawn('bomblet', ex, ey - 4, Math.cos(ba) * sp, Math.sin(ba) * sp, null);
         }
       }
@@ -123,7 +126,11 @@ export function simulateShot(sim, owner, weaponId, angle, power) {
       const eff = explosionEffects(sim.worms, p2.x, p2.y - 8, 40, w.dmg);
       for (const e of eff) {
         addDmg(dmgMap, e.worm, e.dmg);
-        if (e.worm.alive) { e.worm.vx += e.kx; e.worm.vy += e.ky; e.worm.flying = true; }
+        if (e.worm.alive) {
+          const pull = Math.max(-110, Math.min(110, -(e.worm.x - p2.x) * 2.4));
+          e.worm.vx += pull;
+          e.worm.flying = true;
+        }
       }
     };
     active.push(p);
