@@ -2,7 +2,7 @@
 
 回合制炮术虫虫对战（百战天虫 / 弹弹堂 like）· 单机 vs AI · 桌面 + 手机触屏
 
-**在线试玩：https://xeonstin.github.io/crateroid/**（手机可直接打开，横屏游玩）
+**在线试玩：https://xeonstin.github.io/crateroid/**（手机可直接打开，横屏/竖屏均可游玩）
 
 ## 本地启动
 

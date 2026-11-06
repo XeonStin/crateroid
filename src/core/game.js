@@ -74,6 +74,7 @@ export class Game {
     this._powerOffset = 0;
     this._lastCursor = null;
     this._aimHintShown = false;
+    this._portraitHintShown = false;
     this.dashLeft = 1;
     this.dashMax = 1;
     this._playerBerserk = false;
@@ -158,8 +159,8 @@ export class Game {
     this.state = 'turnStart';
     this.stateTimer = 0;
 
-    // 基础缩放：世界变小后拉近一点，手机端不至于太远
-    const baseZoom = Math.max(this.camera.minZoom(), Math.min(1.05, this.camera.viewW / 1500));
+    // 基础缩放：横屏按宽度，竖屏适度拉远（同时允许双指继续缩放）
+    const baseZoom = this.camera.defaultZoom();
     this.camera.zoom = baseZoom;
     this.camera.tzoom = baseZoom;
     setMusicMode('battle');
@@ -279,12 +280,16 @@ export class Game {
     this.retreatLeft = 0;
 
     cur.showArrow(true);
-    this.camera.follow(cur.x, cur.y - 60);
+    this.frameTurnCamera(cur);
     this.hud.setControlsHint('');
     if (!cur.isAI) sfx('voice', { pitch: 1.1 });
     // 首回合操作提示（教学关有自己的持久提示面板，不重复）
     if (!cur.isAI && !this._aimHintShown && !this.tutorialLike) {
       this._aimHintShown = true;
+      if (this.mobile && this.isPortrait()) {
+        this._portraitHintShown = true;
+        this.hud.message('📱 竖屏：双指拖动/缩放可以查看远处的敌人');
+      }
       if (this.mobile) {
         this.hud.message('📱 按住屏幕拖拽＝拉弓瞄准，松手发射');
         this.hud.message('◀ ▶ 行走 · ⤒ 跳跃 · 🎒 换武器');
@@ -476,6 +481,41 @@ export class Game {
     this.slingshot = null;
     this.hud.powerHide();
     this._postTurn();
+  }
+
+  // 竖屏回合构图：把当前虫虫和最近的敌人一起放进视野
+  isPortrait() { return this.camera.viewH > this.camera.viewW; }
+
+  nearestEnemy(worm) {
+    if (!worm) return null;
+    let best = null, bestD = Infinity;
+    for (const w of this.worms) {
+      if (!w.alive || w.team === worm.team) continue;
+      const d = Math.abs(w.x - worm.x);
+      if (d < bestD) { bestD = d; best = w; }
+    }
+    return best;
+  }
+
+  frameTurnCamera(cur) {
+    if (!this.isPortrait()) {
+      this.camera.follow(cur.x, cur.y - 60);
+      return;
+    }
+    const frame = this.portraitFrame(cur);
+    this.camera.setZoom(frame.zoom);
+    this.camera.follow(frame.x, cur.y - 60);
+  }
+
+  // 竖屏构图：距离可在可读缩放内同时容纳双方时取中点，否则保证当前虫虫在画面内
+  portraitFrame(cur) {
+    const foe = this.nearestEnemy(cur);
+    const def = this.camera.defaultZoom();
+    if (!foe) return { x: cur.x, zoom: def };
+    const need = Math.max(320, Math.abs(foe.x - cur.x) + 160);
+    const zFit = this.camera.viewW / need;
+    if (zFit < 0.5) return { x: cur.x, zoom: def };
+    return { x: (cur.x + foe.x) / 2, zoom: Math.min(def, zFit) };
   }
 
   // ---------------- 弹道与爆炸 ----------------
@@ -853,6 +893,9 @@ export class Game {
         this.stateTimer -= dt;
         if (this.stateTimer <= 0) {
           this.state = 'active';
+          // 进入操作阶段时重新构图：turnStart 期间相机会跟随当前虫虫，
+          // 竖屏下需要把镜头拉回“虫虫 + 最近敌人”的中间
+          this.frameTurnCamera(cur);
           if (cur.isAI || this.debugAuto) this.brain = new AIBrain(this, cur);
           this.updateInputMode();
           this.syncWeaponBar();
@@ -1271,7 +1314,10 @@ export class Game {
     if (pInView) this.camera.follow(p.x, p.y);
     else if (this.planes[0]) this.camera.follow(this.planes[0].x, this.planes[0].y);
     else if (cur && this.state !== 'active') this.camera.follow(cur.x, cur.y - 60);
-    else if (cur && this.state === 'active' && (cur.isAI || cur.walkDir !== 0 || !cur.onGround)) {
+    else if (cur && this.state === 'active' && this.isPortrait() && cur.isAI) {
+      // 竖屏 AI 回合：能同时容纳双方时看中点，否则保证 AI 虫虫在画面内
+      this.camera.follow(this.portraitFrame(cur).x, cur.y - 60);
+    } else if (cur && this.state === 'active' && (cur.isAI || cur.walkDir !== 0 || !cur.onGround)) {
       this.camera.follow(cur.x, cur.y - 60);
     }
     this.camera.update(1 / 60);

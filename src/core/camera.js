@@ -38,7 +38,20 @@ export class Camera {
   }
 
   minZoom() {
-    return Math.max(this.viewW / this.worldW, this.viewH / this.worldH);
+    const fit = Math.max(this.viewW / this.worldW, this.viewH / this.worldH);
+    if (this.viewH > this.viewW) {
+      // 竖屏：允许缩小到能看见更宽的战场（纵向多出的区域由天空/水面填充）
+      return Math.max(0.45, this.viewW / this.worldW);
+    }
+    return fit;
+  }
+
+  // 默认缩放：竖屏适度拉远，保证角色/地形不会占满整屏
+  defaultZoom() {
+    if (this.viewH > this.viewW) {
+      return Math.min(1.05, Math.max(this.minZoom(), 0.62));
+    }
+    return Math.max(this.minZoom(), Math.min(1.05, this.viewW / 1500));
   }
 
   follow(x, y, snap = false) {

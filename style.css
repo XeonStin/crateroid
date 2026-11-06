@@ -12,6 +12,9 @@
   --sab: env(safe-area-inset-bottom, 0px);
   --sal: env(safe-area-inset-left, 0px);
   --sar: env(safe-area-inset-right, 0px);
+  /* 由 JS 按 visualViewport 实时更新，避免手机地址栏伸缩导致画布/HUD 错位 */
+  --vvw: 100vw;
+  --vvh: 100vh;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body {
@@ -24,11 +27,11 @@ html, body {
 body { position: fixed; inset: 0; }
 .hidden { display: none !important; }
 
-#game-canvas { position: fixed; inset: 0; z-index: 0; }
+#game-canvas { position: fixed; top: 0; left: 0; width: var(--vvw); height: var(--vvh); z-index: 0; overflow: hidden; }
 #game-canvas canvas { display: block; touch-action: none; }
 
 /* ---------------- HUD ---------------- */
-#hud { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
+#hud { position: fixed; top: 0; left: 0; width: var(--vvw); height: var(--vvh); z-index: 10; pointer-events: none; }
 /* 只有真正可交互的元素接收指针事件；信息类 HUD 元素绝不能吞掉画布拖拽 */
 #hud > * { pointer-events: none; }
 #btn-pause, #weapon-bar, #btn-skip { pointer-events: auto; }
@@ -263,7 +266,7 @@ body.touch #weapon-bar {
 body.touch #power-wrap { bottom: calc(170px + var(--sab)); }
 
 /* ---------------- 触控按钮 ---------------- */
-#touch-controls { position: fixed; inset: 0; z-index: 12; pointer-events: none; }
+#touch-controls { position: fixed; top: 0; left: 0; width: var(--vvw); height: var(--vvh); z-index: 12; pointer-events: none; }
 #touch-controls.disabled .tbtn { opacity: .25; pointer-events: none; }
 .tbtn {
   position: absolute; pointer-events: auto; border: 0; color: #fff; cursor: pointer;
@@ -279,15 +282,15 @@ body.touch #power-wrap { bottom: calc(170px + var(--sab)); }
 #tb-right { left: calc(86px + var(--sal)); }
 #tb-jump { left: calc(151px + var(--sal)); bottom: calc(24px + var(--sab)); background: rgba(107, 217, 104, .4); }
 .tbtn.br { width: 56px; height: 56px; font-size: 22px; }
-#tb-fire { right: calc(96px + var(--sar)); bottom: calc(88px + var(--sab)); background: rgba(255, 107, 129, .5); font-size: 26px; }
-#tb-weapon { right: calc(18px + var(--sar)); bottom: calc(158px + var(--sab)); }
-#tb-skip { right: calc(18px + var(--sar)); bottom: calc(88px + var(--sab)); width: 48px; height: 48px; font-size: 17px; }
+#tb-fire { right: calc(96px + var(--sar)); bottom: calc(18px + var(--sab)); background: rgba(255, 107, 129, .5); font-size: 26px; }
+#tb-weapon { right: calc(18px + var(--sar)); bottom: calc(92px + var(--sab)); }
+#tb-skip { right: calc(18px + var(--sar)); bottom: calc(18px + var(--sab)); width: 48px; height: 48px; font-size: 17px; }
 /* 触屏时隐藏桌面跳过按钮，避免重叠 */
 body.touch #btn-skip { display: none; }
 
 /* ---------------- 菜单 ---------------- */
 #menus {
-  position: fixed; inset: 0; z-index: 20;
+  position: fixed; top: 0; left: 0; width: var(--vvw); height: var(--vvh); z-index: 20;
   background: rgba(10, 14, 30, .55); backdrop-filter: blur(6px);
   overflow: hidden;
 }
@@ -441,7 +444,8 @@ body.touch #btn-skip { display: none; }
 
 /* ---------------- 结算 ---------------- */
 #gameover {
-  position: fixed; inset: 0; z-index: 30; background: rgba(8, 10, 24, .6);
+  position: fixed; top: 0; left: 0; width: var(--vvw); height: var(--vvh); z-index: 30;
+  background: rgba(8, 10, 24, .6);
   backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center;
 }
 .go-card {
@@ -457,17 +461,6 @@ body.touch #btn-skip { display: none; }
 #go-detail { margin: 14px 0; }
 .rank-big { font-size: 64px; font-weight: 900; color: var(--accent); line-height: 1; }
 .go-stats { margin-top: 10px; font-size: 12px; line-height: 1.9; opacity: .85; }
-
-/* ---------------- 竖屏提示 ---------------- */
-#rotate-overlay {
-  position: fixed; inset: 0; z-index: 100; background: #14182c;
-  display: none; align-items: center; justify-content: center; text-align: center;
-  font-size: 22px; line-height: 1.9;
-}
-#rotate-overlay small { font-size: 14px; opacity: .6; }
-@media (orientation: portrait) and (pointer: coarse) {
-  #rotate-overlay { display: flex; }
-}
 
 /* ---------------- 调试面板 ---------------- */
 #debug-panel {
@@ -507,3 +500,66 @@ body.touch .tp-head { padding: 3px 8px; }
 body.touch .tp-card { padding: 5px 9px; }
 body.touch #tp-name { font-size: 12px; }
 body.touch #tp-goal { margin-top: 4px; }
+
+/* 横屏：给右侧触控键留出空间，教学面板不再压住 🎒 */
+@media (orientation: landscape) {
+  body.touch #tut-panel { right: calc(84px + var(--sar)); }
+}
+/* 窄横屏：武器栏收窄，给右下角按钮让位（仍可横向滚动） */
+@media (orientation: landscape) and (max-width: 700px) {
+  body.touch #weapon-bar { max-width: calc(100vw - 180px); }
+}
+/* 横屏但可视高度很短（手机浏览器地址栏未收起）：压缩面板，避免压住武器栏 */
+@media (orientation: landscape) and (max-height: 460px) {
+  body.touch #tut-panel {
+    top: calc(44px + var(--sat));
+    max-height: calc(var(--vvh) - 210px);
+    overflow-y: auto;
+  }
+  body.touch #tp-steps { display: none; }
+  body.touch #tp-keys { display: none; }
+  body.touch #tp-text { font-size: 10px; line-height: 1.35; }
+}
+
+/* ---------------- 竖屏：允许直接游玩 ---------------- */
+@media (orientation: portrait) {
+  body.touch #hud-top { gap: 5px; }
+  body.touch .hud-box { padding: 4px 8px; font-size: 12px; }
+  body.touch #wind-bar { width: 54px; }
+  body.touch #round-box { gap: 6px; padding: 4px 8px; }
+  body.touch #timer { font-size: 17px; }
+  body.touch .hud-btn { width: 34px; height: 30px; }
+
+  /* 教学面板改为顶部通栏，避开右侧按钮与底部武器栏 */
+  body.touch #tut-panel {
+    top: calc(102px + var(--sat));
+    left: calc(8px + var(--sal));
+    right: calc(8px + var(--sar));
+    width: auto;
+    max-height: min(32vh, calc(var(--vvh) - 350px));
+    overflow-y: auto;
+  }
+  body.touch #msg-feed {
+    top: auto;
+    bottom: calc(320px + var(--sab));
+    left: calc(10px + var(--sal));
+    max-width: 72vw;
+  }
+
+  /* 武器栏放到右侧按键上方；8 格压缩成一排放得下 */
+  body.touch #weapon-bar {
+    bottom: calc(232px + var(--sab));
+    gap: 2px;
+    padding: 4px;
+    max-width: 98vw;
+    transform: translateX(-50%) scale(.98);
+  }
+  body.touch .wchip { width: 42px; height: 42px; font-size: 18px; }
+  body.touch #power-wrap { bottom: calc(292px + var(--sab)); }
+  /* 竖屏底部一行放不下跳跃 + 开火：跳跃上移，和左右行走键形成 D-pad */
+  body.touch #tb-jump { bottom: calc(84px + var(--sab)); }
+}
+/* 小屏竖屏：隐藏步骤胶囊，给目标/键位留空间 */
+@media (orientation: portrait) and (max-height: 700px) {
+  body.touch #tp-steps { display: none; }
+}

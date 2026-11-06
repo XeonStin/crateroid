@@ -111,6 +111,7 @@ vendor/pixi/*.bin                PixiJS 分片（12 片，importmap 映射 'pixi
 22. **奶牛地形破坏**：`Game.cowStomp` 每次落地都要 `terrain.carve`；AI 模拟不复制地形破坏，只按真实物理打伤害。
 23. **视角教学事件**：中键/Shift+左键/双指拖动走 `Game.onPan` 并触发 `cameraPan`；滚轮/双指捏合走 `Game.onZoom` 并触发 `cameraZoom`。不要恢复旧 `onPan` 的 aimMode 拦截，否则第一课视角步骤无法完成。
 24. **冲刺指示**：HUD 的 `#dash-ind` 由 `setDash(left,max)` 更新；`nextTurn` 重置、`tryDash` 扣减、教学冲刺步骤 enter 时也要同步。
+25. **手机视口**：画布与相机尺寸以 `visualViewport` 为准；`#game-canvas` / `#hud` / `#touch-controls` / `#menus` 使用 `--vvw/--vvh`（JS 写入），不要改回 `resizeTo: window` / 100vh。部分手机浏览器地址栏伸缩不派发 `resize`，主循环每帧 `applyViewport()` 兜底。竖屏已支持：`Camera.minZoom/defaultZoom` 有独立分支，回合开始时 `frameTurnCamera()` 尝试同时框住虫虫和最近敌人。
 
 ## 发布
 

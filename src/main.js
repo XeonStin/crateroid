@@ -15,17 +15,30 @@ const params = new URLSearchParams(location.search);
 const DEBUG = params.has('debug');
 window.__boot = ['imported'];
 
+// 手机浏览器地址栏/工具栏会改变可视高度：以 visualViewport 为准，
+// 避免画布比实际可视区域大、相机中心落到屏幕外（表现为只看到天空）。
+function readViewportSize() {
+  const vv = window.visualViewport;
+  const w = vv?.width || document.documentElement.clientWidth || window.innerWidth || 1;
+  const h = vv?.height || document.documentElement.clientHeight || window.innerHeight || 1;
+  return { w: Math.max(1, Math.round(w)), h: Math.max(1, Math.round(h)) };
+}
+
 async function boot() {
   window.__boot.push('boot-start');
   const save = loadSave();
   const settings = save.settings;
   const mobile = TouchControls.isTouchDevice;
+  const vp0 = readViewportSize();
+  document.documentElement.style.setProperty('--vvw', `${vp0.w}px`);
+  document.documentElement.style.setProperty('--vvh', `${vp0.h}px`);
 
   // ---- Pixi ----
   const app = new PIXI.Application();
   await app.init({
+    width: vp0.w,
+    height: vp0.h,
     backgroundAlpha: 0,
-    resizeTo: window,
     antialias: true,
     resolution: Math.min(window.devicePixelRatio || 1, 2),
     autoDensity: true,
@@ -120,10 +133,55 @@ async function boot() {
   window.addEventListener('pointerdown', audioKick, { once: false });
   window.addEventListener('keydown', audioKick, { once: false });
 
-  // ---- 尺寸 ----
-  const onResize = () => camera.resize(app.screen.width, app.screen.height);
-  window.addEventListener('resize', onResize);
-  onResize();
+  // ---- 尺寸：以 visualViewport 为准（地址栏伸缩/横竖屏切换都同步） ----
+  let lastPortrait = vp0.h > vp0.w;
+  let lastVpW = 0, lastVpH = 0;
+  let vpRaf = 0;
+  const applyViewport = () => {
+    const { w, h } = readViewportSize();
+    const dimsChanged = w !== lastVpW || h !== lastVpH;
+    if (dimsChanged) {
+      lastVpW = w; lastVpH = h;
+      const rootStyle = document.documentElement.style;
+      rootStyle.setProperty('--vvw', `${w}px`);
+      rootStyle.setProperty('--vvh', `${h}px`);
+    }
+    if (dimsChanged || Math.abs(app.screen.width - w) > 0.5 || Math.abs(app.screen.height - h) > 0.5) {
+      app.renderer.resize(w, h);
+    }
+    if (dimsChanged || Math.abs(camera.viewW - w) > 0.5 || Math.abs(camera.viewH - h) > 0.5) {
+      camera.resize(w, h);
+    }
+    const portrait = h > w;
+    if (portrait !== lastPortrait) {
+      lastPortrait = portrait;
+      if (game.running) {
+        const z = camera.defaultZoom();
+        camera.zoom = z; camera.tzoom = z;
+        if (game.currentWorm) game.frameTurnCamera(game.currentWorm);
+      }
+    }
+  };
+  const syncViewport = () => {
+    // 先同步一次：部分手机 WebView 在切后台/地址栏动画时 rAF 会被暂停，
+    // 只靠 rAF 会导致画面尺寸和相机尺寸长期不一致。
+    applyViewport();
+    if (vpRaf) return;
+    vpRaf = requestAnimationFrame(() => { vpRaf = 0; applyViewport(); });
+  };
+  window.addEventListener('resize', syncViewport);
+  window.addEventListener('orientationchange', () => {
+    syncViewport();
+    setTimeout(syncViewport, 250);
+    setTimeout(syncViewport, 650);
+  });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncViewport);
+    window.visualViewport.addEventListener('scroll', syncViewport);
+  }
+  // 兜底轮询：即使浏览器没有派发 resize（部分 WebView / 自动化环境），也能在 0.5s 内纠正
+  setInterval(syncViewport, 500);
+  syncViewport();
 
   // ---- 主循环：固定步长 ----
   // 注意：不以 document.hidden 作为门控——rAF 本身只在可见时触发，
@@ -134,6 +192,8 @@ async function boot() {
   const menusVisible = () => !menus.root.classList.contains('hidden');
 
   app.ticker.add(() => {
+    // 每帧兜底检查可视区域：部分手机浏览器在地址栏伸缩时不会派发 resize
+    applyViewport();
     const now = performance.now();
     lastFrameAt = now;
     let dt = (now - last) / 1000;
