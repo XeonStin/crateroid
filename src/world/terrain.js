@@ -2,7 +2,8 @@
 import { WORLD_W, WORLD_H, THEMES } from '../config.js';
 import * as PIXI from 'pixi.js';
 
-function mulberry32(seed) {
+// 种子化 RNG（油桶放置等需要「同种子同布局」的场景复用）
+export function mulberry32(seed) {
   let a = seed >>> 0;
   return function () {
     a |= 0; a = (a + 0x6D2B79F5) | 0;
@@ -336,6 +337,18 @@ export class Terrain {
         ctx.beginPath();
         ctx.arc(cx, cy, r, 0, Math.PI * 2);
         ctx.fill();
+        // 焦痕：坑缘一圈烧灼。用 source-atop 只画在残留实心像素上（不会漏进旧坑）；
+        // 瓦片画布是累积式的，后续爆炸擦到哪算哪，与掩码天然一致——
+        // 禁止把 carve 改成「按 mask 全量重画」，那会抹掉所有历史焦痕
+        ctx.globalCompositeOperation = 'source-atop';
+        const g = ctx.createRadialGradient(cx, cy, r, cx, cy, r + 10);
+        g.addColorStop(0, 'rgba(24, 14, 8, 0.55)');
+        g.addColorStop(0.55, 'rgba(24, 14, 8, 0.26)');
+        g.addColorStop(1, 'rgba(24, 14, 8, 0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r + 10, 0, Math.PI * 2);
+        ctx.fill();
       });
     }
     return changed;
@@ -361,6 +374,18 @@ export class Terrain {
       ctx.beginPath();
       ctx.roundRect(cx - r, y0, r * 2, y1 - y0, r);
       ctx.fill();
+      // 隧道两壁焦边（source-atop：只画在残留实心上）
+      ctx.globalCompositeOperation = 'source-atop';
+      const gl = ctx.createLinearGradient(cx - r - 9, 0, cx - r, 0);
+      gl.addColorStop(0, 'rgba(24, 14, 8, 0)');
+      gl.addColorStop(1, 'rgba(24, 14, 8, 0.4)');
+      ctx.fillStyle = gl;
+      ctx.fillRect(cx - r - 9, y0, 9, y1 - y0);
+      const gr = ctx.createLinearGradient(cx + r + 9, 0, cx + r, 0);
+      gr.addColorStop(0, 'rgba(24, 14, 8, 0)');
+      gr.addColorStop(1, 'rgba(24, 14, 8, 0.4)');
+      ctx.fillStyle = gr;
+      ctx.fillRect(cx + r, y0, 9, y1 - y0);
     });
   }
 }

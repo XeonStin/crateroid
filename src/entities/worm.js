@@ -17,6 +17,7 @@ export class Worm {
     this.dashT = 0;
     this.dashDir = 1;
     this.berserk = false; // 背水一战：移速 +15%
+    this.recoilT = 0;     // 发射后坐力
 
     this.x = cfg.x; this.y = cfg.y;      // 脚底中心
     this.vx = 0; this.vy = 0;
@@ -44,7 +45,7 @@ export class Worm {
     this.bubbleText = null; this.bubbleT = 0;
     // 变换缓存（避免静止时每帧把 transform 标脏）
     this._vx = NaN; this._vy = NaN;
-    this._lsx = 1; this._lsy = 1; this._lrot = 0; this._lpy = 0;
+    this._lsx = 1; this._lsy = 1; this._lrot = 0; this._lpy = 0; this._lipx = 0;
     this._tint = 0xffffff;
 
     this.view = new PIXI.Container();
@@ -237,23 +238,57 @@ export class Worm {
           game.particles.spawn({ x: this.x, y: this.y - 2, vx: -this.dashDir * 60, vy: -20, life: 0.3, size: 3, color: 0xdddddd, gravity: 200 });
         }
       } else this.dashT = 0;
-    } else if (this.onGround && this.walkDir !== 0) {
-      // 行走（背水一战加速）
+      // 冰面：冲刺结束带惯性滑出
+      if (this.dashT <= 0 && terrain.theme?.slide) this.vx = this.dashDir * 120;
+    } else if (this.onGround) {
       const speed = WALK_SPEED * (this.berserk ? 1.15 : 1);
-      const nx = this.x + this.walkDir * speed * dt;
-      if (nx > 10 && nx < terrain.W - 10) {
-        const gy = this.findStandY(terrain, nx, this.y);
-        if (gy !== null) {
-          this.x = nx; this.y = gy;
-          this.facing = this.walkDir;
-          this.walkPhase += dt * 11;
-        } else if (!terrain.isSolid(nx, this.y - 3) && !terrain.isSolid(nx, this.y - BODY_H + 2)) {
-          // 台阶/悬崖边缘：允许继续走出，进入下落状态
-          this.x = nx;
-          this.onGround = false;
-          this.vy = 0;
-          this.facing = this.walkDir;
-          this.walkPhase += dt * 8;
+      if (terrain.theme?.slide) {
+        // 冰面：加速接近目标速度，松键带惯性滑行。
+        // 非 slide 主题绝不能走这条路径（瞬时定位是有意行为，两条分支不要合并）
+        if (this.walkDir !== 0) {
+          const dv = 520 * dt;
+          const target = this.walkDir * speed;
+          if (this.vx < target) this.vx = Math.min(target, this.vx + dv);
+          else if (this.vx > target) this.vx = Math.max(target, this.vx - dv);
+        } else {
+          this.vx *= Math.pow(0.45, dt);
+          if (Math.abs(this.vx) < 2) this.vx = 0;
+        }
+        if (this.vx !== 0) {
+          const nx = this.x + this.vx * dt;
+          if (nx > 10 && nx < terrain.W - 10) {
+            const gy = this.findStandY(terrain, nx, this.y);
+            if (gy !== null) {
+              this.x = nx; this.y = gy;
+              if (this.walkDir !== 0) this.facing = this.walkDir;
+              this.walkPhase += dt * 11 * Math.min(1, Math.abs(this.vx) / speed);
+            } else if (!terrain.isSolid(nx, this.y - 3) && !terrain.isSolid(nx, this.y - BODY_H + 2)) {
+              // 滑出崖边：水平速度带出去
+              this.x = nx; this.onGround = false;
+              if (this.walkDir !== 0) this.facing = this.walkDir;
+              this.walkPhase += dt * 8;
+            } else {
+              this.vx = 0; // 撞墙
+            }
+          } else this.vx = 0;
+        }
+      } else if (this.walkDir !== 0) {
+        // 行走（背水一战加速）
+        const nx = this.x + this.walkDir * speed * dt;
+        if (nx > 10 && nx < terrain.W - 10) {
+          const gy = this.findStandY(terrain, nx, this.y);
+          if (gy !== null) {
+            this.x = nx; this.y = gy;
+            this.facing = this.walkDir;
+            this.walkPhase += dt * 11;
+          } else if (!terrain.isSolid(nx, this.y - 3) && !terrain.isSolid(nx, this.y - BODY_H + 2)) {
+            // 台阶/悬崖边缘：允许继续走出，进入下落状态
+            this.x = nx;
+            this.onGround = false;
+            this.vy = 0;
+            this.facing = this.walkDir;
+            this.walkPhase += dt * 8;
+          }
         }
       }
     }
@@ -316,7 +351,9 @@ export class Worm {
           }
         }
         this.y = gy ?? this.y;
-        this.onGround = true; this.vy = 0; this.vx = 0; this.jumpsUsed = 0;
+        this.onGround = true; this.vy = 0; this.jumpsUsed = 0;
+        // 冰面保留水平速度：击退/冲出崖边会带着惯性滑行；普通地面立即停住
+        if (!terrain.theme?.slide) this.vx = 0;
         this.squashT = 0.25;
         if (wasVy > MAX_FALL_NO_DMG) {
           const dmg = Math.round((wasVy - MAX_FALL_NO_DMG) * FALL_DMG_K);
@@ -378,10 +415,11 @@ export class Worm {
     }
     if (!this.alive) { this.updateTomb(time); return; }
 
-    // 挤压拉伸（仅变化时写 transform）
+    // 挤压拉伸 + 发射后坐力（仅变化时写 transform）
     let sx = 1, sy = 1;
     if (this.squashT > 0) { this.squashT -= 1 / 60; const t = this.squashT / 0.25; sx = 1 + 0.25 * t; sy = 1 - 0.28 * t; }
     else if (this.stretchT > 0) { this.stretchT -= 1 / 60; const t = this.stretchT / 0.2; sx = 1 - 0.18 * t; sy = 1 + 0.22 * t; }
+    if (this.recoilT > 0) { this.recoilT -= 1 / 60; sy *= 1 - 0.1 * (this.recoilT / 0.25); }
     if (sx !== this._lsx || sy !== this._lsy) {
       this.inner.scale.set(sx, sy);
       this._lsx = sx; this._lsy = sy;
@@ -399,14 +437,18 @@ export class Worm {
       }
     }
 
-    // 行走摆动
-    let rot = 0, ipy = 0;
+    // 行走摆动 + 后坐力位移
+    let rot = 0, ipy = 0, ipx = 0;
     if (this.walkDir !== 0 && this.onGround) {
       rot = Math.sin(this.walkPhase) * 0.09;
       ipy = -Math.abs(Math.sin(this.walkPhase)) * 2;
     }
+    if (this.recoilT > 0) {
+      const t = this.recoilT / 0.25;
+      ipx = -this.facing * 4 * t * t;
+    }
     if (rot !== this._lrot) { this.inner.rotation = rot; this._lrot = rot; }
-    if (ipy !== this._lpy) { this.inner.position.y = ipy; this._lpy = ipy; }
+    if (ipy !== this._lpy || ipx !== this._lipx) { this.inner.position.set(ipx, ipy); this._lipx = ipx; this._lpy = ipy; }
 
     // 受击眩晕星星
     if (this.stunnedT > 0) {
@@ -508,6 +550,7 @@ export class Worm {
     this.dyingT = 0;
     this.squashT = 0;
     this.stretchT = 0;
+    this.recoilT = 0;
     this.bubbleT = 0;
     this._drowned = false;
     this.lastHitWeapon = null;
@@ -518,7 +561,7 @@ export class Worm {
     this.view = new PIXI.Container();
     this.view.zIndex = 1000;
     this._vx = NaN; this._vy = NaN;
-    this._lsx = 1; this._lsy = 1; this._lrot = 0; this._lpy = 0;
+    this._lsx = 1; this._lsy = 1; this._lrot = 0; this._lpy = 0; this._lipx = 0;
     this._tint = 0xffffff;
     this._hpKey = null; this._eyeKey = null;
     this.buildView();

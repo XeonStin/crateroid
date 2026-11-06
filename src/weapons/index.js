@@ -22,10 +22,16 @@ export function fireWeapon(game, worm, weaponId, angle, power, targetX, opts = {
   if (!w) return false;
 
   if (w.targeting) {
-    // 空袭 / 奶牛：需要玩家确认目标点
+    // 需要玩家确认目标点的武器（空袭/奶牛/传送）
     if (targetX === undefined) {
       game.enterTargeting(weaponId);
       return true;
+    }
+    if (w.teleport) {
+      // 落点校验与坐标应用已在 confirmTarget → tryTeleport 完成，这里只结算
+      game.consumeAmmo(worm, weaponId);
+      game.afterFire(worm, false);
+      return false;
     }
     game.consumeAmmo(worm, weaponId);
     if (weaponId === 'airstrike') {
@@ -41,7 +47,8 @@ export function fireWeapon(game, worm, weaponId, angle, power, targetX, opts = {
   if (w.hitscan) {
     // 散弹枪两发一组：只在第一发扣 1 发弹药，第二发免费打完
     if (!(game._shotgunUsedThisTurn > 0)) game.consumeAmmo(worm, weaponId);
-    shotgunBlast(game, worm, w, angle);
+    shotgunBlast(game, worm, w, angle, power);
+    worm.recoilT = 0.25;
     game.onShotgunShot(worm, w, opts);
     return false;
   }
@@ -56,6 +63,7 @@ export function fireWeapon(game, worm, weaponId, angle, power, targetX, opts = {
     onExplode: (x, y, proj) => game.projectileExplode(x, y, proj),
   });
   game.projectiles.push(p);
+  worm.recoilT = 0.25;
   game.sfx('shoot');
   game.afterFire(worm, true);
   return false;
@@ -63,12 +71,13 @@ export function fireWeapon(game, worm, weaponId, angle, power, targetX, opts = {
 
 // 散弹枪：瞬发 5 颗弹丸（锥形散布），每颗独立判虫/判地形，
 // 命中地形会打出小坑（可用来挖地/打穿薄土）
-function shotgunBlast(game, worm, w, angle) {
+// power 收束散布：满力 2.75° / 空力 7.15°——蓄力对 hitscan 终于有实际作用
+function shotgunBlast(game, worm, w, angle, power = 1) {
   game.sfx('shotgun');
   const sx = worm.x, sy = worm.bodyY - 6;
   const pellets = w.pellets || 5;
-  const spread = w.spread || 5;
-  let anyWormHit = false;
+  const spread = (w.spread || 5) * (1.3 - 0.8 * Math.max(0, Math.min(1, power)));
+  let anyWormHit = false, enemyHits = 0;
   for (let i = 0; i < pellets; i++) {
     const a = (angle + (Math.random() - 0.5) * 2 * spread) * Math.PI / 180;
     const dx = Math.cos(a), dy = -Math.sin(a);
@@ -95,11 +104,17 @@ function shotgunBlast(game, worm, w, angle) {
       hitWorm.applyKnockback(dx * w.kb, dy * w.kb - 25);
       game.particles.sparkle(ex, ey, 0xffe9a8, 3);
       anyWormHit = true;
+      if (worm.team === 0 && hitWorm.team === 1) enemyHits++;
     } else if (hitT < w.range) {
       // 地形破坏：小弹孔
       game.carveShot(ex, ey, w.crater || 13);
+      // 散弹没有爆炸结算：弹着点贴近油桶时显式点燃
+      for (const d of game.drums || []) {
+        if (d.alive && d.fuse < 0 && Math.hypot(d.x - ex, d.y - ey) < 22) game.igniteDrum(d, 0.15, worm);
+      }
     }
   }
+  if (worm.team === 0 && enemyHits >= pellets) game.ach('full_pellets');
   if (anyWormHit) {
     game.sfx('hurt');
   }

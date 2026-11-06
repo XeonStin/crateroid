@@ -15,8 +15,20 @@ export class HUD {
   _bind() {
     this.$('btn-pause').addEventListener('click', () => { sfx('click'); this.game.menus.showPause(); });
     this.$('btn-skip').addEventListener('click', () => { sfx('click'); this.game.skipTurn(); });
+    this.$('btn-ai-fast').addEventListener('click', () => {
+      sfx('click');
+      this.game.aiFast = !this.game.aiFast;
+      this.setAIFast(true, this.game.aiFast);
+    });
     this.$('tp-skip').addEventListener('click', () => { sfx('click'); this.game.tutorial?.skipStage(); });
     this.$('tp-prev').addEventListener('click', () => { sfx('click'); this.game.tutorial?.prevStage(); });
+  }
+
+  // AI 回合加速按钮：仅 AI 回合显示（×4 思考/演出增速）
+  setAIFast(visible, on) {
+    const el = this.$('btn-ai-fast');
+    el.classList.toggle('hidden', !visible);
+    el.style.opacity = on ? 1 : 0.55;
   }
 
   show() { this.root.classList.remove('hidden'); }

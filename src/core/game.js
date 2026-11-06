@@ -1,9 +1,11 @@
 // ============ 对局主控：回合流转 / 物理 / 伤害 / 目标 / 胜负 ============
 import { Terrain } from '../world/terrain.js';
+import { mulberry32 } from '../world/terrain.js';
 import { Water } from '../world/water.js';
 import { Sky } from '../world/sky.js';
 import { Worm } from '../entities/worm.js';
 import { Crate, pickCrateType } from '../entities/crate.js';
+import { OilDrum } from '../entities/drum.js';
 import { Particles } from '../entities/particles.js';
 import { explosionEffects } from '../entities/projectile.js';
 import { fireWeapon, simulateTrajectory, spawnBomblets, spawnAirstrikeBomb, muzzlePos, MIN_SPEED, MAX_SPEED } from '../weapons/index.js';
@@ -13,7 +15,7 @@ import { TUTORIAL_SCENES } from '../levels/tutorialScenes.js';
 import * as C from '../config.js';
 import * as PIXI from 'pixi.js';
 import { recordMatch, recordWeaponDamage, recordLongestShot, setChallengeRank, unlockAchievement, completeTutorial } from './save.js';
-import { sfx, setMusicMode } from './audio.js';
+import { sfx, setMusicMode, setMusicTheme } from './audio.js';
 
 export class Game {
   constructor(env) {
@@ -24,6 +26,13 @@ export class Game {
     this.paused = false;
     this.debugAuto = false;
     this.aiFast = false;
+    this.timeScale = 1;           // 击杀慢镜头：main.js 累积器乘它，固定步长本身不变
+    this._slowT = 0;
+    this.lastShotTrail = null;    // 上一发弹道采样点（ghost 预览）
+    this.lastShotV = 0;           // ghost 版本号（触发 aimUI 重绘）
+    this._ambientT = 0;           // 主题环境粒子节流
+    this._gustT = 0;              // 沙漠阵风节流
+    this._gustTarget = 0;
     this.tutLock = false;
     this.tutorial = null;
     if (this.camera && this.settings) this.camera.enabled = this.settings.shake !== false;
@@ -86,6 +95,10 @@ export class Game {
     // 本局数据统计（结算面板展示）
     this.matchStats = { shots: 0, hits: 0, dmgDealt: 0, dmgTaken: 0, kills: 0, longest: 0, crates: 0 };
     this._shotHitCounted = false;
+    this.timeScale = 1; this._slowT = 0;
+    this.lastShotTrail = null; this.lastShotV = 0;
+    this._ambientT = 0; this._gustT = 0; this._gustTarget = 0;
+    this.aiFast = !!this.settings.aiFast;
 
     this.terrain = new Terrain(cfg.worldW || C.WORLD_W, C.WORLD_H);
     this.terrain.attach(this.layers.world);
@@ -141,6 +154,9 @@ export class Game {
     this.projectiles = [];
     this.planes = [];
     this.crates = [];
+    this.drums = [];
+    // 油桶要在 worms/drums 都就绪后放置（同种子同桶位）
+    this.spawnDrums();
     this.respawnQueue = [];
     this._teamCursor = [0, 0];
     this.turnCount = 0;
@@ -164,6 +180,7 @@ export class Game {
     this.camera.zoom = baseZoom;
     this.camera.tzoom = baseZoom;
     setMusicMode('battle');
+    setMusicTheme(cfg.theme);
     this.nextTurn(true);
     if (this.tutorialLevel) {
       this.tutorial = new TutorialDirector(this, this.tutorialLevel, cfg.tutStage ?? 0);
@@ -213,12 +230,12 @@ export class Game {
     const sdRound = this.stage?.suddenDeathRound ?? this.challenge?.suddenDeathRound ?? C.SUDDEN_DEATH_ROUND;
     if (!this.tutorialLike && !this.suddenDeath && this.round >= sdRound && !this.noSuddenDeath) {
       this.suddenDeath = true;
-      for (const w of this.worms) if (w.alive) w.hp = 1;
+      for (const w of this.worms) if (w.alive) w.hp = C.SUDDEN_DEATH_HP;
       this._pipsDirty = true;
-      this.hud.banner('☠️ 突死模式！', '水位上涨 · 全员 1 HP');
+      this.hud.banner('☠️ 突死模式！', `水位上涨 · 全员 ${C.SUDDEN_DEATH_HP} HP`);
       sfx('lose');
     }
-    if (this.suddenDeath) this.water.rise(C.WATER_RISE);
+    if (this.suddenDeath) this.water.rise(C.WATER_RISE * (this.terrain.theme?.waterRiseMult ?? 1));
 
     // 教学/练习兜底：玩家虫虫万一倒下，直接原地扶起，避免无虫可操作
     if (this.tutorialLike && !this.teamAlive(0)) {
@@ -242,6 +259,7 @@ export class Game {
 
     this.currentWorm = cur;
     this.wind = (this.tutorialLike || this.challenge?.noWind) ? 0 : (Math.random() * 2 - 1) * (0.4 + Math.random() * 0.6);
+    this._gustTarget = this.wind; this._gustT = 0;
     // 选武器：普通/挑战默认火箭弹（没弹药时自动选第一件可用武器）；
     // 教学/练习保留玩家上次选择。避免选中 0 弹药武器后还能开火。
     const pool = this.ammoPool[cur.team];
@@ -324,6 +342,8 @@ export class Game {
     else this.input.mode = 'idle';
     this.touch?.resetStick();
     this.touch?.setControlsEnabled(human && (this.state === 'active' || retreat));
+    // AI 回合显示「⏩ 加速」按钮
+    this.hud?.setAIFast?.(!!(this.currentWorm?.isAI || this.debugAuto), !!this.aiFast);
   }
 
   syncWeaponBar() {
@@ -406,6 +426,25 @@ export class Game {
     this.tutEvent('dash', { dir });
   }
 
+  // ↑/↓ 键盘微调瞄准角（Shift 细调 0.25°）；蓄力中同步力度条角度
+  nudgeAim(dir, fine) {
+    if (this.tutLock || this.state !== 'active' || this.currentWorm?.isAI) return;
+    const cur = this.currentWorm;
+    if (!cur?.alive) return;
+    let a = cur.aimAngle + (fine ? 0.25 : 1) * dir;
+    if (a > 180) a = 180;
+    if (a < 0) a = 0;
+    cur.aimAngle = a;
+    if (this.charging) this.hud.powerUpdate(this.chargePower, cur.aimAngle);
+  }
+
+  // 击杀慢镜头：gt 为游戏秒（timeScale=0.3 时真实时长 ≈ gt/0.3）
+  slowMo(gt) {
+    if (this.mobile) gt *= 0.7; // 手机上慢镜头更短，避免拖节奏
+    this.timeScale = 0.3;
+    this._slowT = Math.max(this._slowT, gt);
+  }
+
   // 成就解锁（去重，金色提示；教学/练习不计）
   ach(id) {
     if (this.tutorialLike) return;
@@ -441,7 +480,10 @@ export class Game {
     this.targetingWeapon = weaponId;
     this._targetMark = null;
     this.updateInputMode();
-    this.hud.message(weaponId === 'airstrike' ? '📍 点击地图标记空袭点' : '📍 点击地图标记奶牛落点');
+    const hint = weaponId === 'airstrike' ? '📍 点击地图标记空袭点'
+      : weaponId === 'cow' ? '📍 点击地图标记奶牛落点'
+      : '📍 点击地图选择传送落点';
+    this.hud.message(hint);
   }
 
   cancelTargeting() {
@@ -454,8 +496,33 @@ export class Game {
   confirmTarget(wx, wy) {
     if (!this.targetingWeapon) return;
     const wid = this.targetingWeapon;
+    // 传送失败不退出标记模式（不扣弹药），提示后可重新点选
+    if (wid === 'teleport' && !this.tryTeleport(this.currentWorm, wx, wy)) return;
     this.targetingWeapon = null;
-    this.fireWeapon(this.currentWorm, wid, 0, 0, wx);
+    this.fireWeapon(this.currentWorm, wid, 0, 0, wx, { targetY: wy });
+  }
+
+  // 传送：落到点击列的地表（点浮岛上表面落岛上、点洞内落洞底）；无效位置返回 false
+  tryTeleport(worm, tx, ty) {
+    if (!worm || !worm.alive) return false;
+    const terrain = this.terrain;
+    const x = Math.max(20, Math.min(terrain.W - 20, tx | 0));
+    const yStart = Math.max(0, (ty | 0) - 40); // ty 缺省时 |0 归 0，从顶扫起
+    const gy = terrain.findSurfaceY(x, yStart);
+    if (gy === null || gy < 40 || gy > this.water.level - 6) { this.hud.message('🌀 无法传送到那里'); return false; }
+    for (let y = gy - 34; y < gy; y++) {
+      if (y >= 0 && terrain.isSolid(x, y)) { this.hud.message('🌀 那里站不下'); return false; }
+    }
+    this.particles.sparkle(worm.x, worm.y - 16, 0x9fd4ff, 12);
+    worm.x = x; worm.y = gy;
+    worm.vx = 0; worm.vy = 0;
+    worm.onGround = true; worm.jumpsUsed = 0;
+    this.particles.sparkle(x, gy - 16, 0x9fd4ff, 14);
+    this.sfx('boing');
+    this.camera.follow(x, gy - 60);
+    if (worm.team === 0 && !this.tutorialLike) this.ach('teleport_use');
+    this.frameTurnCamera(worm);
+    return true;
   }
 
   afterFire(worm, projectile) {
@@ -538,7 +605,7 @@ export class Game {
     const w = proj.weapon;
     if (w.cluster) {
       spawnBomblets(this, x, y, w.cluster, proj.owner);
-      this.explode(x, y, w.radius * 0.6, w.dmg * 0.5, { owner: proj.owner, weaponId: proj.weapon.id, origin: proj.owner });
+      this.explode(x, y, w.radius * 0.6, w.dmg * 0.5, { owner: proj.owner, weaponId: proj.weapon.id, origin: proj.owner, directHit: proj.directHit === true });
       return;
     }
     if (w.holy) {
@@ -549,28 +616,33 @@ export class Game {
     this.explode(x, y, w.radius, w.dmg, {
       owner: proj.owner, weaponId: proj.weapon.id, origin: proj.owner,
       kbX: w.id === 'cow' ? 0.2 : 1,
+      directHit: proj.directHit === true,
     });
   }
 
   explode(x, y, r, dmg, opts = {}) {
-    // 暴击：7% 概率 1.6 倍伤害
-    if (dmg >= 18 && Math.random() < C.CRIT_CHANCE) {
+    // 暴击：弹丸直接命中虫体必暴（技术奖励）；否则 7% 概率 1.6 倍
+    if (opts.directHit || (dmg >= 18 && Math.random() < C.CRIT_CHANCE)) {
       dmg = Math.round(dmg * C.CRIT_MULT);
-      this.popup(x, y - 18, '💥 暴击！', 0xffd93d);
+      this.popup(x, y - 18, opts.directHit ? '💥 直接命中暴击！' : '💥 暴击！', 0xffd93d);
       this.particles.sparkle(x, y, 0xffd93d, 14);
       this.ach('crit');
     }
     this.terrain.carve(x, y, r);
     this.particles.explosion(x, y, r, this.dirtColor(), this.mobile);
     this.camShake(Math.min(14, r / 4));
+    this.camera.punch(Math.min(0.06, r / 900));
     sfx(r > 55 ? 'exploBig' : r < 30 ? 'exploTiny' : 'explo');
 
     const eff = explosionEffects(this.worms, x, y, r, dmg);
     const wasAlive = new Map(eff.map(e => [e.worm.id, e.worm.alive]));
+    let enemyDmg = 0;
     for (const e of eff) {
       this.damageWorm(e.worm, e.dmg, opts.origin, opts.weaponId);
+      if (opts.origin?.team === 0 && e.worm.team === 1) enemyDmg += e.dmg;
       if (e.worm.alive) e.worm.applyKnockback(e.kx * (opts.kbX ?? 1), e.ky);
     }
+    if (enemyDmg >= 100) this.ach('big_shot');
     // 擦身而过：没被波及但离爆心很近的虫虫会被吓一跳
     for (const w of this.worms) {
       if (!w.alive || eff.some(e => e.worm === w)) continue;
@@ -587,9 +659,11 @@ export class Game {
       if (killed >= 3) {
         this.hud.banner('💥 三杀！', `${opts.origin.name} 一炸三只！`);
         this.ach('triple_kill');
+        this.slowMo(0.24);
       } else if (killed >= 2) {
         this.hud.banner('💥 双杀！', opts.origin.name);
         this.ach('double_kill');
+        this.slowMo(0.24);
       }
     }
     // 补给箱被炸毁
@@ -600,6 +674,12 @@ export class Game {
         c.destroy();
         this.particles.sparkle(c.x, c.y, 0xffd23d, 10);
       }
+    }
+    // 油桶被波及 → 延迟引爆（距离越远延迟越长，链式连锁更可读）
+    for (const d of this.drums) {
+      if (!d.alive || d.fuse >= 0) continue;
+      const dist = Math.hypot(d.x - x, d.y - y);
+      if (dist < r + 14) d.ignite(0.12 + dist * 0.004, opts.origin || null);
     }
     // 最远一击统计
     if (opts.origin && opts.origin.team === 0 && opts.origin.alive) {
@@ -670,6 +750,12 @@ export class Game {
       if (source && source.alive && source !== worm && Math.random() < 0.5) {
         this.say(source, C.TAUNTS[Math.floor(Math.random() * C.TAUNTS.length)], 1.4);
       }
+      // 击杀类成就（按武器归因；教学/练习不计）
+      if (source && source.team === 0 && worm.team === 1 && !this.tutorialLike) {
+        if (source.hp <= 10) this.ach('low_hp_kill');
+        const kid = { driller: 'driller_kill', holy: 'holy_kill', cow: 'cow_kill', bomb: 'airstrike_kill', airstrike: 'airstrike_kill', shotgun: 'shotgun_kill' }[weaponId];
+        if (kid) this.ach(kid);
+      }
       this.killWorm(worm);
     }
     this._pipsDirty = true;
@@ -703,6 +789,8 @@ export class Game {
     worm._drowned = true;
     worm.lastHitWeapon = 'water';
     (worm.hitLog || (worm.hitLog = [])).push('water');
+    if (worm.team === 1 && !this.tutorialLike) this.ach('terrain_kill');
+    this.slowMo(0.15);
     worm.view.visible = false;
     this.popup(worm.x, this.water.level - 30, '扑通…', 0x9fd4ff);
     this.hud.message(`💧 ${worm.name} 落水了！`);
@@ -714,6 +802,7 @@ export class Game {
 
   killWorm(worm) {
     if (!worm.alive) return;
+    if (!this.tutorialLike) this.slowMo(0.15);
     worm.hp = 0;
     sfx('death');
     this.say(worm, C.DEATH_WORDS[Math.floor(Math.random() * C.DEATH_WORDS.length)], 2);
@@ -725,8 +814,27 @@ export class Game {
   }
 
   splashAt(x, y) {
-    this.particles.splash(x, y, this.terrain.theme.lava ? 0xff7a30 : 0x9fd4ff, 16);
+    const lava = !!this.terrain.theme.lava;
+    const color = lava ? 0xff7a30 : 0x9fd4ff;
+    this.particles.splash(x, y, color, 16);
+    // 水花柱：更陡更快的第二波，落水更有分量
+    for (let i = 0; i < 8; i++) {
+      this.particles.spawn({ x: x + (Math.random() - 0.5) * 10, y,
+        vx: (Math.random() - 0.5) * 40, vy: -160 - Math.random() * 160,
+        life: 0.5 + Math.random() * 0.3, size: 2 + Math.random() * 2.5, color, gravity: 900 });
+    }
+    if (!lava) this.ringAt(x, y, color);
     sfx('splash');
+  }
+
+  // 扩散圆环波纹（借 _popups 的生命周期管理与销毁）
+  ringAt(x, y, color) {
+    const g = new PIXI.Graphics();
+    g.circle(0, 0, 12).stroke({ width: 2, color, alpha: 0.8 });
+    g.position.set(x, y);
+    this.layers.world.addChild(g);
+    this._popups = this._popups || [];
+    this._popups.push({ t: g, life: 0.5, ring: true });
   }
 
   // ---------------- 训练靶子复活（教学/练习） ----------------
@@ -780,7 +888,7 @@ export class Game {
       if (!c.alive) continue;
       c.step(dt, this.terrain, this.windAccel());
       for (const w of this.worms) {
-        if (!w.alive || w.isAI) continue; // AI 不主动捡箱子
+        if (!w.alive) continue; // AI 也会捡（brain 顺路时会主动走过去）
         if (c.tryPickup(w)) this.pickupCrate(c, w);
       }
     }
@@ -795,6 +903,7 @@ export class Game {
     sfx('pickup');
     this.tutEvent('crate', { crate, worm });
     this.particles.sparkle(crate.x, crate.y, crate.type.color, 12);
+    if (worm.team === 0 && !worm.onGround && !this.tutorialLike) this.ach('air_crate');
     if (this.matchStats && worm.team === 0) {
       this.matchStats.crates++;
       if (this.matchStats.crates >= 3) this.ach('crate_addict');
@@ -835,6 +944,86 @@ export class Game {
     this._pipsDirty = true;
   }
 
+  // ---------------- 油桶 ----------------
+  // 开局在平坦地表放几个油桶（同种子同桶位）；被爆炸波及会延迟连锁引爆
+  spawnDrums() {
+    if (this.tutorialLike) return; // 教学关地形是精摆的，不放
+    const t = this.terrain;
+    const count = t.W < 1000 ? 2 : t.W < 2000 ? 3 : 4;
+    const seedBase = (this.matchConfig.seed | 0) || 12345;
+    const rng = mulberry32(((seedBase * 7919 + 1)) >>> 0);
+    let placed = 0, tries = 0;
+    while (placed < count && tries++ < 40) {
+      const x = 60 + Math.floor(rng() * (t.W - 120));
+      const sy = t.findSurfaceY(x, 0);
+      if (sy === null || sy > t.waterY - 30 || sy < 60) continue;
+      const l = t.findSurfaceY(x - 16, 0), r2 = t.findSurfaceY(x + 16, 0);
+      if (l === null || r2 === null || Math.abs(l - sy) > 14 || Math.abs(r2 - sy) > 14) continue;
+      if (this.worms.some(w => Math.abs(w.x - x) < 70)) continue;
+      if (this.drums.some(d => Math.abs(d.x - x) < 60)) continue;
+      this.drums.push(new OilDrum(this, x, sy));
+      placed++;
+    }
+  }
+
+  igniteDrum(d, delay, attacker) {
+    if (!d || !d.alive || d.fuse >= 0) return;
+    d.ignite(delay, attacker);
+  }
+
+  drumExplode(d) {
+    if (!d || !d.alive) return;
+    const { x, y, attacker } = d;
+    d.destroy();
+    this.explode(x, y - 10, 55, 55, { origin: attacker || null, weaponId: 'drum' });
+  }
+
+  // ---------------- 主题环境效果 ----------------
+  // 沙漠阵风：回合内风向缓变（预览/AI 用 windAccel() 实时值，自动一致）
+  _updateGust(dt) {
+    const theme = this.terrain?.theme;
+    if (!theme?.gust || this.tutorialLike || this.challenge?.noWind) return;
+    if (this.state !== 'active' && this.state !== 'projectile') return;
+    this._gustT -= dt;
+    if (this._gustT <= 0) {
+      this._gustT = 0.8;
+      this._gustTarget = Math.max(-1, Math.min(1, this.wind + (Math.random() * 2 - 1) * 0.18));
+    }
+    const prev = this.wind;
+    this.wind += (this._gustTarget - this.wind) * Math.min(1, dt * 1.5);
+    if (Math.abs(this.wind - prev) > 0.015) this.hud.setWind(this.wind);
+  }
+
+  // 主题环境粒子：雪原飘雪 / 沙漠沙尘 / 熔岩余烬（低频撒，粒子池预算 ~30 活粒子）
+  _updateAmbient(dt) {
+    const theme = this.terrain?.theme;
+    if (!theme || this.matchOver) return;
+    const kind = theme.slide ? 'snow' : theme.gust ? 'dust' : theme.waterRiseMult ? 'ember' : null;
+    if (!kind) return;
+    this._ambientT -= dt;
+    if (this._ambientT > 0) return;
+    this._ambientT = this.mobile ? 0.24 : 0.12;
+    const cam = this.camera;
+    const z = Math.max(0.08, cam.zoom);
+    const halfW = cam.viewW / z / 2, halfH = cam.viewH / z / 2;
+    const cx = cam.x, cy = cam.y;
+    const P = this.particles;
+    if (kind === 'snow') {
+      P.spawn({ x: cx + (Math.random() * 2 - 1) * halfW, y: cy - halfH - 10,
+        vx: this.wind * 26 + (Math.random() - 0.5) * 12, vy: 46 + Math.random() * 36,
+        life: 3.5 + Math.random(), size: 1.6 + Math.random() * 1.6, color: 0xffffff });
+    } else if (kind === 'dust') {
+      P.spawn({ x: cx + (Math.random() * 2 - 1) * halfW, y: cy + (Math.random() * 1.4 - 0.2) * halfH,
+        vx: (this.wind || 0.3) * (60 + Math.random() * 50), vy: (Math.random() - 0.5) * 10,
+        life: 1.2 + Math.random() * 0.6, size: 1.5 + Math.random() * 1.5, color: 0xd9a860 });
+    } else { // ember：从岩浆面升起
+      P.spawn({ x: cx + (Math.random() * 2 - 1) * halfW, y: this.water.level - 4,
+        vx: (Math.random() - 0.5) * 20, vy: -24 - Math.random() * 26,
+        life: 1.4 + Math.random() * 0.8, size: 1.5 + Math.random() * 1.5,
+        color: [0xff8c42, 0xffb545, 0xff5a2a][Math.random() * 3 | 0] });
+    }
+  }
+
   // ---------------- 浮动文字 ----------------
   popup(x, y, text, color) {
     const t = new PIXI.Text({
@@ -861,6 +1050,13 @@ export class Game {
   update(dt) {
     if (!this.running) return;
     this.time += dt;
+    // 慢镜头计时（游戏秒；真实时长 ≈ gt / timeScale）
+    if (this._slowT > 0) {
+      this._slowT -= dt;
+      if (this._slowT <= 0) { this._slowT = 0; this.timeScale = 1; }
+    }
+    this._updateGust(dt);
+    this._updateAmbient(dt);
 
     this.water.update(dt);
     this.sky.update(dt, this.camera.x, this.camera.viewW);
@@ -886,13 +1082,25 @@ export class Game {
     }
     this.planes.length = n;
     this.handleCrates(dt);
+    for (const d of this.drums) if (d.alive) d.step(dt, this.terrain);
+    let dn = 0;
+    for (let i = 0; i < this.drums.length; i++) {
+      if (this.drums[i].alive) this.drums[dn++] = this.drums[i];
+    }
+    this.drums.length = dn;
     this._updateRespawns();
 
     // 浮动文字/弹道闪光
     if (this._popups && this._popups.length) {
       for (const p of this._popups) {
         p.life -= dt;
-        if (!p.tracer) { p.t.y += p.vy * dt; p.t.alpha = Math.min(1, p.life * 2); p.t.scale.set(1 + (1.1 - p.life) * 0.3); }
+        if (p.ring) {
+          const k = 1 - Math.max(0, p.life) / 0.5;
+          p.t.scale.set(1 + k * 2.2);
+          p.t.alpha = Math.max(0, Math.min(1, p.life * 2));
+        } else if (!p.tracer) {
+          p.t.y += p.vy * dt; p.t.alpha = Math.min(1, p.life * 2); p.t.scale.set(1 + (1.1 - p.life) * 0.3);
+        }
       }
       n = 0;
       for (let i = 0; i < this._popups.length; i++) {
@@ -1106,6 +1314,7 @@ export class Game {
       this.ach('first_win');
       if (this.matchStats && this.matchStats.dmgTaken === 0) this.ach('flawless');
       if (this._playerBerserk) this.ach('berserk_win');
+      if (this.suddenDeath) this.ach('sudden_win');
     }
     if (isTutorial) {
       if (result === 1) {
@@ -1355,10 +1564,12 @@ export class Game {
       this.slingshot ? `${Math.round(this.slingshot.angle)}_${Math.round(this.slingshot.power * 100)}` : '-',
       this.targetingWeapon || '-',
       this._targetMark ? `${Math.round(this._targetMark.x)}_${Math.round(this._targetMark.y)}` : '-',
+      this.lastShotV,
     ].join('|');
     if (key === this._aimKey) return;
     this._aimKey = key;
     g.clear();
+    this._drawGhostTrail(g);
     if (!cur || !cur.alive || cur.isAI) { this._drawTargetMark(g); return; }
 
     const w = C.WEAPON_BY_ID[this.selectedWeapon];
@@ -1411,12 +1622,47 @@ export class Game {
     }
   }
 
+  // 上一发弹道残影：淡蓝小点重放真实飞行轨迹（学习反馈——「差一点点」变得可见可调）
+  _drawGhostTrail(g) {
+    const t = this.lastShotTrail;
+    if (!t || !t.pts || !t.pts.length || !this.settings.trajectory) return;
+    if (!(this.state === 'active' && this.currentWorm && !this.currentWorm.isAI)) return;
+    for (let i = 0; i < t.pts.length; i++) {
+      g.circle(t.pts[i].x, t.pts[i].y, 1.6).fill({ color: 0x9fd4ff, alpha: 0.13 });
+    }
+  }
+
   _drawTargetMark(g) {
     if (!this.targetingWeapon || !this._targetMark) return;
     const { x, y } = this._targetMark;
+    // 落点预示：空袭=航线+投弹窗落地范围；奶牛=落点竖直参考线（新手不再盲标）
+    const cur = this.currentWorm;
+    if (this.targetingWeapon === 'airstrike') {
+      const dir = cur && x < cur.x ? -1 : 1; // 与 Plane 进场方向一致
+      const py = 150;
+      this._dashLine(g, x - dir * 60, py, x - dir * 330, py, 0xff5a5a, 0.45);
+      for (const bx of [x - 60, x, x + 60]) {
+        const sy = this.terrain.findSurfaceY(bx | 0, 0);
+        if (sy !== null) this._dashLine(g, bx, py + 6, bx, sy, 0xff5a5a, 0.3);
+      }
+    } else if (this.targetingWeapon === 'cow') {
+      const sy = this.terrain.findSurfaceY(x | 0, 0);
+      if (sy !== null) this._dashLine(g, x, 60, x, sy, 0xff5a5a, 0.3);
+    }
     g.circle(x, y, 14).stroke({ width: 2.5, color: 0xff5a5a });
     g.moveTo(x - 22, y).lineTo(x - 8, y).moveTo(x + 8, y).lineTo(x + 22, y).stroke({ width: 2.5, color: 0xff5a5a });
     g.moveTo(x, y - 22).lineTo(x, y - 8).moveTo(x, y + 8).lineTo(x, y + 22).stroke({ width: 2.5, color: 0xff5a5a });
+  }
+
+  _dashLine(g, x1, y1, x2, y2, color, alpha) {
+    const d = Math.hypot(x2 - x1, y2 - y1);
+    const n = Math.max(2, Math.floor(d / 14));
+    const ux = (x2 - x1) / n, uy = (y2 - y1) / n;
+    for (let i = 0; i < n; i++) {
+      g.moveTo(x1 + ux * i, y1 + uy * i)
+        .lineTo(x1 + ux * (i + 0.55), y1 + uy * (i + 0.55))
+        .stroke({ width: 2, color, alpha });
+    }
   }
 
   _updateCamera() {

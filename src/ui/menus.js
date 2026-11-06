@@ -397,6 +397,7 @@ export class Menus {
     slider('🎵 音乐音量', 'music', () => setVolumes(st.sfx, st.music));
     toggle('📳 屏幕震动', 'shake', () => { this.hooks.game.camera.enabled = st.shake; });
     toggle('📈 弹道预览', 'trajectory');
+    toggle('⏩ AI 回合加速', 'aiFast', () => { this.hooks.game.aiFast = st.aiFast; });
     // 桌面力度控制方式
     const prow = el('div', 'set-row');
     prow.innerHTML = `<span>🖱 桌面力度控制</span>

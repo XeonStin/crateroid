@@ -28,7 +28,8 @@ export const TURN_TIME = 45;         // 每回合操作秒数
 export const RETREAT_TIME = 5;       // 发射后撤退秒数
 export const BANNER_TIME = 1.5;
 export const SUDDEN_DEATH_ROUND = 11; // 第 N 回合进入突死（回合=双方各行动一轮）
-export const WATER_RISE = 48;        // 突死每回合上涨 px（水面 y 每回合减小值）
+export const SUDDEN_DEATH_HP = 25;   // 突死全员压到该 HP（还剩 1~2 发的博弈，不是抢先手抽签）
+export const WATER_RISE = 48;        // 突死每回合上涨 px（水面 y 每回合减小值；熔岩图 ×waterRiseMult）
 export const CRATE_CHANCE = 0.3;     // 每回合补给箱概率
 export const MAX_CRATES = 2;
 
@@ -46,6 +47,8 @@ export const WEAPONS = [
   { id: 'driller',  name: '钻地弹',   icon: '⛏️', ammo: 2, charge: true,  wind: 0,    gravity: 0.55, bounce: false, radius: 24, dmg: 30, drill: 90 },
   { id: 'holy',     name: '神圣手雷', icon: '🐑', ammo: 0, charge: true,  wind: 0.15, gravity: 1.0,  bounce: true,  fuse: 3.0,  radius: 84, dmg: 78, holy: true },
   { id: 'cow',      name: '奶牛空袭', icon: '🐮', ammo: 0, targeting: true, bounces: 5, dmg: 26, radius: 40 },
+  // 传送：点地图任意可站立点瞬移（消耗回合）；点无效位置不扣弹、可重新标记
+  { id: 'teleport', name: '传送',     icon: '🌀', ammo: 1, targeting: true, teleport: true },
 ];
 export const WEAPON_BY_ID = Object.fromEntries(WEAPONS.map(w => [w.id, w]));
 // 内部隐藏弹种（不在武器栏出现）
@@ -84,8 +87,8 @@ export const THEMES = {
     water: 0x3a86c8, waterAlpha: 0.7, waterDeep: 0x1d5a90,
     clouds: true, stars: 0, aurora: false, embers: false,
     base: 500, amps: [128, 92, 20], waterY: 895, islands: false, lakes: 0, mesas: true,
-    windScale: 0.7, decor: 'cactus',
-    desc: '风最小的图：平顶台地+缓坡，适合精确炮击',
+    windScale: 0.7, decor: 'cactus', gust: true,
+    desc: '风最小但有阵风：平顶台地+缓坡，回合内风向会漂移',
   },
   snow: {
     name: '极光雪原', icon: '🏔️',
@@ -94,8 +97,8 @@ export const THEMES = {
     water: 0x2a6db5, waterAlpha: 0.8, waterDeep: 0x123f75,
     clouds: false, stars: 90, aurora: true, embers: false,
     base: 462, amps: [196, 88, 30], waterY: 858, islands: true, lakes: 0,
-    mesas: false, windScale: 1.35, decor: 'pine',
-    desc: '风最大的图：暴风雪山峰，长距离弹道漂移明显',
+    mesas: false, windScale: 1.35, decor: 'pine', slide: true,
+    desc: '风最大+冰面打滑：暴风雪山峰，走位会惯性滑出去',
   },
   lava: {
     name: '熔岩星球', icon: '🌋',
@@ -104,15 +107,15 @@ export const THEMES = {
     water: 0xff5a1e, waterAlpha: 0.92, waterDeep: 0xc22e00, lava: true,
     clouds: false, stars: 60, aurora: false, embers: true,
     base: 486, amps: [182, 92, 26], waterY: 838, islands: true, lakes: 0,
-    mesas: false, windScale: 1.15, decor: 'crystal',
-    desc: '熔岩更高需小心站位：岩浆扑面，风偏强',
+    mesas: false, windScale: 1.15, decor: 'crystal', waterRiseMult: 2,
+    desc: '熔岩扑面且突死涨水翻倍：风偏强，站位要更小心',
   },
 };
 
 // ---------------- AI 难度 ----------------
 export const DIFFICULTY = {
   easy:   { name: '简单 🐣', angleStep: 30, powerStep: 0.28, angleNoise: 9,  powerNoise: 0.13, simulateWind: false, refine: 0, moveIQ: 0, retreat: false, smartWeapon: false },
-  normal: { name: '普通 🐥', angleStep: 14, powerStep: 0.16, angleNoise: 3.5, powerNoise: 0.05, simulateWind: true,  refine: 1, moveIQ: 0, retreat: false, smartWeapon: false },
+  normal: { name: '普通 🐥', angleStep: 14, powerStep: 0.16, angleNoise: 3.5, powerNoise: 0.05, simulateWind: true,  refine: 1, moveIQ: 0, retreat: false, smartWeapon: false, firstShotNoise: 2.5 },
   hard:   { name: '困难 🦅', angleStep: 7,  powerStep: 0.1,  angleNoise: 1.4, powerNoise: 0.02, simulateWind: true,  refine: 2, moveIQ: 1, retreat: true,  smartWeapon: true },
 };
 
@@ -138,12 +141,24 @@ export const CRIT_MULT = 1.6;
 
 // ---------------- 成就 ----------------
 export const ACHIEVEMENTS = {
-  first_win:   { icon: '🏆', name: '初次胜利', desc: '赢下第一场对局' },
-  double_kill: { icon: '💥', name: '双杀',     desc: '一次爆炸击倒 2 只敌人' },
-  triple_kill: { icon: '☄️', name: '三杀',     desc: '一次爆炸击倒 3 只敌人' },
-  long_shot:   { icon: '🎯', name: '神枪手',   desc: '700px 外命中敌人' },
-  crit:        { icon: '✨', name: '暴击时刻', desc: '打出一次暴击' },
-  flawless:    { icon: '🛡️', name: '毫发无伤', desc: '全员零受伤获胜' },
-  crate_addict:{ icon: '📦', name: '补给大亨', desc: '单局拾取 3 个补给箱' },
-  berserk_win: { icon: '🔥', name: '背水一战', desc: '仅剩 1 只虫虫时翻盘获胜' },
+  first_win:    { icon: '🏆', name: '初次胜利', desc: '赢下第一场对局' },
+  double_kill:  { icon: '💥', name: '双杀',     desc: '一次爆炸击倒 2 只敌人' },
+  triple_kill:  { icon: '☄️', name: '三杀',     desc: '一次爆炸击倒 3 只敌人' },
+  long_shot:    { icon: '🎯', name: '神枪手',   desc: '700px 外命中敌人' },
+  crit:         { icon: '✨', name: '暴击时刻', desc: '打出一次暴击' },
+  flawless:     { icon: '🛡️', name: '毫发无伤', desc: '全员零受伤获胜' },
+  crate_addict: { icon: '📦', name: '补给大亨', desc: '单局拾取 3 个补给箱' },
+  berserk_win:  { icon: '🔥', name: '背水一战', desc: '仅剩 1 只虫虫时翻盘获胜' },
+  terrain_kill: { icon: '🌊', name: '地形杀',   desc: '让一名敌人葬身水底' },
+  driller_kill: { icon: '⛏️', name: '掘地三尺', desc: '用钻地弹击杀敌人' },
+  holy_kill:    { icon: '🐑', name: '神圣制裁', desc: '用神圣手雷击杀敌人' },
+  cow_kill:     { icon: '🐮', name: '天降奶牛', desc: '用奶牛空袭击杀敌人' },
+  airstrike_kill:{ icon: '✈️', name: '空中支援', desc: '用空袭击杀敌人' },
+  shotgun_kill: { icon: '🔫', name: '近身扫射', desc: '用散弹枪击杀敌人' },
+  big_shot:     { icon: '💣', name: '重炮手',   desc: '单次爆炸对敌人造成 ≥100 伤害' },
+  full_pellets: { icon: '🥇', name: '弹无虚发', desc: '散弹枪 5 颗弹丸全部命中敌人' },
+  low_hp_kill:  { icon: '🩹', name: '濒死反杀', desc: '自己 HP ≤ 10 时击杀敌人' },
+  sudden_win:   { icon: '☠️', name: '突死幸存', desc: '在突死阶段翻盘获胜' },
+  air_crate:    { icon: '🪂', name: '空中接箱', desc: '在空中接到补给箱' },
+  teleport_use: { icon: '🌀', name: '时空跳跃', desc: '首次使用传送' },
 };

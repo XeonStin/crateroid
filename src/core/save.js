@@ -7,6 +7,7 @@ const DEFAULTS = {
     aimMode: 'slingshot',      // （已废弃）旧版触屏瞄准模式，现为固定双摇杆；保留兼容旧存档
     powerMode: 'drag',         // 桌面力度: drag 拖拽距离（精确）| hold 按住蓄力（经典摆动）
     trajectory: true,          // 弹道预览
+    aiFast: false,             // AI 回合加速 ×4（对局内 ⏩ 按钮同款）
   },
   stats: {
     wins: 0, losses: 0, draws: 0, matches: 0,

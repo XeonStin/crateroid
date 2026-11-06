@@ -9,6 +9,7 @@ export class Camera {
     this.tx = this.x; this.ty = this.y; this.tzoom = this.zoom;
     this.viewW = 1280; this.viewH = 720;
     this.shakeAmp = 0; this.shakeT = 0;
+    this._punchT = 0; this._punchAmp = 0;
     this.enabled = true;
   }
 
@@ -24,6 +25,13 @@ export class Camera {
     if (!this.enabled) return;
     this.shakeAmp = Math.max(this.shakeAmp, amp);
     this.shakeT = 0.45;
+  }
+
+  // 爆炸 punch-in：纯渲染偏移（applyTo 乘算），绝不碰 tzoom——避免污染用户缩放
+  punch(amp) {
+    if (!this.enabled) return;
+    const cur = this._punchT > 0 ? this._punchAmp * (this._punchT / 0.22) : 0;
+    if (amp > cur) { this._punchAmp = amp; this._punchT = 0.22; }
   }
 
   setZoom(z, focusX, focusY) {
@@ -70,6 +78,10 @@ export class Camera {
     if (this.shakeT > 0) {
       this.shakeT -= dt;
       if (this.shakeT <= 0) this.shakeAmp = 0;
+    }
+    if (this._punchT > 0) {
+      this._punchT -= dt;
+      if (this._punchT <= 0) { this._punchT = 0; this._punchAmp = 0; }
     }
     // 目标与实际位置都要钳制：follow() 每帧把目标设为弹丸坐标（可为世界外），
     // 若不夹住实际位置，弹丸打上天时镜头会飞出世界变成全空画面
@@ -123,7 +135,8 @@ export class Camera {
       sy = (Math.random() * 2 - 1) * k;
     }
     container.position.set(this.viewW / 2 + sx, this.viewH / 2 + sy);
-    container.scale.set(this.zoom);
+    const pz = this._punchT > 0 ? 1 + this._punchAmp * Math.pow(this._punchT / 0.22, 2) : 1;
+    container.scale.set(this.zoom * pz);
     container.pivot.set(this.x, this.y);
   }
 

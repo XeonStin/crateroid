@@ -63,6 +63,14 @@ export class AIBrain {
       }
       this.weaponIds = ids;
 
+      // 顺路捡箱子（优先于走位寻优）：近处可达的箱直接走过去
+      const crateX = this.probeCrate();
+      if (crateX !== null && Math.abs(crateX - this.worm.x) > 12) {
+        this.walkTarget = crateX;
+        this.phase = 'move';
+        return false;
+      }
+
       // 走位（困难）：先评估移动
       if (this.diff.moveIQ > 0) {
         const spot = this.probeMoveSpot();
@@ -127,9 +135,26 @@ export class AIBrain {
     return s;
   }
 
+  // 附近可达的补给箱落点（顺路才去：≤90px、高差小、不跨水不跳崖）
+  probeCrate() {
+    const crates = this.game.crates || [];
+    let best = null, bestD = 90;
+    for (const c of crates) {
+      if (!c.alive) continue;
+      const d = Math.abs(c.x - this.worm.x);
+      if (d > bestD || Math.abs(c.y - this.worm.y) > 40) continue;
+      best = c; bestD = d;
+    }
+    if (!best) return null;
+    const gy = this.sim.terrain.findSurfaceY(best.x | 0, Math.max(0, this.worm.y - 60));
+    if (gy === null || gy > this.sim.waterY - 25 || Math.abs(gy - this.worm.y) > 42) return null;
+    return best.x;
+  }
+
   upMove(dt) {
     const d = this.walkTarget - this.worm.x;
-    if (Math.abs(d) < 10 || this.timer < -2.5) {
+    // 到达阈值放宽到 18：兼容冰面惯性滑行（滑过头一点也算到位）
+    if (Math.abs(d) < 18 || this.timer < -2.5) {
       this.worm.walkDir = 0;
       // 走位改变了自身位置：必须基于新位置重建模拟并清掉旧最优解，
       // 否则拿到的是「旧位置的解」，从新位置开火系统性偏移
@@ -198,9 +223,10 @@ export class AIBrain {
       }
     }
 
-    // 命中噪声
-    const angle = best.angle + gauss() * this.diff.angleNoise;
-    const power = Math.max(0.15, Math.min(1, best.power + gauss() * this.diff.powerNoise));
+    // 命中噪声（normal 档每只虫的第一发额外放大：首发更歪、更像人）
+    const fn = this.worm._firedOnce ? 1 : (this.diff.firstShotNoise || 1);
+    const angle = best.angle + gauss() * this.diff.angleNoise * fn;
+    const power = Math.max(0.15, Math.min(1, best.power + gauss() * this.diff.powerNoise * fn));
     this.chosen = { weaponId: best.weaponId, angle, power };
     this.best = best;
 
@@ -269,6 +295,7 @@ export class AIBrain {
     const target = pickTargetWorm(this.sim, this.worm);
     if (!target) { this.startSearch(); return false; }
     const noise = gauss() * (this.diff.angleNoise * 2.2);
+    this.worm._firedOnce = true;
     this.game.fireWeapon(this.worm, this.specialWeapon, 0, 0, target.x + noise);
     this.worm.say(this.specialWeapon === 'cow' ? '奶牛来了！' : '天降正义！', 1.6);
     this.finished = true;
@@ -297,6 +324,7 @@ export class AIBrain {
     this.game.showAICharge(this.worm, Math.min(1, this.chargeT / this.chargeDur) * this.chosen.power);
     if (this.chargeT >= this.chargeDur) {
       this.game.hideAICharge();
+      this.worm._firedOnce = true;
       const opts = this.chosen.weaponId === 'shotgun' ? { aiSingle: true } : undefined;
       this.game.fireWeapon(this.worm, this.chosen.weaponId, this.chosen.angle, this.chosen.power, undefined, opts);
       if (this.diff.retreat && this.retreatDir !== 0) {

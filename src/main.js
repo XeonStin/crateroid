@@ -7,7 +7,7 @@ import { Game } from './core/game.js';
 import { HUD } from './ui/hud.js';
 import { Menus } from './ui/menus.js';
 import { loadSave, persist } from './core/save.js';
-import { initAudio, unlockAudio, setVolumes, setMusicMode, sfx } from './core/audio.js';
+import { initAudio, unlockAudio, setVolumes, setMusicMode, setMusicTheme, sfx } from './core/audio.js';
 import { WEAPONS } from './config.js';
 import * as planner from './ai/planner.js';
 
@@ -100,6 +100,7 @@ async function boot() {
     quitToTitle() {
       game.running = false; game.paused = false;
       setMusicMode('menu');
+      setMusicTheme('islands');
       game.hud.hide();
       menus.show('menu-title');
     },
@@ -129,6 +130,8 @@ async function boot() {
   input.onWeaponMenu = () => document.getElementById('weapon-bar').classList.toggle('collapsed');
   input.onCancelKey = () => { game.cancelTargeting(); game.onAimCancel(); };
   input.onDashKey = (dir) => game.tryDash(dir);
+  input.onAimNudge = (dir, fine) => game.nudgeAim(dir, fine);
+  input.onSkipKey = () => game.skipTurn();
 
   // ---- 音频解锁 ----
   const audioKick = () => {
@@ -206,7 +209,8 @@ async function boot() {
     last = now;
     if (dt > 0.1) dt = 0.1;
     if (!menusVisible() && game.running && !game.paused) {
-      acc += dt;
+      // timeScale：击杀慢镜头只乘在累积器上（固定步长与 6 步 guard 不变）
+      acc += dt * (game.timeScale || 1);
       let guard = 0;
       while (acc >= FIXED && guard++ < 6) { game.update(FIXED); acc -= FIXED; }
     } else {

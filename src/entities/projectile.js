@@ -24,6 +24,9 @@ export function explosionEffects(worms, x, y, r, dmg) {
   return out;
 }
 
+// 采集 ghost 残影的主力武器（bomblet/bomb/cow 不采：一次开火几十个子弹会互相覆盖）
+const GHOST_WEAPONS = { bazooka: 1, grenade: 1, cluster: 1, holy: 1, driller: 1 };
+
 export class Projectile {
   // weaponId, owner, x, y, vx, vy, onExplode(x,y), game
   constructor(o) {
@@ -42,6 +45,11 @@ export class Projectile {
     this.drillDepth = 0;
     this.cowBounces = this.weapon.bounces || 0;
     this.lastX = this.x; this.lastY = this.y;
+    // 形状必须在构造器里定全：directHit/ghostPts 若飞行中动态添加，
+    // 会让热子步循环的隐藏类迁移、整体退化为多态（实测 AI 单次模拟慢 3~5 倍）
+    this.directHit = false;        // 直接命中虫体（explode 侧必暴击）
+    this.ghostPts = [];            // ghost 弹道采样点（真实对战用）
+    this._ghostTick = 0;
     // AI 模拟（game=null）不创建视图，省掉每次寻优数百次 Graphics 构造
     if (this.game) this.buildView();
     else this.view = null;
@@ -146,6 +154,7 @@ export class Projectile {
               this.bounceOffWorm(worm);
               break;
             }
+            this.directHit = true; // 直接命中虫体 → explode 侧必暴击
             this.explode(terrain, waterY);
             return;
           }
@@ -172,12 +181,26 @@ export class Projectile {
     // 已在子步里爆炸（例如奶牛最后一次弹跳）：不再更新拖尾/视图
     if (!this.alive) return;
 
-    // 拖尾
+    // 拖尾 + ghost 采样
     if (this.game) {
       const tid = this.weapon.id;
-      if (tid === 'bazooka') this.game.particles.trail(this.x, this.y, 0xdddddd, 2);
-      else if (tid === 'holy') this.game.particles.trail(this.x, this.y, 0xffe9a8, 2);
-      if (this.weapon.id === 'cow' && this.view) { this.cowT += dt; this.view.rotation = Math.sin(this.cowT * 10) * 0.3; }
+      if (tid === 'bazooka') {
+        this.game.particles.trail(this.x, this.y, 0xdddddd, 2);
+        // 大颗尾烟 linger ~1s：弹道飞到哪一目了然
+        if (Math.random() < 0.35) {
+          this.game.particles.spawn({ x: this.x, y: this.y, vx: (Math.random() - 0.5) * 10, vy: -14 - Math.random() * 12, life: 0.9 + Math.random() * 0.5, size: 5 + Math.random() * 4, color: 0x999999, shrink: true });
+        }
+      } else if (tid === 'holy') {
+        this.game.particles.trail(this.x, this.y, 0xffe9a8, 2);
+      }
+      // ghost 弹道采样：每 2 固定步记 1 点（≤80），爆炸时存为「上一发残影」
+      if (GHOST_WEAPONS[tid]) {
+        this._ghostTick++;
+        if (this._ghostTick % 2 === 0 && this.ghostPts.length < 80) {
+          this.ghostPts.push({ x: this.x, y: this.y });
+        }
+      }
+      if (tid === 'cow' && this.view) { this.cowT += dt; this.view.rotation = Math.sin(this.cowT * 10) * 0.3; }
     }
     if (this.view) {
       this.view.position.set(this.x, this.y);
@@ -279,6 +302,11 @@ export class Projectile {
   explode(terrain, waterY) {
     if (!this.alive) return;
     this.alive = false;
+    // 存为「上一发弹道残影」（下一回合瞄准时以淡蓝小点重放）
+    if (this.game && this.ghostPts && this.ghostPts.length > 4) {
+      this.game.lastShotTrail = { pts: this.ghostPts, team: this.owner?.team ?? -1 };
+      this.game.lastShotV++;
+    }
     if (this.view) {
       this.view.destroy({ children: true });
       this.view = null;

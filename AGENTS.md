@@ -32,9 +32,10 @@ src/
     water.js                    水面/岩浆（30fps 波浪 + 上涨）
     sky.js                      星空/云/极光/火星视差
   entities/
-    worm.js                     虫虫：移动物理、队伍外观、表情、眩晕星星、背水 buff
-    projectile.js               投射物：真实对战与 AI 模拟共用积分器；飞机
+    worm.js                     虫虫：移动物理（冰面独立 slide 分支）、队伍外观、表情、眩晕星星、背水 buff
+    projectile.js               投射物：真实对战与 AI 模拟共用积分器；飞机；ghost 弹道采样
     crate.js                    补给箱伞降
+    drum.js                     油桶：场景危害物，被爆炸/散弹波及后延迟连锁引爆
     particles.js                Sprite 池粒子
   weapons/index.js              发射入口：抛射/瞬发霰弹/目标标记/弹道预览
   ai/
@@ -55,7 +56,7 @@ vendor/pixi/*.bin                PixiJS 分片（12 片，importmap 映射 'pixi
 - **主循环**：`app.ticker` 驱动固定步长 1/60，累积器最多 6 步/帧；不以 `document.hidden` 门控（WebView 会误报）；rAF 停转 >400ms 用 `setInterval` 补步进。
 - **物理自研**：重力 900、风、圆碰撞；投射物每步 4 子步。
 - **地形**：`mask: Uint8Array(W*H)` 为唯一权威；渲染层 6 块瓦片（600×675），爆炸只重画相交瓦片并 `texture.source.update()`。装饰物烘焙在纹理里，随地形一起被炸掉。
-- **AI**：`makeSim()` 复制掩码 + 虫虫状态 → 与真实投射物共用 `Projectile.step` → 网格候选（角度×力度）× 迭代细化 → 评分（敌伤 − 2.2×友伤 − 1.9×自伤 + 击杀 + 落点靠近敌人）。分帧 14 次模拟/步，困难档加走位/撤退。
+- **AI**：`makeSim()` 复制掩码 + 虫虫状态 → 与真实投射物共用 `Projectile.step` → 网格候选（角度×力度）× 迭代细化 → 评分（敌伤 − 2.2×友伤 − 1.9×自伤 + 击杀 + 落点靠近敌人）。分帧 10 次模拟/步，困难档加走位/撤退，普通档每虫首发噪声 ×2.5，AI 顺路（≤90px）会去捡补给箱。
 - **回合状态机**：`turnStart → active → projectile（含 5s 撤退）→ postturnWait → nextTurn`；看门狗 10s 强制推进。
 - **教学系统**：`TUTORIALS` 每课由若干 `stages` 组成（每关可换地形/靶子/弹药），`TutorialDirector` 逐条检查 `steps[].check`；右侧 `#tut-panel` 常驻显示步骤、键位、当前目标，不自动消失；完成后由目标达成推进/切场景，不靠 `_checkWin`。教学/练习模式强制 `team=0`（没有靶子回合）、回合无限时、无突死；靶子可 `respawn`（死亡 2s 后原地复活）。多场景课程可设 `skippable:true`，面板头部出现「跳过场景」（最后一关隐藏）。
 - **存档**：`localStorage['crateroid.save.v1']`，`loadSave()` 深合并默认值。
@@ -128,6 +129,12 @@ vendor/pixi/*.bin                PixiJS 分片（12 片，importmap 映射 'pixi
 30. **pointercancel 不是抬起**：系统手势/来电打断时 `pointercancel`/`touchcancel` 的语义是「终止但不触发动作」（与 canvas 侧 `Input._cancel` 一致）——蓄力摇杆的 cancel 绝不能走 `onStickEnd`（=发射），按钮的 cancel 不能触发冲刺/跳过；`Input._down` 里 `pointers.size > 2` 要冻结 `pinchDist`（置 0），否则抬回两指会用陈旧间距猛跳一次缩放。
 31. **后台补步只能固定步长**：rAF 停转兜底必须是 `for(i<10) game.update(FIXED)` 循环；单步 `update(FIXED*10)` 会让虫虫一帧下落 ~150px 穿透浮岛直接落水、投射物子步穿墙穿人。
 32. **AI 模拟克隆**：`brain.js` 探测走位的虫虫副本必须 `w.clone()`（SimWorm 构造器克隆）；`{...w}` spread 只拷自有属性、会丢原型上的 `bodyY` getter → muzzlePos 拿 NaN、探测弹恒飞到天空。困难 AI 走位到位后必须 `makeSim` 重建 + `bestSoFar=null`，否则拿旧位置的解打新位置。
+33. **瓦片画布是累积式**：`carve`/`drillColumn` 的焦痕靠 destination-out 擦除 + `source-atop` 补画天然与掩码一致（atop 只画在残留实心像素上，不会漏进旧坑）。**禁止把 carve 改成「按 mask 全量重画瓦片」**——那会一次性抹掉全部历史焦痕；同理焦痕不需要第二权威数组。
+34. **冰面打滑是独立分支**：`Worm.step` 地面移动 `if (slide) {vx 积分} else if (walkDir) {瞬时定位}`，非 slide 主题绝不能并入 vx 路径（瞬时定位是有意行为）。冰面落地/冲刺结束要保留 `vx`（惯性滑行），普通地面落地仍清零。
+35. **油桶不进 AI 模拟**（同奶牛挖地先例）；散弹枪没有爆炸结算，点燃油桶必须在 `shotgunBlast` 弹着点显式判距；油桶引爆统一走 `game.drumExplode`（先取 x/y/attacker 再 destroy，explode 内部还会点燃相邻桶形成连锁）。
+36. **confirmTarget 的 targetY 走 opts 透传**：传送需要点击 y（洞内/岛上落点判定）；AI 调 `fireWeapon` 不带 opts 的路径必须保持兼容。传送失败在 `confirmTarget` 前置拦截（不退出标记模式、不扣弹药），`fireWeapon` 的 teleport 分支只做结算。
+37. **timeScale 只能乘在 main.js 累积器上**（`acc += dt * game.timeScale`）：固定步长、6 步 guard、后台 catch-up（直调 update）都不能变；`_slowT` 按游戏秒递减。camera punch 是 applyTo 里的纯渲染乘算偏移，禁碰 `tzoom`（会污染用户缩放）。
+38. **Projectile 形状必须在构造器里定全**：`directHit/ghostPts/_ghostTick` 等若在飞行中动态添加（如命中虫时才写 `this.directHit = true`），会让 AI 模拟热子步循环的隐藏类迁移、整体退化多态——实测单次 `simulateShot` 从 41µs 涨到 142µs（3.5 倍），整局均值 0.05→0.19ms。新增投射物字段一律在构造器初始化（`ghostPts = []` 而非 null，采样处直接 push）。性能 A/B 时注意：页面上残留的 monkey-patch（如 `g.windAccel = () => 0`）会跨 evaluate 存活并污染测量（无风=最长滞空=最贵模拟），测性能前必须 reload。
 
 ## 发布
 

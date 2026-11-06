@@ -103,20 +103,29 @@ export function sfx(name, opt = {}) {
 }
 
 // ---------------- BGM 双轨序列器 ----------------
-// 五声音阶萌系小曲：低音三角波 + 旋律方波，130 BPM
+// 五声音阶萌系小曲：低音三角波 + 旋律，按主题变调变速（选图即选曲）
 const SCALE = [0, 2, 4, 7, 9]; // 大调五声
 const BASS_PAT  = [0, 0, 3, 3, 4, 4, 3, 3];
 const MEL_PAT = [
   [0, 2, 1, 2], [4, 2, 1, 0], [2, 1, 2, 4], [2, 0, 0, null],
   [1, 2, 4, 2], [4, 7 % 5, 4, 2], [1, 0, 1, 2], [0, null, null, null],
 ];
+const MUSIC_THEMES = {
+  islands: { bpm: 130, transpose: 0,  wave: 'square' },
+  desert:  { bpm: 110, transpose: -3, wave: 'square' },
+  snow:    { bpm: 92,  transpose: -5, wave: 'triangle' },
+  lava:    { bpm: 150, transpose: 2,  wave: 'sawtooth' },
+};
 let musicTimer = null, step = 0, musicMode = 'battle';
-const STEP_MS = 60000 / 130 / 2; // 八分音符
+let musicThemeKey = 'islands';
+
+function musicTheme() { return MUSIC_THEMES[musicThemeKey] || MUSIC_THEMES.islands; }
+function stepMs() { return 60000 / musicTheme().bpm / 2; } // 八分音符
 
 function noteFreq(deg, octave) {
   if (deg == null) return null;
   const o = Math.floor(deg / SCALE.length);
-  const semi = SCALE[((deg % SCALE.length) + SCALE.length) % SCALE.length] + o * 12;
+  const semi = SCALE[((deg % SCALE.length) + SCALE.length) % SCALE.length] + o * 12 + musicTheme().transpose;
   return 220 * Math.pow(2, (semi + octave * 12) / 12);
 }
 
@@ -125,22 +134,32 @@ function startMusicLoop() {
   musicTimer = setInterval(() => {
     if (!ctx || ctx.state !== 'running' || musicGain.gain.value <= 0.001) return;
     if (document.hidden) return;
+    const th = musicTheme();
+    const sms = stepMs();
     const t = now() + 0.05;
     const bar = Math.floor(step / 4) % 8, beat = step % 4;
     // 低音
     const b = noteFreq(BASS_PAT[bar], -12);
     if (b) { const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'triangle';
-      o.frequency.value = b; env(g, t, 0.01, STEP_MS / 1000 * 0.9, 0.16);
-      o.connect(g); g.connect(musicGain); o.start(t); o.stop(t + STEP_MS / 1000); }
+      o.frequency.value = b; env(g, t, 0.01, sms / 1000 * 0.9, 0.16);
+      o.connect(g); g.connect(musicGain); o.start(t); o.stop(t + sms / 1000); }
     // 旋律（战斗模式每步都响，菜单模式每 2 步）
     if (musicMode === 'battle' || beat % 2 === 0) {
       const m = noteFreq(MEL_PAT[bar][beat], 12);
-      if (m) { const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'square';
-        o.frequency.value = m; env(g, t, 0.01, STEP_MS / 1000 * 0.8, 0.05);
-        o.connect(g); g.connect(musicGain); o.start(t); o.stop(t + STEP_MS / 1000); }
+      if (m) { const o = ctx.createOscillator(), g = ctx.createGain(); o.type = th.wave;
+        o.frequency.value = m; env(g, t, 0.01, sms / 1000 * 0.8, 0.05);
+        o.connect(g); g.connect(musicGain); o.start(t); o.stop(t + sms / 1000); }
     }
     step = (step + 1) % 32;
-  }, STEP_MS);
+  }, stepMs());
 }
 
 export function setMusicMode(mode) { musicMode = mode; }
+
+// 主题 BGM：换 bpm/移调/波形（需重启 interval 才能换步长）
+export function setMusicTheme(key) {
+  if (!MUSIC_THEMES[key]) key = 'islands';
+  if (key === musicThemeKey) return;
+  musicThemeKey = key;
+  if (musicTimer) { clearInterval(musicTimer); musicTimer = null; startMusicLoop(); }
+}

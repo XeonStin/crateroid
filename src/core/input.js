@@ -19,6 +19,8 @@ export class Input {
     this.onTapAim = null;
     this.onTarget = null; this.onZoom = null; this.onPan = null;
     this.onJumpPress = null;
+    this.onAimNudge = null;         // ↑/↓ 微调角度 (dir: 1=上抬 -1=压低, fine: Shift 细调)
+    this.onSkipKey = null;          // P 键跳过回合
 
     this._mouseCharge = false;
     this._tapStart = null;          // 触摸按下起点（判定轻点确认目标）
@@ -39,10 +41,16 @@ export class Input {
       }
       if (e.code.startsWith('Digit')) {
         const n = +e.code.slice(5);
-        if (n >= 1 && n <= 8 && this.onDigit) this.onDigit(n);
+        if (n >= 1 && n <= 9 && this.onDigit) this.onDigit(n);
       }
       if (e.code === 'Tab' && this.onWeaponMenu) { e.preventDefault(); this.onWeaponMenu(); }
       if (e.code === 'Escape' && this.onCancelKey) this.onCancelKey();
+      if (e.code === 'KeyP' && this.onSkipKey) this.onSkipKey();
+      // ↑/↓ 键盘微调瞄准角（允许按住连调；Shift 细调 0.25°）
+      if (e.code === 'ArrowUp' || e.code === 'ArrowDown') {
+        e.preventDefault();
+        this.onAimNudge?.(e.code === 'ArrowUp' ? 1 : -1, e.shiftKey);
+      }
       // 双击方向 = 冲刺
       if (!e.repeat && (e.code === 'KeyA' || e.code === 'ArrowLeft')) this._dirTap(-1);
       if (!e.repeat && (e.code === 'KeyD' || e.code === 'ArrowRight')) this._dirTap(1);
