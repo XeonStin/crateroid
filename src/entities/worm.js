@@ -43,6 +43,12 @@ export class Worm {
     this.stunnedT = 0;
     this.dyingT = 0;
     this.bubbleText = null; this.bubbleT = 0;
+    // 运行期才会写入的标记字段在构造器里定全（同 AGENTS 坑 38 的投射物教训）：
+    // 补属性会让 Worm 这个热对象（step/updateView 每帧访问）分裂隐藏类
+    this._firedOnce = false;   // AI 首发噪声标记（brain 设置）
+    this._berserkMsg = false;  // 背水播报只发一次（nextTurn 设置）
+    this.tomb = null;          // 墓碑视图（die 设置）
+    this._hpKey = null; this._eyeKey = null; this._jetKey = null;
     // 变换缓存（避免静止时每帧把 transform 标脏）
     this._vx = NaN; this._vy = NaN;
     this._lsx = 1; this._lsy = 1; this._lrot = 0; this._lpy = 0; this._lipx = 0;
@@ -563,7 +569,7 @@ export class Worm {
     this._vx = NaN; this._vy = NaN;
     this._lsx = 1; this._lsy = 1; this._lrot = 0; this._lpy = 0; this._lipx = 0;
     this._tint = 0xffffff;
-    this._hpKey = null; this._eyeKey = null;
+    this._hpKey = null; this._eyeKey = null; this._jetKey = null;
     this.buildView();
     this.view.visible = true;
     this.view.position.set(x, y);

@@ -45,7 +45,7 @@ export class Input {
       }
       if (e.code === 'Tab' && this.onWeaponMenu) { e.preventDefault(); this.onWeaponMenu(); }
       if (e.code === 'Escape' && this.onCancelKey) this.onCancelKey();
-      if (e.code === 'KeyP' && this.onSkipKey) this.onSkipKey();
+      if (e.code === 'KeyP' && !e.repeat && this.onSkipKey) this.onSkipKey(); // 按住不放不得连跳回合
       // ↑/↓ 键盘微调瞄准角（允许按住连调；Shift 细调 0.25°）
       if (e.code === 'ArrowUp' || e.code === 'ArrowDown') {
         e.preventDefault();

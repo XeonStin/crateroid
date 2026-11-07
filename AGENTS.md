@@ -135,6 +135,8 @@ vendor/pixi/*.bin                PixiJS 分片（12 片，importmap 映射 'pixi
 36. **confirmTarget 的 targetY 走 opts 透传**：传送需要点击 y（洞内/岛上落点判定）；AI 调 `fireWeapon` 不带 opts 的路径必须保持兼容。传送失败在 `confirmTarget` 前置拦截（不退出标记模式、不扣弹药），`fireWeapon` 的 teleport 分支只做结算。
 37. **timeScale 只能乘在 main.js 累积器上**（`acc += dt * game.timeScale`）：固定步长、6 步 guard、后台 catch-up（直调 update）都不能变；`_slowT` 按游戏秒递减。camera punch 是 applyTo 里的纯渲染乘算偏移，禁碰 `tzoom`（会污染用户缩放）。
 38. **Projectile 形状必须在构造器里定全**：`directHit/ghostPts/_ghostTick` 等若在飞行中动态添加（如命中虫时才写 `this.directHit = true`），会让 AI 模拟热子步循环的隐藏类迁移、整体退化多态——实测单次 `simulateShot` 从 41µs 涨到 142µs（3.5 倍），整局均值 0.05→0.19ms。新增投射物字段一律在构造器初始化（`ghostPts = []` 而非 null，采样处直接 push）。性能 A/B 时注意：页面上残留的 monkey-patch（如 `g.windAccel = () => 0`）会跨 evaluate 存活并污染测量（无风=最长滞空=最贵模拟），测性能前必须 reload。
+39. **AI 候选必须互相隔离**：`simulateShot` 会击退/位移 `sim.worms`（爆炸击退 + settleWorm 落体），入口快照、出口还原（dmgMap 按 id 记账不受影响）。删掉还原会让同一轮搜索的后序候选在「被前序候选炸歪的阵型」上评分——实测同 sim 复放同参数弹伤害 36.8→35.2，且被炸飞的虫让后续模拟反复跑满 settleWorm。这与 SimTerrain 保持掩码不变是同一条设计约束（「每个候选都从同一初始世界出发」），两半缺一不可。另外整局均值是种子/对局构成强相关的：hard AI 实测 95~123µs（搜索相位占 8~15%、630~970µs/步），评估性能要同种子 + stash A/B。
+40. **阵风 HUD 节流必须按「与上次显示值的累计差」**：沙漠阵风缓动的单步增量最大 ~0.0045（target 与 wind 差 ≤0.18 × dt×1.5），按单步差判断（曾用 0.015/0.008）永远不触发，表现为整个回合 HUD 风向冻在开局值。现在 `_updateGust` 维护 `_windShown`（nextTurn/startMatch 重置为当前风），累计差 >0.03 才写 DOM；收敛末段（<0.004）吸附到 `_gustTarget`。弹道预览同理：aimUI/traj key 必须含 `windAccel`，否则阵风时预览点阵是过期弹道。
 
 ## 发布
 

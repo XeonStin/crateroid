@@ -107,6 +107,11 @@ export function simulateShot(sim, owner, weaponId, angle, power) {
   const m = muzzlePos({ x: owner.x, bodyY: owner.bodyY }, angle);
   const v = launchVelocity(angle, power);
   const active = [];
+  // 候选隔离：模拟会击退/位移 sim.worms（爆炸击退 + settleWorm 落体），
+  // 不还原的话同一轮搜索的后序候选都在「被前序候选炸歪的阵型」上评分
+  // （实测同 sim 复放同参数弹伤害 36.8→35.2）。与 SimTerrain 保持掩码
+  // 不变是同一条设计约束：「每个候选都从同一初始世界出发」。
+  const snap = sim.worms.map(sw => ({ x: sw.x, y: sw.y, vx: sw.vx, vy: sw.vy, alive: sw.alive, flying: sw.flying }));
   const spawn = (wid, x, y, vx, vy, own) => {
     const p = new Projectile({ weaponId: wid, owner: own, x, y, vx, vy, game: null, onExplode: null });
     p.simWorms = sim.worms;
@@ -148,11 +153,20 @@ export function simulateShot(sim, owner, weaponId, angle, power) {
   spawn(weaponId, m.x, m.y, v.vx, v.vy, owner);
 
   let t = 0;
-  while (active.some(p => p.alive) && t < 9) {
+  while (t < 9) {
+    // 手写存活检查代替 active.some(闭包)：AI 最热内循环，避免每步一次闭包分配
+    let any = false;
+    for (let i = 0; i < active.length; i++) { if (active[i].alive) { any = true; break; } }
+    if (!any) break;
     for (const p of active) if (p.alive) p.step(1 / 60, sim.terrain, sim.windAccel, sim.waterY);
     t += 1 / 60;
   }
   for (const sw of sim.worms) settleWorm(sw, sim, dmgMap);
+  // 还原阵型（dmgMap 按 id 记账，不受影响）
+  for (let i = 0; i < sim.worms.length; i++) {
+    const s = snap[i], t = sim.worms[i];
+    t.x = s.x; t.y = s.y; t.vx = s.vx; t.vy = s.vy; t.alive = s.alive; t.flying = s.flying;
+  }
   return { dmgMap, endX, endY };
 }
 

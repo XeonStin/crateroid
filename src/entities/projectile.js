@@ -50,6 +50,11 @@ export class Projectile {
     this.directHit = false;        // 直接命中虫体（explode 侧必暴击）
     this.ghostPts = [];            // ghost 弹道采样点（真实对战用）
     this._ghostTick = 0;
+    // 以下字段同样可能被外部后置赋值/首步写入，构造器定全保持单一隐藏类：
+    this.simWorms = null;          // AI 模拟虫列表（planner 注入；step 回退读它）
+    this.onCowBounce = null;       // 奶牛踩踏回调（planner 注入）
+    this._lastFuse = -1;           // 引信音效节流（step 首次写入）
+    this._lastDrillSfx = -1;       // 钻地音效节流
     // AI 模拟（game=null）不创建视图，省掉每次寻优数百次 Graphics 构造
     if (this.game) this.buildView();
     else this.view = null;

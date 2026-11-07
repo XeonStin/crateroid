@@ -33,6 +33,7 @@ export class Game {
     this._ambientT = 0;           // 主题环境粒子节流
     this._gustT = 0;              // 沙漠阵风节流
     this._gustTarget = 0;
+    this._windShown = 0;          // 阵风 HUD 节流的「上次显示值」基准
     this.tutLock = false;
     this.tutorial = null;
     if (this.camera && this.settings) this.camera.enabled = this.settings.shake !== false;
@@ -98,6 +99,7 @@ export class Game {
     this.timeScale = 1; this._slowT = 0;
     this.lastShotTrail = null; this.lastShotV = 0;
     this._ambientT = 0; this._gustT = 0; this._gustTarget = 0;
+    this._windShown = 0;
     this.aiFast = !!this.settings.aiFast;
 
     this.terrain = new Terrain(cfg.worldW || C.WORLD_W, C.WORLD_H);
@@ -260,6 +262,7 @@ export class Game {
     this.currentWorm = cur;
     this.wind = (this.tutorialLike || this.challenge?.noWind) ? 0 : (Math.random() * 2 - 1) * (0.4 + Math.random() * 0.6);
     this._gustTarget = this.wind; this._gustT = 0;
+    this._windShown = this.wind; // 阵风 HUD 节流的「上次显示值」基准
     // 选武器：普通/挑战默认火箭弹（没弹药时自动选第一件可用武器）；
     // 教学/练习保留玩家上次选择。避免选中 0 弹药武器后还能开火。
     const pool = this.ammoPool[cur.team];
@@ -496,6 +499,12 @@ export class Game {
   confirmTarget(wx, wy) {
     if (!this.targetingWeapon) return;
     const wid = this.targetingWeapon;
+    // 弹药兜底校验：传送是「先应用坐标、后进 fireWeapon 结算」的顺序，
+    // 若弹药异常归零绝不能白送一次瞬移（正常路径 selectWeapon 已挡 0 弹药）
+    if (wid === 'teleport' && !((this.ammoPool?.[this.currentWorm?.team ?? 0] || {})[wid] > 0)) {
+      this.cancelTargeting();
+      return;
+    }
     // 传送失败不退出标记模式（不扣弹药），提示后可重新点选
     if (wid === 'teleport' && !this.tryTeleport(this.currentWorm, wx, wy)) return;
     this.targetingWeapon = null;
@@ -790,7 +799,7 @@ export class Game {
     worm.lastHitWeapon = 'water';
     (worm.hitLog || (worm.hitLog = [])).push('water');
     if (worm.team === 1 && !this.tutorialLike) this.ach('terrain_kill');
-    this.slowMo(0.15);
+    if (!this.tutorialLike) this.slowMo(0.15); // 与 killWorm 同款门控：教学/练习不播慢镜头
     worm.view.visible = false;
     this.popup(worm.x, this.water.level - 30, '扑通…', 0x9fd4ff);
     this.hud.message(`💧 ${worm.name} 落水了！`);
@@ -956,7 +965,8 @@ export class Game {
     while (placed < count && tries++ < 40) {
       const x = 60 + Math.floor(rng() * (t.W - 120));
       const sy = t.findSurfaceY(x, 0);
-      if (sy === null || sy > t.waterY - 30 || sy < 60) continue;
+      // 用当前水位（挑战关可覆写 waterY）而非主题默认值，避免桶生成在水面下秒沉
+      if (sy === null || sy > this.water.level - 30 || sy < 60) continue;
       const l = t.findSurfaceY(x - 16, 0), r2 = t.findSurfaceY(x + 16, 0);
       if (l === null || r2 === null || Math.abs(l - sy) > 14 || Math.abs(r2 - sy) > 14) continue;
       if (this.worms.some(w => Math.abs(w.x - x) < 70)) continue;
@@ -991,7 +1001,16 @@ export class Game {
     }
     const prev = this.wind;
     this.wind += (this._gustTarget - this.wind) * Math.min(1, dt * 1.5);
-    if (Math.abs(this.wind - prev) > 0.015) this.hud.setWind(this.wind);
+    // 收敛末段吸附到目标：长期停留时 HUD/预览不吃残差
+    if (Math.abs(this._gustTarget - this.wind) < 0.004) this.wind = this._gustTarget;
+    // HUD 节流必须按「与上次显示值的累计差」而非单步差：
+    // 缓动单步增量最大 ~0.0045，按单步差判断（旧阈值 0.015/0.008）永远不触发，
+    // 表现为整个回合 HUD 风向冻在开局值
+    if (this._windShown === undefined || this._windShown === null) this._windShown = this.wind;
+    if (Math.abs(this.wind - this._windShown) > 0.03) {
+      this._windShown = this.wind;
+      this.hud.setWind(this.wind);
+    }
   }
 
   // 主题环境粒子：雪原飘雪 / 沙漠沙尘 / 熔岩余烬（低频撒，粒子池预算 ~30 活粒子）
@@ -1565,6 +1584,8 @@ export class Game {
       this.targetingWeapon || '-',
       this._targetMark ? `${Math.round(this._targetMark.x)}_${Math.round(this._targetMark.y)}` : '-',
       this.lastShotV,
+      // 风也在 key 里：沙漠阵风漂移时弹道预览必须跟着重算，否则点阵是过期弹道
+      Math.round(this.windAccel() * 50),
     ].join('|');
     if (key === this._aimKey) return;
     this._aimKey = key;
@@ -1603,8 +1624,8 @@ export class Game {
     if (power < 0.03) return;
     // 与真实发射同源：起点直接用 muzzlePos（修复前这里是手写 -sin，与旧 muzzlePos 的 +sin 不一致）
     const m = muzzlePos(cur, angle);
-    // 缓存模拟结果：仅在角度/力度跨步变化时重新积分
-    const key = `${w.id}|${Math.round(angle * 2)}|${Math.round(power * 60)}`;
+    // 缓存模拟结果：仅在角度/力度/风跨步变化时重新积分
+    const key = `${w.id}|${Math.round(angle * 2)}|${Math.round(power * 60)}|${Math.round(this.windAccel() * 50)}`;
     if (key !== this._trajKey || !this._trajM || Math.abs(this._trajM.x - m.x) > 2 || Math.abs(this._trajM.y - m.y) > 2) {
       this._trajKey = key;
       this._trajM = { x: m.x, y: m.y };
