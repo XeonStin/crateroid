@@ -116,9 +116,10 @@ body { position: fixed; inset: 0; }
 @keyframes slideIn { from { transform: translateX(-16px); opacity: 0; } }
 
 #controls-hint {
-  position: absolute; top: 34%; left: 50%; transform: translateX(-50%);
+  /* 撤退倒计时贴在 HUD 顶栏正下方，不挡画面中心的弹道与爆炸 */
+  position: absolute; top: calc(46px + var(--sat)); left: 50%; transform: translateX(-50%);
   background: var(--accent); color: var(--ink); font-weight: 800;
-  border-radius: 999px; padding: 6px 20px; font-size: 15px;
+  border-radius: 999px; padding: 4px 16px; font-size: 13px;
   box-shadow: 0 3px 10px rgba(0,0,0,.3);
 }
 
@@ -233,8 +234,8 @@ body { position: fixed; inset: 0; }
 #weapon-bar.collapsed { display: none; }
 #weapon-bar.disabled { opacity: .45; pointer-events: none; }
 .wchip {
-  position: relative; width: 52px; height: 52px; border-radius: 10px; border: 2px solid transparent;
-  background: rgba(255,255,255,.08); cursor: pointer; font-size: 22px; color: #fff;
+  position: relative; width: 46px; height: 46px; border-radius: 9px; border: 2px solid transparent;
+  background: rgba(255,255,255,.08); cursor: pointer; font-size: 19px; color: #fff;
   display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0;
   transition: transform .12s ease, box-shadow .15s, background .15s;
 }
@@ -265,7 +266,7 @@ body.touch #weapon-bar {
   transform: translateX(-50%) scale(.92);
   transform-origin: bottom center;
 }
-body.touch .wchip { width: 46px; height: 46px; font-size: 19px; }
+body.touch .wchip { width: 42px; height: 42px; font-size: 17px; }
 body.touch #power-wrap {
   bottom: calc(206px + var(--sab)); left: calc(14px + var(--sal));
   transform: none;
@@ -335,7 +336,10 @@ body.touch #btn-skip { display: none; }
 }
 .screen {
   position: absolute; inset: 0; overflow-y: auto; padding: 24px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  display: flex; flex-direction: column; align-items: center;
+  /* safe center：内容超高时回落到顶部对齐——flex 居中会把顶部溢出裁进
+     滚动区之外（武器图鉴的前两张卡因此永远看不到） */
+  justify-content: center; justify-content: safe center;
   gap: 16px; padding-bottom: calc(24px + var(--sab));
 }
 .screen h2 { font-size: 26px; text-shadow: 0 2px 6px rgba(0,0,0,.4); }
@@ -515,7 +519,7 @@ body.touch #btn-skip { display: none; }
 /* 小屏适配 */
 @media (max-width: 760px) {
   #hud-top { transform-origin: top left; }
-  .wchip { width: 44px; height: 44px; font-size: 18px; }
+  .wchip { width: 40px; height: 40px; font-size: 17px; }
   .logo h1 { font-size: 38px; }
   #banner-title { font-size: 30px; }
   .mbtn { padding: 11px 26px; font-size: 15px; }
@@ -588,11 +592,13 @@ body.touch #tp-goal { margin-top: 4px; }
   /* 竖屏底部三行：摇杆（12~124）→ 武器栏（140~190）→ 蓄力状态+取消蓄力（198~）；跳跃/冲刺列在蓄力摇杆左侧 */
   body.touch #weapon-bar {
     bottom: calc(140px + var(--sab));
-    gap: 2px; padding: 9px 4px 4px;
+    gap: 2px; padding: 9px 3px 4px;
     max-width: 98vw;
     transform: translateX(-50%) scale(.98);
   }
-  body.touch .wchip { width: 42px; height: 42px; font-size: 18px; }
+  /* 9 格武器在 390px 宽竖屏也要一排放下：36px 芯片 ×9 + 间隙 ≤ 98vw */
+  body.touch .wchip { width: 36px; height: 36px; font-size: 15px; }
+  body.touch .wchip .wammo { font-size: 9px; }
   body.touch #power-wrap { bottom: calc(198px + var(--sab)); }
   body.touch #joy-move { width: 112px; height: 112px; }
   body.touch #joy-aim { width: 112px; height: 112px; }
@@ -604,3 +610,58 @@ body.touch #tp-goal { margin-top: 4px; }
 @media (orientation: portrait) and (max-height: 700px) {
   body.touch #tp-steps { display: none; }
 }
+
+/* ---------------- 终局电影化层 ---------------- */
+/* 影院黑边：终局慢镜头时滑入，结束滑出（纯表现） */
+#cinema-top, #cinema-bottom {
+  position: fixed;
+  left: 0; right: 0;
+  height: 0;
+  background: #000;
+  z-index: 40;
+  pointer-events: none;
+  transition: height .65s cubic-bezier(.22,.9,.3,1);
+}
+#cinema-top { top: 0; }
+#cinema-bottom { bottom: 0; }
+#cinema-top.on, #cinema-bottom.on { height: 7vh; }
+
+/* 命中白闪：终爆炸一瞬压一下画面亮度 */
+#flash {
+  position: fixed;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  z-index: 41;
+  pointer-events: none;
+}
+#flash.on { animation: flashFade .5s ease-out forwards; }
+@keyframes flashFade {
+  0% { opacity: .82; }
+  100% { opacity: 0; }
+}
+
+/* ---------------- 武器图鉴 ---------------- */
+.wpn-note {
+  font-size: 12px; opacity: .8; text-align: center;
+  width: min(560px, 92vw); line-height: 1.6;
+}
+.wpn-list { display: flex; flex-direction: column; gap: 10px; width: min(560px, 92vw); }
+.wpn-card {
+  display: flex; gap: 12px; align-items: flex-start; text-align: left;
+  background: var(--panel); border-radius: 14px; padding: 12px 14px; color: #fff;
+}
+.wpn-icon { font-size: 26px; width: 38px; text-align: center; flex: none; }
+.wpn-main { flex: 1; min-width: 0; }
+.wpn-name { font-weight: 800; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.wpn-ammo {
+  font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px;
+  background: rgba(255,217,61,.18); color: #ffd93d;
+}
+.wpn-desc { font-size: 12px; opacity: .78; margin: 4px 0 8px; line-height: 1.55; }
+.wpn-stats { display: flex; flex-wrap: wrap; gap: 6px; }
+.wpn-stat {
+  background: rgba(0,0,0,.28); border-radius: 6px; padding: 2px 8px;
+  font-size: 11px; opacity: .95;
+}
+.wpn-stat b { color: #ffd93d; font-weight: 700; }

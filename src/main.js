@@ -209,10 +209,13 @@ async function boot() {
     last = now;
     if (dt > 0.1) dt = 0.1;
     if (!menusVisible() && game.running && !game.paused) {
-      // timeScale：击杀慢镜头只乘在累积器上（固定步长与 6 步 guard 不变）
-      acc += dt * (game.timeScale || 1);
+      // timeScale：慢镜头走「细分固定步」——每真实帧仍有 ~60 次步进（dt = FIXED×ts），
+      // 世界按 60fps 连续推进不抽帧；正常速度 ts=1 时与原固定步长完全一致
+      const ts = game.timeScale || 1;
+      const step = FIXED * ts;
+      acc += dt * ts;
       let guard = 0;
-      while (acc >= FIXED && guard++ < 6) { game.update(FIXED); acc -= FIXED; }
+      while (acc >= step && guard++ < 12) { game.update(step); acc -= step; }
     } else {
       acc = 0;
     }

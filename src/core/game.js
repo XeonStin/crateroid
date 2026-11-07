@@ -8,7 +8,8 @@ import { Crate, pickCrateType } from '../entities/crate.js';
 import { OilDrum } from '../entities/drum.js';
 import { Particles } from '../entities/particles.js';
 import { explosionEffects } from '../entities/projectile.js';
-import { fireWeapon, simulateTrajectory, spawnBomblets, spawnAirstrikeBomb, muzzlePos, MIN_SPEED, MAX_SPEED } from '../weapons/index.js';
+import { fireWeapon, simulateTrajectory, spawnBomblets, spawnAirstrikeBomb, spawnLobbed, muzzlePos, MIN_SPEED, MAX_SPEED } from '../weapons/index.js';
+import { makeSim, simulateShot } from '../ai/planner.js';
 import { AIBrain } from '../ai/brain.js';
 import { TutorialDirector } from './tutorial.js';
 import { TUTORIAL_SCENES } from '../levels/tutorialScenes.js';
@@ -16,6 +17,10 @@ import * as C from '../config.js';
 import * as PIXI from 'pixi.js';
 import { recordMatch, recordWeaponDamage, recordLongestShot, setChallengeRank, unlockAchievement, completeTutorial } from './save.js';
 import { sfx, setMusicMode, setMusicTheme } from './audio.js';
+
+// 终局预测弹种：飞行全程确定（集束子雷/散弹弹丸散布随机、空袭/奶牛走飞机，不预测——
+// 这些靠击杀瞬间的 _maybeFinale 兜底进入慢镜头）
+const FINALE_PREDICT_WEAPONS = { bazooka: 1, grenade: 1, driller: 1, holy: 1 };
 
 export class Game {
   constructor(env) {
@@ -26,7 +31,8 @@ export class Game {
     this.paused = false;
     this.debugAuto = false;
     this.aiFast = false;
-    this.timeScale = 1;           // 击杀慢镜头：main.js 累积器乘它，固定步长本身不变
+    this.timeScale = 1;           // 当前时间倍率（向 _targetTs 缓动）
+    this._targetTs = 1;           // 目标倍率：慢镜头/阶段切换只改它，update 里连续缓动
     this._slowT = 0;
     this.lastShotTrail = null;    // 上一发弹道采样点（ghost 预览）
     this.lastShotV = 0;           // ghost 版本号（触发 aimUI 重绘）
@@ -96,7 +102,12 @@ export class Game {
     // 本局数据统计（结算面板展示）
     this.matchStats = { shots: 0, hits: 0, dmgDealt: 0, dmgTaken: 0, kills: 0, longest: 0, crates: 0 };
     this._shotHitCounted = false;
-    this.timeScale = 1; this._slowT = 0;
+    this.timeScale = 1; this._slowT = 0; this._targetTs = 1;
+    // 终局/高光镜头状态（_updateState 顶部拦截）
+    this._finale = false; this._finaleT = 0; this._finalePhase = null;
+    this._cinemaLevel = null; this._highlightCd = 0;
+    this._finaleLaunch = null; this._finaleFocus = null;
+    this._finaleLaunchAt = 0; this._finaleImpactAt = 0; this._finalePrevZoom = null;
     this.lastShotTrail = null; this.lastShotV = 0;
     this._ambientT = 0; this._gustT = 0; this._gustTarget = 0;
     this._windShown = 0;
@@ -414,10 +425,13 @@ export class Game {
     this.tryDash(dir);
   }
 
-  // 冲刺：双击方向键 / 双击虚拟方向键（普通 1 次/回合，背水一战 2 次）
+  // 冲刺：双击方向键 / 双击虚拟方向键（普通 1 次/回合，背水一战 2 次）。
+  // 撤退阶段（发射后的 5s）同样可冲刺——跑路本身就是冲刺的使用场景
   tryDash(dir) {
     const cur = this.currentWorm;
-    if (!cur || cur.isAI || this.state !== 'active') return;
+    if (!cur || cur.isAI) return;
+    const retreat = this.state === 'projectile' && this.retreatLeft > 0;
+    if (this.state !== 'active' && !retreat) return;
     if (!cur.alive || !cur.onGround || this.dashLeft <= 0) return;
     if (Math.abs(dir) !== 1) return;
     this.dashLeft--;
@@ -444,8 +458,198 @@ export class Game {
   // 击杀慢镜头：gt 为游戏秒（timeScale=0.3 时真实时长 ≈ gt/0.3）
   slowMo(gt) {
     if (this.mobile) gt *= 0.7; // 手机上慢镜头更短，避免拖节奏
-    this.timeScale = 0.3;
+    this._targetTs = 0.3;       // 世界减速滑入慢放（update 里连续缓动，不硬切）
     this._slowT = Math.max(this._slowT, gt);
+  }
+
+  // ---------------- 终局/高光电影镜头（两级） ----------------
+  // 预热推镜 → 发射节拍(0.1x) → 巡航跟弹 → 临爆节拍(0.1x) → 爆炸慢放 → 定格。
+  // finale（终局）：全灭 → 结算；highlight（高光）：远距直击/精准贴爆/一击多杀
+  // → 更紧凑的慢放后恢复正常流转（撤退/剩余弹丸/回合照旧）。
+  // 击杀型终局（散弹/油桶/地形杀/坠落等）：全灭瞬间直接进入爆炸慢放。
+
+  // 开火前预测（weapons.fireWeapon 在创建弹丸前调用）；返回 'finale' | 'highlight' | null。
+  // 命中则接管本次发射，真实弹丸由 _updateState 在镜头就位后经 spawnLobbed 补发
+  armCinematicLaunch(worm, weaponId, angle, power) {
+    if (this.tutorialLike || this.matchOver || !this.running || this._finale) return null;
+    // 注意：预测接管不受高光冷却限制——冷却只防「实爆触发」的连锁连发；
+    // 若这里也被拦，大师级射击会静默降级成只剩爆炸慢放（缺前三个阶段）
+    if (!FINALE_PREDICT_WEAPONS[weaponId]) return null;
+    const sim = makeSim(this);
+    const owner = sim.worms.find(w => w.id === worm.id);
+    if (!owner) return null;
+    const r = simulateShot(sim, owner, weaponId, angle, power);
+    const enemies = sim.worms.filter(w => w.alive && w.team !== worm.team);
+    if (!enemies.length) return null;
+    // 击杀判据与 damageWorm 一致：Math.round(dmg) >= hp
+    const deadCount = enemies.filter(e => Math.round(r.dmgMap.get(e.id) || 0) >= e.hp).length;
+    // 「远距」按飞行轨迹长度判定：弧线高抛的位移小但飞得远，同样该有正反馈
+    const pathLen = Number.isFinite(r.pathLen) ? r.pathLen : 0;
+    const longDirect = r.directHit === true && pathLen >= C.HIGHLIGHT_DIRECT_DIST;
+    const nearShot = !r.directHit && pathLen >= C.HIGHLIGHT_NEAR_MIN_SHOT && enemies.some(e =>
+      Math.hypot(r.endX - e.x, r.endY - e.bodyY) <= C.HIGHLIGHT_NEAR_DIST);
+    let level = null;
+    if (deadCount === enemies.length) level = 'finale';
+    else if (deadCount >= 2 || longDirect || nearShot) level = 'highlight';
+    if (!level) return null;
+    this._finale = true;
+    this._cinemaLevel = level;
+    this._finalePhase = 'prelaunch';
+    this._finaleT = 0;
+    this._finaleLaunch = { worm, weaponId, angle, power, flightTime: r.flightTime || 0 };
+    this._finaleFocus = { x: worm.x, y: worm.bodyY - 20 };
+    this._finalePrevZoom = this.camera.tzoom;
+    this._targetTs = C.FINALE_PRELAUNCH_TS; // 从原速连续减速滑入
+    this.camera.setCinema(true);
+    const zoom = level === 'finale' ? C.FINALE_ZOOM : C.FINALE_ZOOM - 0.1;
+    this.camera.setZoom(this.mobile ? zoom - 0.25 : zoom);
+    this.hud.setCinema(true);
+    return level;
+  }
+
+  // 全灭检测（damageWorm / drownWorm 死亡路径调用，fx/fy = 击杀点）
+  _maybeFinale(fx, fy) {
+    if (this.tutorialLike || this.matchOver || !this.running) return;
+    if (this.teamAlive(0) && this.teamAlive(1)) return;
+    if (this._finale) {
+      if (this._cinemaLevel === 'highlight') {
+        this._cinemaLevel = 'finale';       // 高光途中打出终局：升级为终局慢放
+        this._beginAftermath(fx, fy, true);
+        return;
+      }
+      if (this._finalePhase === 'flight' || this._finalePhase === 'prelaunch') {
+        this._beginAftermath(fx, fy, true); // 预测弹命中：镜头已在弹上，直接切爆炸慢放
+      } else {
+        this._finaleT = 0; // 连环击杀：重置慢放计时，把后续爆炸也收进镜头
+      }
+      return;
+    }
+    this._beginAftermath(fx, fy, false);
+  }
+
+  // 高光时刻（非终局）：一击多杀 / 远距直接命中 / 精准贴爆。
+  // 冻结回合状态机播一段紧凑的慢放（撤退/剩余弹丸/回合照旧），结束后恢复。
+  // 终局优先（_maybeFinale 已接管时不触发）；冷却防连锁爆炸连发。
+  _maybeHighlight(fx, fy, info) {
+    if (this.tutorialLike || this.matchOver || !this.running || this._finale) return false;
+    if (this.time < (this._highlightCd || 0)) return false;
+    if (fx == null) return false;
+    this._finale = true;
+    this._cinemaLevel = 'highlight';
+    this._finalePhase = 'aftermath';
+    this._finaleT = 0;
+    this._finaleFocus = { x: fx, y: fy };
+    this._finalePrevZoom = this.camera.tzoom;
+    this._targetTs = C.HIGHLIGHT_AFTERMATH_TS; // 从原速连续减速滑入慢放
+    this.camera.setCinema(true);
+    this.camera.setZoom(this.mobile ? C.FINALE_ZOOM - 0.45 : C.FINALE_ZOOM - 0.2);
+    this.hud.setCinema(true);
+    this.hud.flash();
+    this.ringAt(fx, fy - 8, 0xffd93d);
+    this.camera.punch(0.06);
+    this.camShake(7);
+    return true;
+  }
+
+  // 爆炸/倒地慢放：镜头缓推击杀点 + 白闪 + 冲击波 + 震屏（终局级）
+  _beginAftermath(fx, fy, alreadyCinematic) {
+    this._finale = true;
+    this._cinemaLevel = 'finale';
+    this._finalePhase = 'aftermath';
+    this._finaleT = 0;
+    this._finaleLaunch = null;
+    if (fx != null) this._finaleFocus = { x: fx, y: fy };
+    else if (!this._finaleFocus && this.currentWorm) {
+      this._finaleFocus = { x: this.currentWorm.x, y: this.currentWorm.y - 20 };
+    }
+    this._targetTs = C.FINALE_AFTERMATH_TS;
+    if (!alreadyCinematic) {
+      this._finalePrevZoom = this._finalePrevZoom ?? this.camera.tzoom;
+      this.camera.setCinema(true);
+      this.camera.setZoom(this.mobile ? C.FINALE_ZOOM - 0.25 : C.FINALE_ZOOM);
+      this.hud.setCinema(true);
+    }
+    // 收掉操作面：终局阶段不再接受输入，撤退/剩余弹数/目标标记全部作废
+    if (this.state === 'active') {
+      this.shotsLeft = 0;
+      this.charging = false; this.chargePower = 0; this.slingshot = null;
+      this._chargeStyle = null;
+      this.cancelTargeting();
+      this.hud.powerHide();
+      this.state = 'projectile';   // 借 projectile 作为终局过渡态（状态机已被拦截）
+      this._projT = 0;
+    }
+    this.retreatLeft = 0;
+    this._stopWormIntent(this.currentWorm);
+    this.hud.setControlsHint('');
+    this.updateInputMode();
+    // 命中特效包
+    if (this._finaleFocus) {
+      this.hud.flash();
+      this.ringAt(this._finaleFocus.x, this._finaleFocus.y - 8, 0xfff3b0);
+      this.camera.punch(0.07);
+      this.camShake(8);
+    }
+  }
+
+  // 预测高光的弹丸真的爆了：飞行切爆炸慢放（payoff 时刻；终局由 _maybeFinale 走，这里管高光）
+  _realizeHighlightBlast(fx, fy) {
+    if (this._finale && this._cinemaLevel === 'highlight' && this._finalePhase === 'flight') {
+      this._finalePhase = 'aftermath';
+      this._finaleT = 0;
+      if (fx != null) this._finaleFocus = { x: fx, y: fy };
+      this._targetTs = C.HIGHLIGHT_AFTERMATH_TS;
+      this.hud.flash();
+      this.ringAt(fx, fy - 8, 0xffd93d);
+      this.camera.punch(0.06);
+      this.camShake(7);
+      return true;
+    }
+    return false;
+  }
+
+  // 结束电影镜头：终局 → postturnWait 结算；高光 → 恢复正常流转（含预测落空的取消）
+  _endCinema() {
+    const wasFinale = this._cinemaLevel === 'finale';
+    this._finale = false;
+    this._finalePhase = null;
+    this._cinemaLevel = null;
+    this._finaleLaunch = null;
+    this._finaleFocus = null;
+    if (this._slowT <= 0) this._targetTs = 1;
+    this.camera.setCinema(false);
+    this.hud.setCinema(false);
+    if (this._finalePrevZoom != null) { this.camera.setZoom(this._finalePrevZoom); this._finalePrevZoom = null; }
+    if (wasFinale) {
+      this._stopWormIntent(this.currentWorm);
+      this.state = 'postturnWait';
+      this.stateTimer = 0.4;
+    } else {
+      this._highlightCd = this.time + C.HIGHLIGHT_CD;
+    }
+  }
+
+  // 发射特效：炮口焰锥 + 硝烟 + 冲击波环（慢镜头下逐帧可见）
+  launchBlast(x, y, angle) {
+    const a = angle * Math.PI / 180;
+    const dx = Math.cos(a), dy = -Math.sin(a);
+    for (let i = 0; i < 16; i++) {
+      const sp = 130 + Math.random() * 240, sw = (Math.random() - 0.5) * 0.85;
+      const ca = Math.cos(sw), sa = Math.sin(sw);
+      this.particles.spawn({
+        x, y, vx: (dx * ca - dy * sa) * sp, vy: (dx * sa + dy * ca) * sp,
+        life: 0.22 + Math.random() * 0.3, size: 1.8 + Math.random() * 2.4,
+        color: [0xfff3b0, 0xffd23d, 0xff8c42][i % 3], shrink: true,
+      });
+    }
+    for (let i = 0; i < 7; i++) {
+      this.particles.spawn({
+        x: x + (Math.random() - 0.5) * 8, y: y + (Math.random() - 0.5) * 8,
+        vx: -dx * 40 + (Math.random() - 0.5) * 40, vy: -dy * 40 + (Math.random() - 0.5) * 40 - 10,
+        life: 0.7 + Math.random() * 0.6, size: 5 + Math.random() * 5, color: 0x9a9a9a, gravity: -24, shrink: true,
+      });
+    }
+    this.ringAt(x, y, 0xfff3b0);
   }
 
   // 成就解锁（去重，金色提示；教学/练习不计）
@@ -540,7 +744,8 @@ export class Game {
     this.slingshot = null;
     this.state = 'projectile';
     this._projT = 0;
-    this.retreatLeft = (worm.isAI || this.tutorialLike) ? 0 : C.RETREAT_TIME;
+    // 终局阶段不进撤退（击杀最后一个敌人后直接收尾结算）；高光镜头保留撤退窗口
+    this.retreatLeft = (worm.isAI || this.tutorialLike || (this._finale && this._cinemaLevel === 'finale')) ? 0 : C.RETREAT_TIME;
     this.hud.powerHide();
     this.updateInputMode();
     this.syncWeaponBar();
@@ -612,9 +817,11 @@ export class Game {
   // ---------------- 弹道与爆炸 ----------------
   projectileExplode(x, y, proj) {
     const w = proj.weapon;
+    // 飞行轨迹长度：远距直击/精准贴爆高光判定用；空投类（空袭/奶牛）不参与
+    const pathLen = (w.id === 'bomb' || w.id === 'cow') ? undefined : (proj.pathLen || 0);
     if (w.cluster) {
       spawnBomblets(this, x, y, w.cluster, proj.owner);
-      this.explode(x, y, w.radius * 0.6, w.dmg * 0.5, { owner: proj.owner, weaponId: proj.weapon.id, origin: proj.owner, directHit: proj.directHit === true });
+      this.explode(x, y, w.radius * 0.6, w.dmg * 0.5, { owner: proj.owner, weaponId: proj.weapon.id, origin: proj.owner, directHit: proj.directHit === true, pathLen });
       return;
     }
     if (w.holy) {
@@ -626,6 +833,7 @@ export class Game {
       owner: proj.owner, weaponId: proj.weapon.id, origin: proj.owner,
       kbX: w.id === 'cow' ? 0.2 : 1,
       directHit: proj.directHit === true,
+      pathLen,
     });
   }
 
@@ -658,6 +866,8 @@ export class Game {
       const d = Math.hypot(w.x - x, w.bodyY - y);
       if (d < r + 46 && Math.random() < 0.35) this.say(w, '好险！', 1.1);
     }
+    // 预测高光的弹丸真的爆了 → 飞行切爆炸慢放
+    const realized = this._realizeHighlightBlast(x, y);
     // 连杀播报：一次爆炸击倒 2/3+ 只敌人
     if (opts.origin) {
       let killed = 0;
@@ -668,12 +878,25 @@ export class Game {
       if (killed >= 3) {
         this.hud.banner('💥 三杀！', `${opts.origin.name} 一炸三只！`);
         this.ach('triple_kill');
-        this.slowMo(0.24);
       } else if (killed >= 2) {
         this.hud.banner('💥 双杀！', opts.origin.name);
         this.ach('double_kill');
-        this.slowMo(0.24);
       }
+      // 一击多杀 → 高光镜头（冷却/已在镜头中时退回普通慢镜头）
+      if (killed >= 2 && !realized && !this._maybeHighlight(x, y, { multikill: true })) this.slowMo(0.24);
+    }
+    // 高光判定：远距直接命中 / 精准贴爆（按轨迹长度；空投/子雷/奶牛被长度天然排除或显式排除）
+    if (!this._finale && opts.pathLen !== undefined) {
+      const longDirect = opts.directHit === true && opts.pathLen >= C.HIGHLIGHT_DIRECT_DIST;
+      let nearShot = false;
+      if (!longDirect && opts.pathLen >= C.HIGHLIGHT_NEAR_MIN_SHOT) {
+        const oteam = opts.origin?.team;
+        for (const w of this.worms) {
+          if (!w.alive || w.team === oteam) continue;
+          if (Math.hypot(w.x - x, w.bodyY - y) <= C.HIGHLIGHT_NEAR_DIST) { nearShot = true; break; }
+        }
+      }
+      if (longDirect || nearShot) this._maybeHighlight(x, y, { longDirect, nearShot });
     }
     // 补给箱被炸毁
     for (const c of this.crates) {
@@ -767,6 +990,7 @@ export class Game {
       }
       this.killWorm(worm);
     }
+    this._maybeFinale(worm.x, worm.bodyY - 10); // 击杀导致任一队全灭 → 终局慢镜头（含散弹首杀直接终结）
     this._pipsDirty = true;
   }
 
@@ -806,6 +1030,7 @@ export class Game {
     sfx('death');
     this.tutEvent('drown', { worm });
     this._queueRespawn(worm);
+    this._maybeFinale(worm.x, this.water.level - 24); // 地形杀全灭同样进终局
     this._pipsDirty = true;
   }
 
@@ -1072,7 +1297,13 @@ export class Game {
     // 慢镜头计时（游戏秒；真实时长 ≈ gt / timeScale）
     if (this._slowT > 0) {
       this._slowT -= dt;
-      if (this._slowT <= 0) { this._slowT = 0; this.timeScale = 1; }
+      if (this._slowT <= 0) { this._slowT = 0; this._targetTs = 1; }
+    }
+    // 时间倍率连续缓动：进出慢镜头/阶段切换不再硬切（0.25↔1 也变加速滑行）
+    const tgtTs = this._targetTs ?? 1;
+    if (this.timeScale !== tgtTs) {
+      this.timeScale += (tgtTs - this.timeScale) * Math.min(1, dt * 12);
+      if (Math.abs(this.timeScale - tgtTs) < 0.02) this.timeScale = tgtTs;
     }
     this._updateGust(dt);
     this._updateAmbient(dt);
@@ -1145,6 +1376,71 @@ export class Game {
   }
 
   _updateState(dt) {
+    // 终局/高光拦截：预热推镜 → 发射节拍 → 巡航跟弹 → 临爆节拍 → 爆炸慢放 → 定格
+    // finale 结算结束对局；highlight 恢复正常流转
+    if (this._finale) {
+      this._finaleT += dt;
+      const mob = this.mobile ? 0.75 : 1;
+      const isFin = this._cinemaLevel === 'finale';
+      const wiped = !this.teamAlive(0) || !this.teamAlive(1);
+      if (this._finalePhase === 'prelaunch') {
+        this._targetTs = C.FINALE_PRELAUNCH_TS;
+        if (this._finaleT >= C.FINALE_PRELAUNCH_T * mob) {
+          this._finalePhase = 'flight';
+          this._finaleT = 0;
+          this._finaleLaunchAt = this.time;
+          this._finaleImpactAt = this.time + (this._finaleLaunch?.flightTime || 0);
+          const L = this._finaleLaunch;
+          if (L && L.worm.alive) {
+            spawnLobbed(this, L.worm, L.weaponId, L.angle, L.power);
+            const m = muzzlePos(L.worm, L.angle);
+            this.launchBlast(m.x, m.y, L.angle);
+            this.camera.punch(0.05);
+          } else {
+            this._endCinema(); // 射手在预热期倒了（极罕见）：放回归合照常流转
+          }
+        }
+      } else if (this._finalePhase === 'flight') {
+        const proj = this.projectiles[0];
+        if (proj) {
+          const age = this.time - (this._finaleLaunchAt ?? this.time);
+          // 节拍曲线（缓动跟随目标）：发射 0.2x → 巡航（终局 0.6x / 高光 0.75x）→ 临爆 0.2x
+          const cruise = isFin ? C.FINALE_CRUISE_TS : C.HIGHLIGHT_CRUISE_TS;
+          this._targetTs = (age < C.FINALE_LAUNCH_HOLD || this.time >= this._finaleImpactAt - C.FINALE_IMPACT_WINDOW)
+            ? C.FINALE_BEAT_TS : cruise;
+          if (this._finaleT > 6) this._endCinema(); // 看门狗（游戏秒）
+        } else {
+          // 弹已消失：有虫被炸飞在空中 → 慢速等它落定/落水（落水由 _maybeFinale 接管）
+          const airborne = this.worms.some(w => w.alive && !w.onGround && w.y <= this.water.level);
+          if (wiped || airborne) {
+            this._targetTs = isFin ? C.FINALE_CRUISE_TS : C.HIGHLIGHT_CRUISE_TS;
+            if (this._finaleT > 6) {
+              if (wiped) this._beginAftermath(this._finaleFocus?.x, this._finaleFocus?.y, true);
+              else this._endCinema();
+            }
+          } else {
+            this._endCinema(); // 预测落空：弹尽、场面安静（终局全灭已切 aftermath，不会到这）
+          }
+        }
+      } else if (this._finalePhase === 'aftermath') {
+        this._targetTs = isFin ? C.FINALE_AFTERMATH_TS : C.HIGHLIGHT_AFTERMATH_TS;
+        const dur = (isFin ? C.FINALE_AFTERMATH_T : C.HIGHLIGHT_AFTERMATH_T) * mob;
+        if (this._finaleT >= dur) {
+          // 特效放完 → 定格缓冲（时间倍率缓动滑回原速、黑边滑出、镜头缓回）
+          this._finalePhase = 'linger';
+          this._finaleT = 0;
+          this._targetTs = 1;
+          this._slowT = 0;
+          this.hud.setCinema(false);
+          this.camera.setCinema(false);
+          if (this._finalePrevZoom != null) { this.camera.setZoom(this._finalePrevZoom); this._finalePrevZoom = null; }
+        }
+      } else { // linger
+        const dur = (isFin ? C.FINALE_LINGER_T : C.HIGHLIGHT_LINGER_T) * mob;
+        if (this._finaleT >= dur) this._endCinema();
+      }
+      return;
+    }
     const cur = this.currentWorm;
     switch (this.state) {
       case 'turnStart': {
@@ -1318,6 +1614,11 @@ export class Game {
     this.input.mode = 'idle';
     this.touch?.setControlsEnabled(false);
     this.hud.setDash(null);
+    // 终局表现层收尾（黑边滑出/运镜恢复）——正常路径 linger 已关，这里兜底
+    this._finale = false; this._finalePhase = null; this._cinemaLevel = null;
+    this._targetTs = 1; this.timeScale = 1;
+    this.hud.setCinema(false);
+    this.camera.setCinema(false);
     // 停止所有移动意图，防止结算后虫虫继续走
     for (const w of this.worms) {
       w.showArrow(false);
@@ -1687,17 +1988,36 @@ export class Game {
   }
 
   _updateCamera() {
-    // 跟随目标：弹道 > 运输机 > 移动中的当前虫虫
-    // 弹丸飞出世界外（打上天/出界）时不再跟，避免镜头被拖到空白区域
-    const p = this.projectiles[0];
-    const cur = this.currentWorm;
-    const pInView = p && p.x > -150 && p.x < this.terrain.W + 150 && p.y > -260 && p.y < this.terrain.H + 160;
-    if (pInView) this.camera.follow(p.x, p.y);
-    else if (this.planes[0]) this.camera.follow(this.planes[0].x, this.planes[0].y);
-    else if (cur && this.state !== 'active') this.camera.follow(cur.x, cur.y - 60);
-    else if (cur && this.state === 'active' && (cur.isAI || cur.walkDir !== 0 || !cur.onGround)) {
-      // 回合开始的构图（frameTurnCamera）已保证全体虫虫入画；操作/观战阶段就近跟随
-      this.camera.follow(cur.x, cur.y - 60);
+    if (this._finale && this._finaleFocus) {
+      // 终局运镜：预热跟发射虫 → 飞行跟弹 → 慢放定格击杀点
+      if (this._finalePhase === 'flight' && this.projectiles[0]) {
+        this._finaleFocus = { x: this.projectiles[0].x, y: this.projectiles[0].y };
+        // 节拍变焦：发射特写 → 巡航拉宽看全弹道 → 临爆收窄聚焦受击目标
+        const ft = Math.max(0.25, this._finaleLaunch?.flightTime || 1);
+        const t = Math.min(1, Math.max(0, (this.time - (this._finaleLaunchAt ?? this.time)) / ft));
+        const zClose = this.mobile ? C.FINALE_ZOOM - 0.25 : C.FINALE_ZOOM;
+        const zWide = Math.max(this.camera.minZoom(), C.FINALE_FLIGHT_WIDE_ZOOM);
+        const zImpact = zClose * 0.92;
+        const ss = (a, b, u) => a + (b - a) * (u * u * (3 - 2 * u)); // smoothstep 缓入缓出
+        const z = t < 0.35 ? ss(zClose, zWide, t / 0.35)
+          : t < 0.65 ? zWide
+          : ss(zWide, zImpact, (t - 0.65) / 0.35);
+        this.camera.setZoom(z);
+      }
+      this.camera.follow(this._finaleFocus.x, this._finaleFocus.y);
+    } else {
+      // 跟随目标：弹道 > 运输机 > 移动中的当前虫虫
+      // 弹丸飞出世界外（打上天/出界）时不再跟，避免镜头被拖到空白区域
+      const p = this.projectiles[0];
+      const cur = this.currentWorm;
+      const pInView = p && p.x > -150 && p.x < this.terrain.W + 150 && p.y > -260 && p.y < this.terrain.H + 160;
+      if (pInView) this.camera.follow(p.x, p.y);
+      else if (this.planes[0]) this.camera.follow(this.planes[0].x, this.planes[0].y);
+      else if (cur && this.state !== 'active') this.camera.follow(cur.x, cur.y - 60);
+      else if (cur && this.state === 'active' && (cur.isAI || cur.walkDir !== 0 || !cur.onGround)) {
+        // 回合开始的构图（frameTurnCamera）已保证全体虫虫入画；操作/观战阶段就近跟随
+        this.camera.follow(cur.x, cur.y - 60);
+      }
     }
     this.camera.update(1 / 60);
   }

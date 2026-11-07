@@ -1,5 +1,5 @@
 // ============ 菜单系统：标题 / 组队 / 选图 / 挑战 / 战绩 / 设置 / 暂停 ============
-import { THEMES, DIFFICULTY, PLAYER_COLORS, ENEMY_COLORS, HATS, WORM_NAMES, WEAPONS, WORLD_W, MAP_SIZES, MAP_W_MIN, MAP_W_MAX, ACHIEVEMENTS } from '../config.js';
+import { THEMES, DIFFICULTY, PLAYER_COLORS, ENEMY_COLORS, HATS, WORM_NAMES, WEAPONS, WEAPON_MANUAL, WEAPON_MANUAL_NOTE, WORLD_W, MAP_SIZES, MAP_W_MIN, MAP_W_MAX, ACHIEVEMENTS } from '../config.js';
 import { CHALLENGES } from '../levels/challenges.js';
 import { TUTORIALS } from '../levels/tutorials.js';
 import { loadSave, persist, resetSave } from '../core/save.js';
@@ -61,6 +61,7 @@ export class Menus {
         <button class="mbtn big" id="m-battle">🐛 新的战斗</button>
         <button class="mbtn" id="m-tutorial">📖 教学关卡</button>
         <button class="mbtn" id="m-challenge">🏅 挑战关卡</button>
+        <button class="mbtn" id="m-weapons">💼 武器图鉴</button>
         <button class="mbtn" id="m-stats">📊 战绩</button>
         <button class="mbtn" id="m-settings">⚙️ 设置</button>
       </div>
@@ -68,6 +69,7 @@ export class Menus {
     $('m-battle').onclick = () => { sfx('click'); this.show('menu-team'); this.renderTeam(); };
     $('m-tutorial').onclick = () => { sfx('click'); this.show('menu-tutorial'); this.renderTutorials(); };
     $('m-challenge').onclick = () => { sfx('click'); this.show('menu-challenge'); this.renderChallenges(); };
+    $('m-weapons').onclick = () => { sfx('click'); this.show('menu-weapons'); this.renderWeapons(); };
     $('m-stats').onclick = () => { sfx('click'); this.show('menu-stats'); this.renderStats(); };
     $('m-settings').onclick = () => { sfx('click'); this.returnTo = 'menu-title'; this.show('menu-settings'); this.renderSettings(); };
 
@@ -75,9 +77,38 @@ export class Menus {
     this.buildMapScreen();
     this.buildTutorialScreen();
     this.buildChallengeScreen();
+    this.buildWeaponsScreen();
     this.buildStatsScreen();
     this.buildSettingsScreen();
     this.buildPauseScreen();
+  }
+
+  // ---------------- 武器图鉴 ----------------
+  buildWeaponsScreen() {
+    const s = $('menu-weapons');
+    s.innerHTML = `<h2>💼 武器图鉴</h2>
+      <div class="wpn-note">${WEAPON_MANUAL_NOTE}</div>
+      <div class="wpn-list" id="wpn-list"></div>
+      <div class="menu-btns row"><button class="mbtn" id="wpn-back">← 返回</button></div>`;
+    $('wpn-back').onclick = () => this.show('menu-title');
+  }
+
+  renderWeapons() {
+    const list = $('wpn-list');
+    list.innerHTML = '';
+    const ammoText = (w) => w.ammo === Infinity ? '∞' : w.ammo === 0 ? '0（补给箱）' : String(w.ammo);
+    for (const w of WEAPONS.filter(x => !x.hidden)) {
+      const manual = WEAPON_MANUAL[w.id] || { desc: '', stats: [] };
+      const card = el('div', 'wpn-card');
+      card.innerHTML = `
+        <div class="wpn-icon">${w.icon}</div>
+        <div class="wpn-main">
+          <div class="wpn-name">${w.name}<span class="wpn-ammo">弹药 ${ammoText(w)}</span></div>
+          <div class="wpn-desc">${manual.desc}</div>
+          <div class="wpn-stats">${manual.stats.map(([k, v]) => `<span class="wpn-stat">${k} <b>${v}</b></span>`).join('')}</div>
+        </div>`;
+      list.appendChild(card);
+    }
   }
 
   // ---------------- 教学 ----------------

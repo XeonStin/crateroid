@@ -131,6 +131,22 @@ export class HUD {
 
   powerHide() { this.$('power-wrap').classList.add('hidden'); }
 
+  // ---------------- 终局电影化层 ----------------
+  // 影院黑边滑入/滑出（纯表现）
+  setCinema(on) {
+    this.$('cinema-top')?.classList.toggle('on', !!on);
+    this.$('cinema-bottom')?.classList.toggle('on', !!on);
+  }
+
+  // 命中白闪：重启动画（重复触发时先摘类再强排）
+  flash() {
+    const el = this.$('flash');
+    if (!el) return;
+    el.classList.remove('on');
+    void el.offsetWidth;
+    el.classList.add('on');
+  }
+
   setFuel(fuel) {
     const wrap = this.$('fuel-wrap');
     if (!fuel || fuel <= 0) {

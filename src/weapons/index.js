@@ -55,6 +55,18 @@ export function fireWeapon(game, worm, weaponId, angle, power, targetX, opts = {
 
   // 常规抛射
   game.consumeAmmo(worm, weaponId);
+  if (game.armCinematicLaunch?.(worm, weaponId, angle, power)) {
+    // 终结弹/高光弹：镜头先缓推到发射虫特写，真实弹丸由导演在镜头就位后补发
+    game.afterFire(worm, true);
+    return false;
+  }
+  spawnLobbed(game, worm, weaponId, angle, power);
+  game.afterFire(worm, true);
+  return false;
+}
+
+// 抛射弹丸创建（fireWeapon 与终局导演的「镜头就位后补发」共用）
+export function spawnLobbed(game, worm, weaponId, angle, power) {
   const m = muzzlePos(worm, angle);
   const v = launchVelocity(angle, power);
   const p = new Projectile({
@@ -65,8 +77,7 @@ export function fireWeapon(game, worm, weaponId, angle, power, targetX, opts = {
   game.projectiles.push(p);
   worm.recoilT = 0.25;
   game.sfx('shoot');
-  game.afterFire(worm, true);
-  return false;
+  return p;
 }
 
 // 散弹枪：瞬发 5 颗弹丸（锥形散布），每颗独立判虫/判地形，
@@ -78,6 +89,8 @@ function shotgunBlast(game, worm, w, angle, power = 1) {
   const pellets = w.pellets || 5;
   const spread = (w.spread || 5) * (1.3 - 0.8 * Math.max(0, Math.min(1, power)));
   let anyWormHit = false, enemyHits = 0;
+  const enemies0 = game.worms.filter(o => o.team !== worm.team && o.alive).length;
+  let lastHitX = null, lastHitY = null;
   for (let i = 0; i < pellets; i++) {
     const a = (angle + (Math.random() - 0.5) * 2 * spread) * Math.PI / 180;
     const dx = Math.cos(a), dy = -Math.sin(a);
@@ -104,6 +117,7 @@ function shotgunBlast(game, worm, w, angle, power = 1) {
       hitWorm.applyKnockback(dx * w.kb, dy * w.kb - 25);
       game.particles.sparkle(ex, ey, 0xffe9a8, 3);
       anyWormHit = true;
+      lastHitX = ex; lastHitY = ey;
       if (worm.team === 0 && hitWorm.team === 1) enemyHits++;
     } else if (hitT < w.range) {
       // 地形破坏：小弹孔
@@ -117,6 +131,11 @@ function shotgunBlast(game, worm, w, angle, power = 1) {
   if (worm.team === 0 && enemyHits >= pellets) game.ach('full_pellets');
   if (anyWormHit) {
     game.sfx('hurt');
+  }
+  // 一击多杀（散弹一轮齐射放倒 2+ 敌人）→ 高光镜头
+  const enemies1 = game.worms.filter(o => o.team !== worm.team && o.alive).length;
+  if (enemies0 - enemies1 >= 2) {
+    if (!game._maybeHighlight(lastHitX ?? worm.x, lastHitY ?? worm.y, { multikill: true })) game.slowMo(0.24);
   }
   game.camShake(3);
 }

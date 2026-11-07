@@ -56,8 +56,8 @@ vendor/pixi/*.bin                PixiJS 分片（12 片，importmap 映射 'pixi
 - **主循环**：`app.ticker` 驱动固定步长 1/60，累积器最多 6 步/帧；不以 `document.hidden` 门控（WebView 会误报）；rAF 停转 >400ms 用 `setInterval` 补步进。
 - **物理自研**：重力 900、风、圆碰撞；投射物每步 4 子步。
 - **地形**：`mask: Uint8Array(W*H)` 为唯一权威；渲染层 6 块瓦片（600×675），爆炸只重画相交瓦片并 `texture.source.update()`。装饰物烘焙在纹理里，随地形一起被炸掉。
-- **AI**：`makeSim()` 复制掩码 + 虫虫状态 → 与真实投射物共用 `Projectile.step` → 网格候选（角度×力度）× 迭代细化 → 评分（敌伤 − 2.2×友伤 − 1.9×自伤 + 击杀 + 落点靠近敌人）。分帧 10 次模拟/步，困难档加走位/撤退，普通档每虫首发噪声 ×2.5，AI 顺路（≤90px）会去捡补给箱。
-- **回合状态机**：`turnStart → active → projectile（含 5s 撤退）→ postturnWait → nextTurn`；看门狗 10s 强制推进。
+- **AI**：`makeSim()` 复制掩码 + 虫虫状态 → 与真实投射物共用 `Projectile.step` → 网格候选（角度×力度）× 迭代细化 → 评分（敌伤 − 2.2×友伤 − 1.9×自伤 + 击杀 + 落点靠近敌人）。分帧 10 次模拟/步，困难档加走位/撤退，普通档每虫首发噪声 ×2.5，AI 顺路（≤90px）会去捡补给箱。**最优分 < 4（打空且没接近任何敌人）绝不发射**：先向敌人走位一次，走不动就跳过回合——否则被地形卡死的 AI 会朝反方向白给 0 分弹。
+- **回合状态机**：`turnStart → active → projectile（含 5s 撤退）→ postturnWait → nextTurn`；看门狗 10s 强制推进。任一队全灭时 `_updateState` 顶部的终局拦截取代所有状态（慢镜头收尾后结算，见坑 41）。
 - **教学系统**：`TUTORIALS` 每课由若干 `stages` 组成（每关可换地形/靶子/弹药），`TutorialDirector` 逐条检查 `steps[].check`；右侧 `#tut-panel` 常驻显示步骤、键位、当前目标，不自动消失；完成后由目标达成推进/切场景，不靠 `_checkWin`。教学/练习模式强制 `team=0`（没有靶子回合）、回合无限时、无突死；靶子可 `respawn`（死亡 2s 后原地复活）。多场景课程可设 `skippable:true`，面板头部出现「跳过场景」（最后一关隐藏）。
 - **存档**：`localStorage['crateroid.save.v1']`，`loadSave()` 深合并默认值。
 
@@ -133,10 +133,15 @@ vendor/pixi/*.bin                PixiJS 分片（12 片，importmap 映射 'pixi
 34. **冰面打滑是独立分支**：`Worm.step` 地面移动 `if (slide) {vx 积分} else if (walkDir) {瞬时定位}`，非 slide 主题绝不能并入 vx 路径（瞬时定位是有意行为）。冰面落地/冲刺结束要保留 `vx`（惯性滑行），普通地面落地仍清零。
 35. **油桶不进 AI 模拟**（同奶牛挖地先例）；散弹枪没有爆炸结算，点燃油桶必须在 `shotgunBlast` 弹着点显式判距；油桶引爆统一走 `game.drumExplode`（先取 x/y/attacker 再 destroy，explode 内部还会点燃相邻桶形成连锁）。
 36. **confirmTarget 的 targetY 走 opts 透传**：传送需要点击 y（洞内/岛上落点判定）；AI 调 `fireWeapon` 不带 opts 的路径必须保持兼容。传送失败在 `confirmTarget` 前置拦截（不退出标记模式、不扣弹药），`fireWeapon` 的 teleport 分支只做结算。
-37. **timeScale 只能乘在 main.js 累积器上**（`acc += dt * game.timeScale`）：固定步长、6 步 guard、后台 catch-up（直调 update）都不能变；`_slowT` 按游戏秒递减。camera punch 是 applyTo 里的纯渲染乘算偏移，禁碰 `tzoom`（会污染用户缩放）。
+37. **timeScale 慢镜头走 main.js 的「细分固定步」**：`step = FIXED * ts`，`acc += dt * ts`，`while (acc >= step) game.update(step)`——慢放时每真实帧仍有 ~60 次步进（dt 变小），世界连续推进不抽帧；ts=1 时与固定步长完全一致。所有物理/计时都是 dt 连续的，但 worm.updateView 的 squash/blink/stun 按「每次调用 -1/60」衰减（慢放时按真实秒走，可接受）。后台 catch-up 仍直调 update(FIXED)。camera punch 是 applyTo 里的纯渲染乘算偏移，禁碰 `tzoom`（会污染用户缩放）；cinema 模式只放缓**缩放**缓动，位置缓动保持标准——太软会跟丢弹丸。
 38. **Projectile 形状必须在构造器里定全**：`directHit/ghostPts/_ghostTick` 等若在飞行中动态添加（如命中虫时才写 `this.directHit = true`），会让 AI 模拟热子步循环的隐藏类迁移、整体退化多态——实测单次 `simulateShot` 从 41µs 涨到 142µs（3.5 倍），整局均值 0.05→0.19ms。新增投射物字段一律在构造器初始化（`ghostPts = []` 而非 null，采样处直接 push）。性能 A/B 时注意：页面上残留的 monkey-patch（如 `g.windAccel = () => 0`）会跨 evaluate 存活并污染测量（无风=最长滞空=最贵模拟），测性能前必须 reload。
 39. **AI 候选必须互相隔离**：`simulateShot` 会击退/位移 `sim.worms`（爆炸击退 + settleWorm 落体），入口快照、出口还原（dmgMap 按 id 记账不受影响）。删掉还原会让同一轮搜索的后序候选在「被前序候选炸歪的阵型」上评分——实测同 sim 复放同参数弹伤害 36.8→35.2，且被炸飞的虫让后续模拟反复跑满 settleWorm。这与 SimTerrain 保持掩码不变是同一条设计约束（「每个候选都从同一初始世界出发」），两半缺一不可。另外整局均值是种子/对局构成强相关的：hard AI 实测 95~123µs（搜索相位占 8~15%、630~970µs/步），评估性能要同种子 + stash A/B。
 40. **阵风 HUD 节流必须按「与上次显示值的累计差」**：沙漠阵风缓动的单步增量最大 ~0.0045（target 与 wind 差 ≤0.18 × dt×1.5），按单步差判断（曾用 0.015/0.008）永远不触发，表现为整个回合 HUD 风向冻在开局值。现在 `_updateGust` 维护 `_windShown`（nextTurn/startMatch 重置为当前风），累计差 >0.03 才写 DOM；收敛末段（<0.004）吸附到 `_gustTarget`。弹道预览同理：aimUI/traj key 必须含 `windAccel`，否则阵风时预览点阵是过期弹道。
+41. **两级电影镜头在 `_updateState` 顶部拦截状态机**：`_cinemaLevel` = `'finale'`（全灭终局：aftermath 放完 → postturnWait 结算）或 `'highlight'`（高光：远距直击 ≥600px / 精准贴爆 ≤22px 且**飞行轨迹长度** ≥300px（`Projectile.pathLen` 弦长累加，高抛大弧线也算） / 一击多杀 → 紧凑慢放后 `_endCinema` **恢复正常流转**，6s 冷却防连发）。阶段机 `prelaunch(缓推发射特写) → flight(节拍变速跟弹) → aftermath(慢放) → linger(定格)`。要点：
+  - `armCinematicLaunch` 在 fireWeapon **创建弹丸之前**调用（返回级别或 null），预测命中则接管发射——真实弹丸由拦截器在预热结束后 `spawnLobbed` 补发（预热期 `projectiles` 必须为空）；散弹/实爆路径走 `_maybeHighlight` / `_realizeHighlightBlast`（预测高光的弹真的爆了要切 aftermath，否则直接跳到恢复没有 payoff）；`afterFire` 的 retreatLeft 带 `(this._finale && this._cinemaLevel === 'finale')` 守卫——**高光必须保留撤退窗口**。
+  - 飞行节拍按预测命中时刻倒推（`simulateShot` 返回 `flightTime/directHit`）：发射/临爆 0.1x、巡航 finale 0.3x / highlight 0.38x；预测落空（阵风漂移）→ 弹尽+场面安静即 `_endCinema`（缩放/黑边/原速全还原）。
+  - 全部 `_finale*/_cinema*` 字段必须 startMatch 重置；endMatch 兜底关黑边/运镜。飞行期弹丸短暂离屏是相机边界钳制（镜头不出世界、天空余量 220px），不是跟丢。
+  - 预测只认飞行确定的弹种（`FINALE_PREDICT_WEAPONS`，集束/散弹散布随机、空袭/奶牛走飞机）；空投/子雷/奶牛/油桶的精准贴爆判定被轨迹长度阈值天然排除（子雷/空投弹出膛点就在目标附近）；`armCinematicLaunch` 的 makeSim 复用 `_simMask`——AI 开火时 brain 已 retreat/finished 不再读 sim，安全。
 
 ## 发布
 

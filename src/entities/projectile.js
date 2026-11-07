@@ -45,6 +45,7 @@ export class Projectile {
     this.drillDepth = 0;
     this.cowBounces = this.weapon.bounces || 0;
     this.lastX = this.x; this.lastY = this.y;
+    this.pathLen = 0;                     // 飞行轨迹累计长度（高光「远距」判定用：弧线高抛也算飞得远）
     // 形状必须在构造器里定全：directHit/ghostPts 若飞行中动态添加，
     // 会让热子步循环的隐藏类迁移、整体退化为多态（实测 AI 单次模拟慢 3~5 倍）
     this.directHit = false;        // 直接命中虫体（explode 侧必暴击）
@@ -130,6 +131,7 @@ export class Projectile {
     if (this.mode === 'drill') { this.stepDrill(dt, terrain, waterY); return; }
 
     const sub = dt / SUBSTEPS;
+    const stepX0 = this.x, stepY0 = this.y;
     for (let i = 0; i < SUBSTEPS && this.alive; i++) {
       this.lastX = this.x; this.lastY = this.y;
       // 空气阻力轻微
@@ -183,6 +185,8 @@ export class Projectile {
       }
     }
 
+    // 轨迹长度：每步一段弦长累加（高抛的大弧线因此也算「飞得远」）
+    this.pathLen += Math.sqrt((this.x - stepX0) ** 2 + (this.y - stepY0) ** 2);
     // 已在子步里爆炸（例如奶牛最后一次弹跳）：不再更新拖尾/视图
     if (!this.alive) return;
 
@@ -288,6 +292,7 @@ export class Projectile {
     const speed = 130;
     const dy = speed * dt;
     this.drillDepth += dy;
+    this.pathLen += dy;
     const target = this.weapon.drill;
     terrain.drillColumn(this.x | 0, this.y, dy + 1, 9);
     this.y += dy;

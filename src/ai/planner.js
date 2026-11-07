@@ -83,6 +83,10 @@ export function simulateShot(sim, owner, weaponId, angle, power) {
   const dmgMap = new Map();
   // NaN：出界/落水的弹没有落点，scoreShot 的 Number.isFinite 会跳过落点接近分
   let endX = NaN, endY = NaN;
+  // 爆炸耗时（游戏秒）：终局预测用它排「临爆节拍」
+  let flightTime = 0;
+  let directHit = false; // 主弹是否直接命中虫体（高光判定用）
+  let pathLen = 0;       // 飞行轨迹长度（高光「远距」判定用；与真实弹同源累加）
 
   if (w.hitscan) {
     // 散弹枪射线
@@ -101,7 +105,7 @@ export function simulateShot(sim, owner, weaponId, angle, power) {
       if (ox * ox + oy * oy - proj * proj < (WORM_R + 4) ** 2) addDmg(dmgMap, o, w.dmg);
     }
     endX = sx + dx * t; endY = sy + dy * t;
-    return { dmgMap, endX, endY };
+    return { dmgMap, endX, endY, flightTime: 0, directHit: false, pathLen: 0 };
   }
 
   const m = muzzlePos({ x: owner.x, bodyY: owner.bodyY }, angle);
@@ -117,6 +121,8 @@ export function simulateShot(sim, owner, weaponId, angle, power) {
     p.simWorms = sim.worms;
     p.onExplode = (ex, ey, proj) => {
       endX = ex; endY = ey;
+      directHit = proj.directHit === true;
+      pathLen = proj.pathLen || 0;
       // 集束主爆按真实路径折减（game.projectileExplode: 0.6 径 / 0.5 伤）
       const isCl = !!proj.weapon.cluster;
       const r = isCl ? proj.weapon.radius * 0.6 : proj.weapon.radius;
@@ -160,6 +166,7 @@ export function simulateShot(sim, owner, weaponId, angle, power) {
     if (!any) break;
     for (const p of active) if (p.alive) p.step(1 / 60, sim.terrain, sim.windAccel, sim.waterY);
     t += 1 / 60;
+    if (endX === endX && endY === endY) flightTime = t; // onExplode 已记录落点 → 记爆炸耗时
   }
   for (const sw of sim.worms) settleWorm(sw, sim, dmgMap);
   // 还原阵型（dmgMap 按 id 记账，不受影响）
@@ -167,7 +174,7 @@ export function simulateShot(sim, owner, weaponId, angle, power) {
     const s = snap[i], t = sim.worms[i];
     t.x = s.x; t.y = s.y; t.vx = s.vx; t.vy = s.vy; t.alive = s.alive; t.flying = s.flying;
   }
-  return { dmgMap, endX, endY };
+  return { dmgMap, endX, endY, flightTime, directHit, pathLen };
 }
 
 // 评分：敌方收益 − 友方/自伤惩罚

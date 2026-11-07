@@ -7,8 +7,8 @@ export const WORLD_H = 1000;
 // 选「自定义」时用滑块在 500~2000 之间任调（选图界面）
 export const MAP_SIZES = {
   small:  { name: '小', w: 800, desc: '贴脸混战，一屏看完' },
-  medium: { name: '中', w: 1800, desc: '标准战场' },
-  large:  { name: '大', w: 2400, desc: '远程对轰，弹道空间更大' },
+  medium: { name: '中', w: 1200, desc: '标准战场' },
+  large:  { name: '大', w: 1800, desc: '远程对轰，弹道空间更大' },
 };
 export const MAP_W_MIN = 500;
 export const MAP_W_MAX = 2000;
@@ -51,6 +51,47 @@ export const WEAPONS = [
   { id: 'teleport', name: '传送',     icon: '🌀', ammo: 1, targeting: true, teleport: true },
 ];
 export const WEAPON_BY_ID = Object.fromEntries(WEAPONS.map(w => [w.id, w]));
+
+// ---------------- 武器图鉴（说明页文案；数值行逐条手写以便组合展示） ----------------
+export const WEAPON_MANUAL_NOTE = '直接命中虫体必暴击（×1.6）· 爆炸另有 7% 概率暴击 · 引爆油桶会连锁殉爆';
+export const WEAPON_MANUAL = {
+  bazooka: {
+    desc: '万金油直射弹。弹道受风影响，直接命中虫体必暴击。',
+    stats: [['伤害', '48'], ['爆炸半径', '46px'], ['弹药', '∞'], ['特性', '受风影响']],
+  },
+  grenade: {
+    desc: '3 秒引信，碰墙/碰虫会弹跳。可以滚进坑里，炸掩体后面的敌人。',
+    stats: [['伤害', '44'], ['爆炸半径', '42px'], ['引信', '3.0s'], ['弹药', '∞'], ['特性', '弹跳']],
+  },
+  cluster: {
+    desc: '飞行中分裂成 5 颗子雷，覆盖一大片区域，清场/挖坑两用。',
+    stats: [['主爆炸', '26'], ['子雷', '24 ×5'], ['爆炸半径', '30px'], ['引信', '2.2s'], ['弹药', '2'], ['特性', '分裂']],
+  },
+  shotgun: {
+    desc: '瞬发 5 弹丸扇形散布，每颗都能削土。蓄力收束散布（满力 2.75°），贴脸全中是爆发神技。',
+    stats: [['单丸伤害', '11 ×5'], ['射程', '260px'], ['每回合', '2 发'], ['弹药', '3'], ['特性', '瞬发 · 挖地']],
+  },
+  airstrike: {
+    desc: '点击地图标记，运输机沿航线投下 5 枚炸弹。无视地形阻挡，远程打击首选。',
+    stats: [['单弹伤害', '32 ×5'], ['爆炸半径', '36px'], ['弹药', '2'], ['特性', '范围标记']],
+  },
+  driller: {
+    desc: '钻入地形 90px 后再爆炸。不受风影响，隔山打牛、掘地三尺。',
+    stats: [['伤害', '30'], ['爆炸半径', '24px'], ['钻地深度', '90px'], ['弹药', '2'], ['特性', '钻地 · 免风']],
+  },
+  holy: {
+    desc: '毁天灭地的大当量手雷，半径 84px。注意别把自己搭进去。',
+    stats: [['伤害', '78'], ['爆炸半径', '84px'], ['引信', '3.0s'], ['弹药', '0（补给箱）'], ['特性', '弹跳 · 超大半径']],
+  },
+  cow: {
+    desc: '点击地图标记落点，奶牛从天而降连续踩踏 5 次，边踩边挖坑，把敌人带进坑里。',
+    stats: [['单次踩踏', '26 ×5'], ['爆炸半径', '40px'], ['弹药', '0（补给箱）'], ['特性', '5 连踩 · 挖地']],
+  },
+  teleport: {
+    desc: '点击地图任意可站立点瞬移（消耗回合）。上浮岛、下洞底、脱离包围全靠它。',
+    stats: [['弹药', '1（每队）'], ['特性', '瞬移']],
+  },
+};
 // 内部隐藏弹种（不在武器栏出现）
 WEAPON_BY_ID.bomblet = { id: 'bomblet', name: '子雷', icon: '•', hidden: true, ammo: 0, wind: 0.4, gravity: 1, bounce: false, radius: 26, dmg: 24 };
 WEAPON_BY_ID.bomb = { id: 'bomb', name: '航空炸弹', icon: '•', hidden: true, ammo: 0, wind: 0.3, gravity: 1, bounce: false, radius: 36, dmg: 32 };
@@ -138,6 +179,29 @@ export const TEAM_INFO = [
 // 暴击：爆炸有概率打出 1.6 倍伤害
 export const CRIT_CHANCE = 0.07;
 export const CRIT_MULT = 1.6;
+
+// ---------------- 终局慢镜头（电影化：节拍式变速 + 运镜） ----------------
+export const FINALE_ZOOM = 1.7;           // 终局特写缩放（手机自动降到 1.45）
+export const FINALE_PRELAUNCH_TS = 0.4;   // 预热推镜：时间倍率
+export const FINALE_PRELAUNCH_T = 0.28;   // 预热时长（游戏秒）——镜头缓推到发射虫特写
+export const FINALE_BEAT_TS = 0.1;        // 关键节拍（发射瞬间/临爆）时间倍率
+export const FINALE_LAUNCH_HOLD = 0.16;   // 发射节拍持续（游戏秒；缓动下稍加长保证俯冲可读）
+export const FINALE_IMPACT_WINDOW = 0.15; // 临爆节拍提前量（游戏秒，按预测命中时刻倒推）
+export const FINALE_CRUISE_TS = 0.6;      // 飞行巡航时间倍率
+export const FINALE_FLIGHT_WIDE_ZOOM = 0.8; // 巡航段拉宽视野（看全弹道，弹丸不出画）
+export const FINALE_AFTERMATH_TS = 0.15;  // 爆炸/倒地慢放倍率
+export const FINALE_AFTERMATH_T = 0.5;    // 慢放时长（游戏秒）
+export const FINALE_LINGER_T = 0.6;       // 特效结束后的定格缓冲（游戏秒）
+
+// ---------------- 高光时刻（非终局的高难命中同样给电影镜头） ----------------
+export const HIGHLIGHT_DIRECT_DIST = 600;   // 远距直接命中：飞行轨迹长度阈值 px（高抛大弧线也算）
+export const HIGHLIGHT_NEAR_DIST = 22;      // 精准贴爆：爆心距敌人体中心 px
+export const HIGHLIGHT_NEAR_MIN_SHOT = 300; // 贴爆的最短轨迹长度 px（排除近身白给）
+export const HIGHLIGHT_CRUISE_TS = 0.6;     // 高光飞行巡航倍率（与终局同拍，仅时长更短）
+export const HIGHLIGHT_AFTERMATH_TS = 0.15; // 高光爆炸慢放倍率
+export const HIGHLIGHT_AFTERMATH_T = 0.3;   // 高光慢放时长（游戏秒）
+export const HIGHLIGHT_LINGER_T = 0.35;     // 高光定格时长（游戏秒）
+export const HIGHLIGHT_CD = 6;              // 高光冷却（游戏秒），防连锁爆炸连发
 
 // ---------------- 成就 ----------------
 export const ACHIEVEMENTS = {

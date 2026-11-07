@@ -10,6 +10,7 @@ export class Camera {
     this.viewW = 1280; this.viewH = 720;
     this.shakeAmp = 0; this.shakeT = 0;
     this._punchT = 0; this._punchAmp = 0;
+    this._cinema = false;
     this.enabled = true;
   }
 
@@ -26,6 +27,10 @@ export class Camera {
     this.shakeAmp = Math.max(this.shakeAmp, amp);
     this.shakeT = 0.45;
   }
+
+  // 终局运镜模式：缩放的平滑系数放缓（推拉镜头缓入缓出）；
+  // 位置保持标准缓动——太软会让巡航跟弹末端跟不上弹丸
+  setCinema(on) { this._cinema = !!on; }
 
   // 爆炸 punch-in：纯渲染偏移（applyTo 乘算），绝不碰 tzoom——避免污染用户缩放
   punch(amp) {
@@ -71,10 +76,12 @@ export class Camera {
   }
 
   update(dt) {
-    const k = 1 - Math.pow(0.0015, dt); // 平滑系数
+    // 平滑系数：位置用标准缓动（跟弹要紧）；缩放在 cinema 模式放缓 → 推拉缓起缓收
+    const k = 1 - Math.pow(0.0015, dt);
+    const zk = 1 - Math.pow(this._cinema ? 0.05 : 0.0015, dt);
     this.x += (this.tx - this.x) * k;
     this.y += (this.ty - this.y) * k;
-    this.zoom += (this.tzoom - this.zoom) * k;
+    this.zoom += (this.tzoom - this.zoom) * zk;
     if (this.shakeT > 0) {
       this.shakeT -= dt;
       if (this.shakeT <= 0) this.shakeAmp = 0;

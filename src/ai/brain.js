@@ -209,7 +209,23 @@ export class AIBrain {
       if (r && (!best || r.score > best.score + 6)) best = r;
     }
     if (!best) { this.skipTurn(); return; }
-    if (best.score < -28) { this.skipTurn(); return; }
+    // 毫无收益的弹（≈0 分：打空且没接近任何敌人）绝不白给——
+    // 此前被卡在地形死角时会把 0 分弹朝反方向/地图边缘打出去（探针实测 bestScore 0.0）。
+    // 改为：先向敌人走位一次；走不动就明说观望
+    if (best.score < 4) {
+      if (!this.movedOnce) {
+        const spot = this.walkTowardEnemy();
+        if (spot !== null && Math.abs(spot - me.x) > 12) {
+          this.movedOnce = true;
+          this.walkTarget = spot;
+          this.timer = 0;
+          this.phase = 'move';
+          return;
+        }
+      }
+      this.skipTurn();
+      return;
+    }
 
     // 没有好机会 → 尝试向最近敌人走位再搜一次（每回合最多一次）
     if (best.score < 10 && !this.movedOnce) {
