@@ -132,9 +132,9 @@ function shotgunBlast(game, worm, w, angle, power = 1) {
   if (anyWormHit) {
     game.sfx('hurt');
   }
-  // 一击多杀（散弹一轮齐射放倒 2+ 敌人）→ 高光镜头
+  // 一击多杀（散弹一轮齐射放倒 2+ 敌人）→ 高光镜头；教学/练习不播慢镜头
   const enemies1 = game.worms.filter(o => o.team !== worm.team && o.alive).length;
-  if (enemies0 - enemies1 >= 2) {
+  if (enemies0 - enemies1 >= 2 && !game.tutorialLike) {
     if (!game._maybeHighlight(lastHitX ?? worm.x, lastHitY ?? worm.y, { multikill: true })) game.slowMo(0.24);
   }
   game.camShake(3);

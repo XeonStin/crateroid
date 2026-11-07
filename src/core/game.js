@@ -452,6 +452,8 @@ export class Game {
     if (a > 180) a = 180;
     if (a < 0) a = 0;
     cur.aimAngle = a;
+    // 越过头顶（90°）时同步转向，与 onAimMove/onStickMove 一致
+    cur.facing = Math.cos(a * Math.PI / 180) >= 0 ? 1 : -1;
     if (this.charging) this.hud.powerUpdate(this.chargePower, cur.aimAngle);
   }
 
@@ -897,8 +899,9 @@ export class Game {
         this.hud.banner('💥 双杀！', opts.origin.name);
         this.ach('double_kill');
       }
-      // 一击多杀 → 高光镜头（冷却/已在镜头中时退回普通慢镜头）
-      if (killed >= 2 && !realized && !this._maybeHighlight(x, y, { multikill: true })) this.slowMo(0.24);
+      // 一击多杀 → 高光镜头（冷却/已在镜头中时退回普通慢镜头）；教学/练习不播慢镜头
+      if (killed >= 2 && !realized && !this.tutorialLike
+        && !this._maybeHighlight(x, y, { multikill: true })) this.slowMo(0.24);
     }
     // 高光判定：远距直接命中 / 精准贴爆（按轨迹长度；空投/子雷/奶牛被长度天然排除或显式排除）
     if (!this._finale && opts.pathLen !== undefined) {
@@ -962,7 +965,6 @@ export class Game {
   damageWorm(worm, dmg, source, weaponId) {
     if (!worm.alive || dmg <= 0.5) return;
     const d = Math.max(1, Math.round(dmg));
-    const wasAlive = worm.alive;
     worm.hp = Math.max(0, worm.hp - d);
     // 教学/练习：学员不会被伤害打死（落水另有救援），避免卡关
     if (worm.team === 0 && this.tutorialLike && worm.hp <= 0) worm.hp = 1;
@@ -990,7 +992,7 @@ export class Game {
         }
       }
       if (worm.team === 0) this.matchStats.dmgTaken += d;
-      if (worm.hp <= 0 && wasAlive && source && source.team === 0 && worm.team === 1) this.matchStats.kills++;
+      if (worm.hp <= 0 && source && source.team === 0 && worm.team === 1) this.matchStats.kills++;
     }
     if (worm.hp <= 0) {
       // 击杀者嘲讽一句

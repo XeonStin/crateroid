@@ -16,8 +16,14 @@ export class Water {
 
   setLevel(y) { this.level = this.target = y; }
 
-  // 上涨 = 水面 y 减小；钳在 minLevel 防止全图淹没
-  rise(px) { this.target = Math.max(this.target - px, this.minLevel); }
+  // 上涨 = 水面 y 减小；尚未涨过突死上限时钳在 minLevel 防止全图淹没。
+  // 若关卡初始水位本就高于上限（target < minLevel），继续上涨、绝不钳回——
+  // 那会变成退水（坑 28 的同族语义反转）
+  rise(px) {
+    this.target = this.target > this.minLevel
+      ? Math.max(this.target - px, this.minLevel)
+      : this.target - px;
+  }
 
   update(dt) {
     this.t += dt;
