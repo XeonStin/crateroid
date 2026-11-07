@@ -838,8 +838,23 @@ export class Game {
   }
 
   explode(x, y, r, dmg, opts = {}) {
-    // 暴击：弹丸直接命中虫体必暴（技术奖励）；否则 7% 概率 1.6 倍
-    if (opts.directHit || (dmg >= 18 && Math.random() < C.CRIT_CHANCE)) {
+    // 暴击：弹丸直接命中虫体必暴（技术奖励）；否则 7% 概率——
+    // 且只在波及半径内真的有虫时才掷（空爆/油桶空炸不再凭空弹「暴击！」/刷成就）
+    let crit = false;
+    if (opts.directHit) {
+      crit = true;
+    } else if (dmg >= 18) {
+      const rr = r + C.WORM_R;
+      for (const w of this.worms) {
+        if (!w.alive) continue;
+        const dx = w.x - x, dy = w.bodyY - y;
+        if (dx * dx + dy * dy <= rr * rr) {
+          crit = Math.random() < C.CRIT_CHANCE;
+          break;
+        }
+      }
+    }
+    if (crit) {
       dmg = Math.round(dmg * C.CRIT_MULT);
       this.popup(x, y - 18, opts.directHit ? '💥 直接命中暴击！' : '💥 暴击！', 0xffd93d);
       this.particles.sparkle(x, y, 0xffd93d, 14);
