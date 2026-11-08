@@ -88,4 +88,128 @@ export const CHALLENGES = [
     waterY: 780, turnTime: 30, suddenDeathRound: 4,
     rankS: 4, rankSHp: 90, rankA: 6,
   },
+  {
+    id: 'c7', icon: '🏝️', name: '空中庭园',
+    desc: '敌人占据了层层升高的浮岛！只有火箭弹，练一手高弧线仰攻，炸碎平台还能让他们摔下来。',
+    theme: 'islands', seed: 52001, scene: 'skyGarden', difficulty: 'normal',
+    playerWorms: [
+      { x: 160, name: '园丁', color: '#4d96ff', hat: 'flower' },
+      { x: 280, name: '修枝工', color: '#6bd968', hat: 'cap' },
+    ],
+    enemies: [
+      { x: 620, y: 540, name: '花匠A', color: '#ef476f', hat: 'bow', hp: 55 },
+      { x: 1050, y: 450, name: '花匠B', color: '#f78c6b', hat: 'cap', hp: 55 },
+      { x: 850, y: 350, name: '首席园丁', color: '#9b5de5', hat: 'tophat', hp: 60 },
+    ],
+    ammoPlayer: { grenade: 0, shotgun: 0, cluster: 0, airstrike: 0, driller: 0 },
+    waterY: 852, noSuddenDeath: true, noCrates: true,
+    rankS: 3, rankSHp: 160, rankA: 5,
+  },
+  {
+    id: 'c8', icon: '🌉', name: '双子尖塔',
+    desc: '守卫就站在那座薄桥上——桥可很薄哦。轰断它，剩下的塔顶残敌再慢慢解决。',
+    theme: 'islands', seed: 52002, scene: 'twinTowers', difficulty: 'normal',
+    playerWorms: [
+      { x: 160, name: '爆破手', color: '#ff9f43', hat: 'bandana' },
+      { x: 570, y: 260, name: '登塔兵', color: '#ffd93d', hat: 'helmet' },
+    ],
+    enemies: [
+      { x: 820, y: 300, name: '桥哨A', color: '#ef476f', hat: 'cap', hp: 45 },
+      { x: 1010, y: 300, name: '桥哨B', color: '#f78c6b', hat: 'bow', hp: 45 },
+      { x: 1230, y: 260, name: '塔主', color: '#9b5de5', hat: 'tophat', hp: 70 },
+    ],
+    ammoPlayer: { shotgun: 0, cluster: 0, airstrike: 0, driller: 0, grenade: 3 },
+    waterY: 852, noSuddenDeath: true, noCrates: true,
+    rankS: 3, rankSHp: 150, rankA: 5,
+  },
+  {
+    id: 'c9', icon: '⛏️', name: '熔岩矿井',
+    desc: '岩浆就在最底层翻涌，突死一来它还会疯涨！赶在被淹没之前，把矿井里的敌人清干净。',
+    theme: 'lava', seed: 52003, scene: 'lavaMine', difficulty: 'hard',
+    playerWorms: [
+      { x: 180, name: '矿工', color: '#ff5a2a', hat: 'helmet' },
+      { x: 320, name: '钻头', color: '#ffd93d', hat: 'bandana' },
+    ],
+    enemies: [
+      { x: 700, y: 560, name: '监工', color: '#ef476f', hat: 'tophat', hp: 55 },
+      { x: 800, y: 700, name: '坑底鬼', color: '#f78c6b', hat: 'helmet', hp: 55 },
+      { x: 1320, name: '矿主', color: '#9b5de5', hat: 'tophat', hp: 60 },
+    ],
+    ammoPlayer: { shotgun: 0, airstrike: 0, driller: 0, grenade: 2, cluster: 1 },
+    waterY: 840, suddenDeathRound: 2, noCrates: true,
+    // 突死 r2 全员压到 25HP → hpLeft 上限 50；S=3 回合内清场且突死后毫发无伤
+    rankS: 3, rankSHp: 50, rankA: 5,
+  },
+  {
+    id: 'c10', icon: '🏔️', name: '雪线天梯',
+    desc: '六级梯田直上峰顶，冰面打滑、狂风大作。爬得越高，站得越稳——或者干脆在谷底把他们轰下去。',
+    theme: 'snow', seed: 52004, scene: 'summit', difficulty: 'normal',
+    playerWorms: [
+      { x: 100, name: '登山者', color: '#ffffff', hat: 'cap' },
+      { x: 200, name: '向导', color: '#4d96ff', hat: 'helmet' },
+    ],
+    enemies: [
+      { x: 400, name: '山腰哨', color: '#ef476f', hat: 'bandana', hp: 60 },
+      { x: 900, name: '岩壁哨', color: '#f78c6b', hat: 'cap', hp: 60 },
+      { x: 1500, name: '峰顶王', color: '#9b5de5', hat: 'tophat', hp: 60 },
+    ],
+    ammoPlayer: { shotgun: 0, cluster: 0, airstrike: 0, driller: 0, grenade: 2 },
+    waterY: 858, noSuddenDeath: true, noCrates: true,
+    rankS: 3, rankSHp: 150, rankA: 5,
+  },
+  {
+    id: 'c11', icon: '🛢️', name: '油桶地狱',
+    desc: '敌人把军火库堆在了仓库地板上。别一个个点名——找准一只桶，看连锁殉爆替你收尾。',
+    theme: 'desert', seed: 52005, scene: 'drumDepot', difficulty: 'normal',
+    playerWorms: [
+      { x: 140, name: '纵火犯', color: '#ff9f43', hat: 'bandana' },
+      { x: 260, name: '点火员', color: '#ff6b81', hat: 'cap' },
+    ],
+    enemies: [
+      { x: 900, y: 600, name: '库管A', color: '#ef476f', hat: 'helmet', hp: 45 },
+      { x: 1260, y: 600, name: '库管B', color: '#f78c6b', hat: 'cap', hp: 45 },
+      { x: 1700, name: '瞭望塔', color: '#9b5de5', hat: 'tophat', hp: 60 },
+    ],
+    ammoPlayer: { grenade: 0, shotgun: 0, airstrike: 0, driller: 0, cluster: 2 },
+    // 引信桶列：60px 间距铺满仓库地板，从两只库管两侧 30px 处穿过——
+    // 一发入链 → 全库殉爆收走两只库管；瞭望塔在链外，需补一发直击
+    drumSpots: [640, 700, 760, 820, 870, 930, 990, 1050, 1110, 1170, 1230, 1290],
+    waterY: 895, noSuddenDeath: true, noCrates: true,
+    rankS: 2, rankSHp: 120, rankA: 4,
+  },
+  {
+    id: 'c12', icon: '🥌', name: '冰壶大师',
+    desc: '敌人个个皮糙肉厚，散弹打不动他们——但冰面够滑、水洞够多。推开他们，别炸他们。',
+    theme: 'snow', seed: 52006, scene: 'iceRink', difficulty: 'normal',
+    playerWorms: [
+      { x: 120, name: '冰壶手', color: '#4d96ff', hat: 'cap' },
+      { x: 240, name: '刷冰员', color: '#ffffff', hat: 'bow' },
+    ],
+    enemies: [
+      { x: 620, name: '冰墩A', color: '#ef476f', hat: 'helmet', hp: 110 },
+      { x: 1020, name: '冰墩B', color: '#f78c6b', hat: 'helmet', hp: 110 },
+      { x: 1500, name: '冰墩C', color: '#9b5de5', hat: 'helmet', hp: 110 },
+    ],
+    ammoPlayer: { bazooka: 0, grenade: 0, cluster: 0, airstrike: 0, driller: 0, teleport: 0, shotgun: 6 },
+    ammoEnemy: { bazooka: 0, grenade: 0, cluster: 0, airstrike: 0, driller: 0, teleport: 0, shotgun: 6 },
+    waterY: 700, noSuddenDeath: true, noCrates: true,
+    rankS: 3, rankSHp: 170, rankA: 4,
+  },
+  {
+    id: 'c13', icon: '🏰', name: '围城攻坚',
+    desc: '守军缩在城堡里，箭窗就是他们的火力点。钻地弹凿墙、手雷塞窗，或者干脆把城堡炸塌一半。',
+    theme: 'desert', seed: 52007, scene: 'fortress', difficulty: 'hard',
+    playerWorms: [
+      { x: 140, name: '攻城锤', color: '#ff9f43', hat: 'helmet' },
+      { x: 280, name: '云梯手', color: '#6bd968', hat: 'bandana' },
+    ],
+    enemies: [
+      { x: 880, y: 860, name: '弩手A', color: '#ef476f', hat: 'cap', hp: 60 },
+      { x: 980, y: 860, name: '弩手B', color: '#f78c6b', hat: 'bow', hp: 60 },
+      { x: 920, y: 380, name: '城主', color: '#9b5de5', hat: 'tophat', hp: 50 },
+    ],
+    ammoPlayer: { shotgun: 0, cluster: 0, airstrike: 0, grenade: 4, driller: 2 },
+    waterY: 895, noSuddenDeath: true, noCrates: true,
+    rankS: 3, rankSHp: 170, rankA: 5,
+  },
 ];

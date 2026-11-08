@@ -20,9 +20,9 @@ export class Water {
   // 若关卡初始水位本就高于上限（target < minLevel），继续上涨、绝不钳回——
   // 那会变成退水（坑 28 的同族语义反转）
   rise(px) {
-    this.target = this.target > this.minLevel
-      ? Math.max(this.target - px, this.minLevel)
-      : this.target - px;
+    if (this.target > this.minLevel) this.target = Math.max(this.target - px, this.minLevel);
+    else if (this.target < this.minLevel) this.target -= px;
+    // target 恰好等于上限：停住（旧的 `> minLevel` 判断会在下一涨穿过去，全图淹没）
   }
 
   update(dt) {

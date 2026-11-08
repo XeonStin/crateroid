@@ -208,7 +208,22 @@ export class AIBrain {
       const r = this.tryShotgun();
       if (r && (!best || r.score > best.score + 6)) best = r;
     }
-    if (!best) { this.skipTurn(); return; }
+    if (!best) {
+      // 唯一可用武器超射程（如只剩散弹而敌人在 235px 外）也会走到这里——
+      // 与下面的 0 分弹同规则：先向敌人走位一次，走不动才跳过，否则原地无限快跳
+      if (this.weaponIds.length && !this.movedOnce) {
+        const spot = this.walkTowardEnemy();
+        if (spot !== null && Math.abs(spot - me.x) > 12) {
+          this.movedOnce = true;
+          this.walkTarget = spot;
+          this.timer = 0;
+          this.phase = 'move';
+          return;
+        }
+      }
+      this.skipTurn();
+      return;
+    }
     // 毫无收益的弹（≈0 分：打空且没接近任何敌人）绝不白给——
     // 此前被卡在地形死角时会把 0 分弹朝反方向/地图边缘打出去（探针实测 bestScore 0.0）。
     // 改为：先向敌人走位一次；走不动就明说观望

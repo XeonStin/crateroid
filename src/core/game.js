@@ -1200,6 +1200,18 @@ export class Game {
   spawnDrums() {
     if (this.tutorialLike) return; // 教学关地形是精摆的，不放
     const t = this.terrain;
+    // 挑战关可显式摆桶（drumSpots: [x,...]），做殉爆链设计；
+    // 允许贴着虫虫摆（引信从敌人两侧穿过），只挡重叠
+    const spots = this.challenge?.drumSpots;
+    if (spots?.length) {
+      for (const x of spots) {
+        const sy = t.findSurfaceY(x | 0, 0);
+        if (sy === null || sy > this.water.level - 30 || sy < 60) continue;
+        if (this.worms.some(w => Math.abs(w.x - x) < 25)) continue;
+        this.drums.push(new OilDrum(this, x, sy));
+      }
+      return;
+    }
     const count = t.W < 1000 ? 2 : t.W < 2000 ? 3 : 4;
     const seedBase = (this.matchConfig.seed | 0) || 12345;
     const rng = mulberry32(((seedBase * 7919 + 1)) >>> 0);

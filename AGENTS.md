@@ -43,7 +43,7 @@ src/
     brain.js                    难度人格：分帧搜索、走位、瞄准演出、撤退
   ui/hud.js                     对局 HUD（DOM）：计时/风/武器栏/力度条/横幅/结算/成就 toast
   ui/menus.js                   全部菜单：标题/组队/选图/教学/挑战/战绩/设置/暂停
-  levels/challenges.js          6 个挑战关卡数据
+  levels/challenges.js          13 个挑战关卡数据（c7 起可用 scene 自定义地形、drumSpots 精摆油桶）
   levels/tutorials.js           教学关卡数据：4 课分阶段步骤 + 练习靶场
   levels/tutorialScenes.js      教学专用地形覆写（深坑/武器场景/地形杀/补给高台/靶场）
 vendor/pixi-loader.js            PixiJS v8 运行时加载器（拼接 vendor/pixi/*.bin）
@@ -124,7 +124,7 @@ vendor/pixi/*.bin                PixiJS 分片（12 片，importmap 映射 'pixi
 25. **手机视口**：画布与相机尺寸以 `visualViewport` 为准；`#game-canvas` / `#hud` / `#touch-controls` / `#menus` 使用 `--vvw/--vvh`（JS 写入），不要改回 `resizeTo: window` / 100vh。部分手机浏览器地址栏伸缩不派发 `resize`，主循环每帧 `applyViewport()` 兜底。竖屏已支持：`Camera.minZoom/defaultZoom` 有独立分支；回合开始 `frameTurnCamera()` 按全部存活虫虫包围盒定缩放。
 26. **onZoom 签名**：`Input` 双指缩放传 `(mx,my,Δpx,true)`（continuous），`main.js` 接线必须原样转发第 4 参——丢掉会静默回落到旧的 1.13 离散档位，表现为「轻捏就猛跳/方向反了」。双指事件里两根手指各自触发一次 pinch 计算，exp 映射可累乘所以无需去重。
 27. **摇杆与蓄力状态**：`touch.js` 的 `resetStick()` 幂等，`updateInputMode()` 每次回合/模式切换都会调；`Game.onStickMove/onStickEnd` 都要求 `_chargeStyle==='stick'`，别把 `_humanControl` 的摆动条件从 `=== 'hold'` 改回 `!== 'drag'`（会把摇杆蓄力变成来回摆动）。蓄力摇杆松手一律发射（`onStickEnd` 只拦 `power<0.06` 的贴中心误触），别再把「死区内松手」当取消——取消只走「取消蓄力」按钮（`onAimCancel`）。
-28. **水面 level 语义**：`water.level/target` 是水面 y 坐标（y 向下为正），**上涨 = 数值变小**。`rise(px)` 内部做 `target = max(target - px, minLevel)`，别改回加法——加法是「退水」，与突死横幅相反（曾把突死做成逐回合退水）。`minLevel ≈ H*0.62` 防全图淹没。
+28. **水面 level 语义**：`water.level/target` 是水面 y 坐标（y 向下为正），**上涨 = 数值变小**。`rise(px)` 内部做 `target = max(target - px, minLevel)`，别改回加法——加法是「退水」，与突死横幅相反（曾把突死做成逐回合退水）。`minLevel ≈ H*0.62` 防全图淹没；**target 恰好等于 minLevel 时必须停住**（条件要写 `> minLevel` / `< minLevel` 双分支——旧的单一 `>` 判断会在涨到上限后的下一步穿过去继续涨，突死拖久了全图淹没，c9 曾因此 7 行动团灭）。
 29. **muzzlePos 角度约定**：角度 0=右 90=上，vy 用 `-sin`；`muzzlePos` 的 y 必须是 `bodyY - 6 - sin(a)*dist`。写成 `+sin` 时 90° 竖直向上的弹体生成在脚底，且炮口落入自身体碰撞半径——叠加 AI 模拟的发射者豁免失效（必须按 `worm.id === owner.id` 比较，模拟里虫虫是 SimWorm 副本，`===` 永不成立），30° 以上候选全部首子步自爆，AI 只会平射。弹道预览 `_drawTrajectory` 起点与真实发射同源走 `muzzlePos`，别再手写三角函数。
 30. **pointercancel 不是抬起**：系统手势/来电打断时 `pointercancel`/`touchcancel` 的语义是「终止但不触发动作」（与 canvas 侧 `Input._cancel` 一致）——蓄力摇杆的 cancel 绝不能走 `onStickEnd`（=发射），按钮的 cancel 不能触发冲刺/跳过；`Input._down` 里 `pointers.size > 2` 要冻结 `pinchDist`（置 0），否则抬回两指会用陈旧间距猛跳一次缩放。
 31. **后台补步只能固定步长**：rAF 停转兜底必须是 `for(i<10) game.update(FIXED)` 循环；单步 `update(FIXED*10)` 会让虫虫一帧下落 ~150px 穿透浮岛直接落水、投射物子步穿墙穿人。
