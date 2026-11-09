@@ -59,15 +59,26 @@ function settleWorm(w, sim, dmgMap) {
   for (let i = 0; i < 150; i++) {
     if (w.y > sim.waterY) { addDmg(dmgMap, w, 999); w.alive = false; return; } // 落水
     w.vy += GRAVITY * dt;
+    const y0 = w.y; // 与真实 Worm.step 同族的防穿透线扫描（高速单步可越过薄平台）
     w.x += w.vx * dt; w.y += w.vy * dt;
     w.vx *= airDecay;
     if (w.x < 12 || w.x > sim.terrain.W - 12) w.vx = 0;
-    if (w.vy > 0 && sim.terrain.isSolid(w.x, w.y)) {
-      let guard = 0;
-      while (sim.terrain.isSolid(w.x, w.y) && guard++ < 40) w.y -= 1;
-      // 摔伤参数与真实 Worm.step 保持一致（MAX_FALL_NO_DMG / FALL_DMG_K）
-      if (w.vy > MAX_FALL_NO_DMG) addDmg(dmgMap, w, (w.vy - MAX_FALL_NO_DMG) * FALL_DMG_K);
-      w.flying = false; return;
+    if (w.vy > 0) {
+      let landY = null;
+      if (sim.terrain.isSolid(w.x, w.y)) landY = w.y;
+      else {
+        for (let sy = Math.ceil(y0); sy <= Math.floor(w.y); sy++) {
+          if (sim.terrain.isSolid(w.x, sy)) { landY = sy; break; }
+        }
+      }
+      if (landY !== null) {
+        w.y = landY;
+        let guard = 0;
+        while (sim.terrain.isSolid(w.x, w.y) && guard++ < 40) w.y -= 1;
+        // 摔伤参数与真实 Worm.step 保持一致（MAX_FALL_NO_DMG / FALL_DMG_K）
+        if (w.vy > MAX_FALL_NO_DMG) addDmg(dmgMap, w, (w.vy - MAX_FALL_NO_DMG) * FALL_DMG_K);
+        w.flying = false; return;
+      }
     }
   }
   w.flying = false;
@@ -93,7 +104,7 @@ export function simulateShot(sim, owner, weaponId, angle, power) {
     const a = angle * Math.PI / 180;
     const dx = Math.cos(a), dy = -Math.sin(a);
     const sx = owner.x, sy = owner.bodyY - 6;
-    let t = Math.min(w.range, 240);
+    let t = w.range;
     for (let d = 6; d < t; d += 3) {
       if (sim.terrain.isSolid(sx + dx * d, sy + dy * d)) { t = d; break; }
     }

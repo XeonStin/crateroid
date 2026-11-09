@@ -38,6 +38,9 @@ export class Terrain {
     // 分块纹理：爆炸只更新脏瓦片，避免整图重传 GPU
     this.TILE_W = 600; this.TILE_H = 675;
     this.tiles = [];   // {canvas, ctx, sprite, x0, y0}
+    // 钻地弹瓦片重传节流：钻挖段先累积，攒够次数/爆炸时统一上传（见 drillColumn）
+    this._drillPend = null; // {cx, r, y0, y1}
+    this._drillAge = 0;
   }
 
   attach(container) {
@@ -318,6 +321,7 @@ export class Terrain {
   // ---------------- 破坏 ----------------
   // 圆形爆炸挖坑
   carve(cx, cy, r) {
+    this._flushDrill(); // 钻地弹钻完立即爆炸：先把累计的钻挖段画完，再画爆炸坑
     const { W, H, mask } = this;
     const x0 = Math.max(0, cx - r | 0), x1 = Math.min(W - 1, cx + r | 0);
     const y0 = Math.max(0, cy - r | 0), y1 = Math.min(H - 1, cy + r | 0);
@@ -368,9 +372,29 @@ export class Terrain {
         }
       }
     }
-    // 钻地弹每帧都会调到这里：没挖到实心像素时跳过瓦片重传（每块脏瓦片是一次全量 GPU 上传）
+    // 钻地弹每帧都会调到这里：没挖到实心像素时跳过瓦片重传。
+    // 钻进实心地后 changed 恒真（钻地的正常工作状态），逐帧重传 600×675 瓦片
+    // （一发 90px 钻 ≈ 41 帧 ≈ 数十 MB GPU 上传）——改为同列累积，每 4 帧画一次，
+    // 钻完爆炸时 carve()/_flushDrill() 兜底把尾段画完
     if (!changed) return;
-    this._damageTiles(cx - r - 1, y0, cx + r + 1, y1, (ctx) => {
+    const p = this._drillPend;
+    if (p && p.cx === cx && p.r === r) {
+      if (y0 < p.y0) p.y0 = y0;
+      if (y1 > p.y1) p.y1 = y1;
+    } else {
+      this._flushDrill();
+      this._drillPend = { cx, r, y0, y1 };
+    }
+    if (++this._drillAge >= 4) this._flushDrill();
+  }
+
+  // 把累计的钻挖段一次性画上（掩码已实时更新，这里只是补纹理）
+  _flushDrill() {
+    const p = this._drillPend;
+    if (!p) return;
+    this._drillPend = null; this._drillAge = 0;
+    this._damageTiles(p.cx - p.r - 1, p.y0, p.cx + p.r + 1, p.y1, (ctx) => {
+      const cx = p.cx, y0 = p.y0, y1 = p.y1, r = p.r;
       ctx.beginPath();
       ctx.roundRect(cx - r, y0, r * 2, y1 - y0, r);
       ctx.fill();

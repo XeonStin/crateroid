@@ -256,7 +256,7 @@ export class HUD {
         const pip = document.createElement('div');
         pip.className = 'pip' + (!w.alive ? ' dead' : '');
         if (w.alive) {
-          const pct = Math.max(0, w.hp) / 100;
+          const pct = Math.max(0, w.hp) / (w.maxHp || 100); // maxHp：>100HP 的 BOSS 血条别溢出
           pip.style.setProperty('--hp', (pct * 100) + '%');
           pip.style.setProperty('--hpc', pct > 0.6 ? '#6bd968' : pct > 0.3 ? '#ffd93d' : '#ff5a5a');
         }

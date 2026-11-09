@@ -108,6 +108,9 @@ export class Game {
     this._cinemaLevel = null; this._highlightCd = 0;
     this._finaleLaunch = null; this._finaleFocus = null;
     this._finaleLaunchAt = 0; this._finaleImpactAt = 0; this._finalePrevZoom = null;
+    // 表现层也复位：终局/高光镜头中重开一局或退回标题，黑边与运镜缓动会残留到下一局
+    this.camera.setCinema(false);
+    this.hud.setCinema(false);
     this.lastShotTrail = null; this.lastShotV = 0;
     this._ambientT = 0; this._gustT = 0; this._gustTarget = 0;
     this._windShown = 0;
@@ -236,6 +239,9 @@ export class Game {
 
   nextTurn(first = false) {
     this.turnCount++;
+    // 释放上一回合的 brain：否则 retreat 阶段被打断的残留 brain 会一直挂着，
+    // 玩家回合的 projectile 阶段（brain.phase === 'retreat' 分支）继续驱动上一只 AI 虫走位
+    this.brain = null;
     this.round = this.tutorialLike ? 1 : Math.floor((this.turnCount - 1) / 2) + 1;
     const team = this.tutorialLike ? 0 : (this.turnCount - 1) % 2;
 
@@ -310,6 +316,7 @@ export class Game {
     this.state = 'turnStart';
     this.turnTimer = this.tutorialLike ? Infinity : (this.stage?.turnTime ?? this.challenge?.turnTime ?? C.TURN_TIME);
     this.retreatLeft = 0;
+    this._lastTick = null; // 滴答音去重基准随回合重置：上一回合残留在 5..1s 时会吞掉本回合第一声
 
     cur.showArrow(true);
     this.frameTurnCamera(cur);
@@ -550,6 +557,16 @@ export class Game {
     this.ringAt(fx, fy - 8, 0xffd93d);
     this.camera.punch(0.06);
     this.camShake(7);
+    // 与 _beginAftermath 对称的收尾：冻结移动意图、收起蓄力/标记、暂停操作输入。
+    // 不清 shotsLeft / retreatLeft / state（高光结束要恢复原回合；坑 41：高光保留撤退窗口）
+    this.charging = false; this.chargePower = 0; this.slingshot = null; this._chargeStyle = null;
+    this.hud.powerHide();
+    this.cancelTargeting();
+    this._stopWormIntent(this.currentWorm);
+    this.hud.setControlsHint('');
+    this.touch?.resetStick();
+    this.touch?.setControlsEnabled(false);
+    this.input.mode = 'idle';
     return true;
   }
 
@@ -628,6 +645,7 @@ export class Game {
       this.stateTimer = 0.4;
     } else {
       this._highlightCd = this.time + C.HIGHLIGHT_CD;
+      this.updateInputMode(); // 高光触发时收掉了操作输入，这里随镜头结束恢复
     }
   }
 
@@ -761,6 +779,7 @@ export class Game {
 
   // 玩家跳过
   skipTurn() {
+    if (this._finale) return; // 电影镜头期间状态机被拦截，跳过会跳到镜头之外
     if (this.state !== 'active' || this.currentWorm?.isAI) return;
     this.say(this.currentWorm, '这回合先让给你们！');
     this._endTurnCommon();
@@ -860,7 +879,7 @@ export class Game {
       dmg = Math.round(dmg * C.CRIT_MULT);
       this.popup(x, y - 18, opts.directHit ? '💥 直接命中暴击！' : '💥 暴击！', 0xffd93d);
       this.particles.sparkle(x, y, 0xffd93d, 14);
-      this.ach('crit');
+      if (opts.origin?.team === 0) this.ach('crit'); // 成就只记玩家阵营的暴击（AI/油桶暴击不算）
     }
     this.terrain.carve(x, y, r);
     this.particles.explosion(x, y, r, this.dirtColor(), this.mobile);
@@ -1161,7 +1180,7 @@ export class Game {
     }
     if (crate.kind === 'health') {
       const heal = crate.payload?.heal ?? 25;
-      worm.hp = Math.min(100, worm.hp + heal);
+      worm.hp = Math.min(worm.maxHp ?? 100, worm.hp + heal); // maxHp：>100HP 的虫（BOSS）别越奶越少
       this.popup(worm.x, worm.bodyY - 26, `+${heal}`, 0x6bd968);
       this.hud.message(`❤️ ${worm.name} 回复 ${heal} HP`);
     } else if (crate.kind === 'weapon' && crate.payload) {
@@ -1171,7 +1190,7 @@ export class Game {
     } else if (crate.kind === 'tool') {
       worm.jetFuel = 100;
       this.hud.message(`🔧 ${worm.name} 获得喷气背包（起跳后按住跳跃推进）`);
-      this.touch?.setJetMode(true);
+      if (!worm.isAI) this.touch?.setJetMode(true); // AI 捡箱别去点亮玩家的手机喷气 UI
     } else if (crate.kind === 'kit' && crate.payload) {
       const g = crate.payload;
       if (g.weapons) {
@@ -1181,7 +1200,7 @@ export class Game {
       }
       if (g.jetFuel) {
         worm.jetFuel = Math.max(worm.jetFuel, g.jetFuel);
-        this.touch?.setJetMode(true);
+        if (!worm.isAI) this.touch?.setJetMode(true);
       }
       const got = [];
       if (g.jetFuel) got.push('🔧 喷气背包');
@@ -1549,7 +1568,10 @@ export class Game {
             this.touch?.setControlsEnabled(false);
           }
         }
-        const busy = this.projectiles.length > 0 || this.planes.length > 0;
+        const busy = this.projectiles.length > 0 || this.planes.length > 0
+          // 困难 AI 散弹枪/瞬发武器撤退：brain retreat 没走完前不算「空闲」，
+          // 否则 hitscan 开火下一步 busy=false 直接进 postturnWait，1.1s 撤退名存实亡
+          || !!(this.brain && this.brain.phase === 'retreat');
         const settled = this.worms.every(w => !w.alive || w.onGround || w.y > this.water.level);
         // 撤退时间必须给满：即使弹丸已落地，也要等玩家用完 5 秒撤退窗口
         if (!busy && settled && this.retreatLeft <= 0) {
@@ -1914,8 +1936,9 @@ export class Game {
       this.targetingWeapon || '-',
       this._targetMark ? `${Math.round(this._targetMark.x)}_${Math.round(this._targetMark.y)}` : '-',
       this.lastShotV,
-      // 风也在 key 里：沙漠阵风漂移时弹道预览必须跟着重算，否则点阵是过期弹道
-      Math.round(this.windAccel() * 50),
+      // 风也在 key 里：沙漠阵风漂移时弹道预览必须跟着重算，否则点阵是过期弹道。
+      // 量化 2px/s² 一档：阵风单步漂移 ~0.7px/s²，×50 的旧档位会让 key 每固定步失效
+      Math.round(this.windAccel() / 2),
     ].join('|');
     if (key === this._aimKey) return;
     this._aimKey = key;
@@ -1955,7 +1978,7 @@ export class Game {
     // 与真实发射同源：起点直接用 muzzlePos（修复前这里是手写 -sin，与旧 muzzlePos 的 +sin 不一致）
     const m = muzzlePos(cur, angle);
     // 缓存模拟结果：仅在角度/力度/风跨步变化时重新积分
-    const key = `${w.id}|${Math.round(angle * 2)}|${Math.round(power * 60)}|${Math.round(this.windAccel() * 50)}`;
+    const key = `${w.id}|${Math.round(angle * 2)}|${Math.round(power * 60)}|${Math.round(this.windAccel() / 2)}`;
     if (key !== this._trajKey || !this._trajM || Math.abs(this._trajM.x - m.x) > 2 || Math.abs(this._trajM.y - m.y) > 2) {
       this._trajKey = key;
       this._trajM = { x: m.x, y: m.y };

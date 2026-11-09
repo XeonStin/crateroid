@@ -124,6 +124,9 @@ export class TouchControls {
   _bindJoystick(base, h) {
     const knob = base.querySelector('.joy-knob');
     let pid = null, engaged = false, canceled = false;
+    // down 时缓存 rect：蓄力期间摇杆/取消按钮不动，免得每个 pointermove 各读一次
+    // getBoundingClientRect（60~120Hz 的无谓强制布局）
+    let baseRect = null, btnRect = null;
     const setKnob = (x, y) => { knob.style.transform = `translate(${x}px, ${y}px)`; };
     const reset = () => {
       pid = null; engaged = false; canceled = false;
@@ -132,7 +135,7 @@ export class TouchControls {
       this.setCancelArmed(false);
     };
     const local = (e) => {
-      const r = base.getBoundingClientRect();
+      const r = baseRect || (baseRect = base.getBoundingClientRect());
       return {
         dx: e.clientX - (r.left + r.width / 2),
         dy: e.clientY - (r.top + r.height / 2),
@@ -140,7 +143,7 @@ export class TouchControls {
       };
     };
     const rectOf = (el, pad) => {
-      const b = el.getBoundingClientRect();
+      const b = (el === this.btnCancel && btnRect) ? btnRect : el.getBoundingClientRect();
       return { l: b.left - pad, t: b.top - pad, r: b.right + pad, b: b.bottom + pad };
     };
     base.addEventListener('pointerdown', (e) => {
@@ -149,6 +152,8 @@ export class TouchControls {
       try { base.setPointerCapture(e.pointerId); } catch { /* */ }
       pid = e.pointerId;
       canceled = false;
+      baseRect = base.getBoundingClientRect();
+      btnRect = this.btnCancel ? this.btnCancel.getBoundingClientRect() : null;
       base.classList.add('active');
     });
     base.addEventListener('pointermove', (e) => {
@@ -175,11 +180,9 @@ export class TouchControls {
       if (engaged) h.onMove?.(dx, dy, r);
     });
     const up = (e) => {
-      if (e.pointerId !== pid) return;
+      if (e.pointerId !== pid) return; // 取消后 pid 已置 null：抬手在这里被拦下，绝不触发 onEnd
       const { dx, dy, r } = local(e);
-      const wasCanceled = canceled; // reset() 会把 canceled 置 false，先读后清
       reset();
-      if (wasCanceled) return;
       h.onEnd?.(dx, dy, r);
     };
     // 系统手势/来电打断（pointercancel）：终止但绝不能触发 onEnd——

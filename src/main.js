@@ -223,10 +223,12 @@ async function boot() {
     if (DEBUG) debugTick(dt);
   });
   // 兜底：rAF 停转（真后台/被节流）超过 400ms 时用定时器补步进
-  // 必须按固定步长逐步步进：单步 dt=1/6s 会让虫虫一帧下落 ~150px 直接穿透浮岛
+  // 必须按固定步长逐步步进：单步 dt=1/6s 会让虫虫一帧下落 ~150px 直接穿透浮岛。
+  // 只看 stalled：rAF 停转本身就是唯一信号；叠加 document.hidden 判断会让
+  // 「误报 hidden 但 rAF 正常」的 WebView 双重步进（ticker 60 步/s + 这里 40 步/s ≈ 1.67 倍速）
   setInterval(() => {
     const stalled = performance.now() - lastFrameAt > 400;
-    if ((stalled || document.hidden) && game.running && !game.paused && !menusVisible()) {
+    if (stalled && game.running && !game.paused && !menusVisible()) {
       lastFrameAt = performance.now();
       for (let i = 0; i < 10; i++) game.update(FIXED);
     }

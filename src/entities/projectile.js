@@ -40,10 +40,10 @@ export class Projectile {
     this.alive = true;
     this.onExplode = o.onExplode;
     this.game = o.game || null;
-    this.settled = false;          // 手雷类停稳
     this.mode = 'fly';             // fly | drill | cow
     this.drillDepth = 0;
     this.cowBounces = this.weapon.bounces || 0;
+    this.cowT = 0;                 // 奶牛弹跳动画计时（buildView 仅 cow 分支画外观，字段统一构造器定全）
     this.lastX = this.x; this.lastY = this.y;
     this.pathLen = 0;                     // 飞行轨迹累计长度（高光「远距」判定用：弧线高抛也算飞得远）
     // 形状必须在构造器里定全：directHit/ghostPts 若飞行中动态添加，
@@ -98,7 +98,6 @@ export class Projectile {
       c.circle(-17, -7, 1.2).fill(0x222233);
       c.circle(-13, -7, 1.2).fill(0x222233);
       g.addChild(c);
-      this.cowT = 0;
     } else { // bomblet
       const b = new PIXI.Graphics();
       b.circle(0, 0, 4).fill(0x885544);
@@ -144,6 +143,9 @@ export class Projectile {
       if (this.x < -50 || this.x > terrain.W + 50 || this.y > waterY) {
         if (this.y > waterY && this.game) this.game.splashAt(this.x, waterY);
         this.alive = false;
+        // 落水/出界的弹也要销毁视图（与 explode 同纪律）：否则每局打歪的弹
+        // 都会把 Container+Graphics 留在 layers.ents 里白渲染到开局
+        if (this.view) { this.view.destroy({ children: true }); this.view = null; }
         if (this.game) this.game.projectileGone(this);
         return;
       }
@@ -266,7 +268,7 @@ export class Projectile {
     this.vx *= 0.86; this.vy *= 0.9;
     const sp = Math.hypot(this.vx, this.vy);
     if (this.game) this.game.sfx('bounce');
-    if (sp < 58) { this.vx = 0; this.vy = 0; this.settled = true; }
+    if (sp < 58) { this.vx = 0; this.vy = 0; }
   }
 
   stepCowBounce(terrain, waterY) {
@@ -391,11 +393,13 @@ export class Plane {
         life: 0.5, size: 3.5, color: 0xdddddd, shrink: true,
       });
     }
-    // 投弹窗口
+    // 投弹窗口。投弹点序列按进场方向镜像：dir=-1（从右往左飞）先经过 dropEnd，
+    // 旧写法固定从 dropStart 递增排队，反向飞机只会投出第 1 枚
     const dropStart = this.dropX - 60, dropEnd = this.dropX + 60;
     const n = 5;
     if (this.x > dropStart && this.x < dropEnd && this.dropped < n) {
-      if (Math.abs(this.x - (dropStart + (dropEnd - dropStart) * (this.dropped / (n - 1)))) < 12) {
+      const idx = this.dir > 0 ? this.dropped : (n - 1 - this.dropped);
+      if (Math.abs(this.x - (dropStart + (dropEnd - dropStart) * (idx / (n - 1)))) < 12) {
         this.dropped++;
         this.game.spawnAirstrikeBomb(this.x, this.y + 8, this.dir, this.owner);
       }

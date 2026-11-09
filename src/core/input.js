@@ -272,7 +272,8 @@ export class Input {
         }
       }
       this._tapStart = null;
-      this._panning = null;
+      // 双指捏合/平移后抬起一指：剩余一指接管平移（否则它既不能平移也不能轻点，等于失灵）
+      this._panning = this.pointers.size === 1 ? [...this.pointers.values()][0] : null;
     } else {
       if (this._mouseCharge) {
         this._mouseCharge = false;

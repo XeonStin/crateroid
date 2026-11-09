@@ -43,7 +43,7 @@ src/
     brain.js                    难度人格：分帧搜索、走位、瞄准演出、撤退
   ui/hud.js                     对局 HUD（DOM）：计时/风/武器栏/力度条/横幅/结算/成就 toast
   ui/menus.js                   全部菜单：标题/组队/选图/教学/挑战/战绩/设置/暂停
-  levels/challenges.js          13 个挑战关卡数据（c7 起可用 scene 自定义地形、drumSpots 精摆油桶）
+  levels/challenges.js          16 个挑战关卡数据（c7 起可用 scene 自定义地形、drumSpots 精摆油桶）
   levels/tutorials.js           教学关卡数据：4 课分阶段步骤 + 练习靶场
   levels/tutorialScenes.js      教学专用地形覆写（深坑/武器场景/地形杀/补给高台/靶场）
 vendor/pixi-loader.js            PixiJS v8 运行时加载器（拼接 vendor/pixi/*.bin）
@@ -142,6 +142,13 @@ vendor/pixi/*.bin                PixiJS 分片（12 片，importmap 映射 'pixi
   - 飞行节拍按预测命中时刻倒推（`simulateShot` 返回 `flightTime/directHit`）：发射/临爆 0.1x、巡航 finale 0.3x / highlight 0.38x；预测落空（阵风漂移）→ 弹尽+场面安静即 `_endCinema`（缩放/黑边/原速全还原）。
   - 全部 `_finale*/_cinema*` 字段必须 startMatch 重置；endMatch 兜底关黑边/运镜。飞行期弹丸短暂离屏是相机边界钳制（镜头不出世界、天空余量 220px），不是跟丢。
   - 预测只认飞行确定的弹种（`FINALE_PREDICT_WEAPONS`，集束/散弹散布随机、空袭/奶牛走飞机）；空投/子雷/奶牛/油桶的精准贴爆判定被轨迹长度阈值天然排除（子雷/空投弹出膛点就在目标附近）；`armCinematicLaunch` 的 makeSim 复用 `_simMask`——AI 开火时 brain 已 retreat/finished 不再读 sim，安全。
+  - **高光触发必须做与 `_beginAftermath` 对称的操作面收尾**（停走位/收蓄力/闲输入），但**保留** shotsLeft/retreatLeft/state（高光结束恢复原回合，坑 41 撤退窗口）；`_endCinema` 高光分支要 `updateInputMode` 把输入还回去；`skipTurn` 有 `_finale` 守卫（镜头中跳过会跳到镜头外）。startMatch 也要 `setCinema(false)` ×2（重开/退标题时黑边与运镜缓动残留）。
+
+42. **brain 生命周期**：`nextTurn` 必须清 `this.brain`——困难 AI 开火后 brain 停在 `retreat` 阶段，若跨回合残留，玩家回合的 projectile 分支（`brain.phase === 'retreat'` 驱动）会操控上一只 AI 虫继续走位。同族：projectile 阶段的 `busy` 判定要把 `brain.phase === 'retreat'` 算进去，否则散弹枪等瞬发武器开火后下一步就进 postturnWait，1.1s 撤退名存实亡。
+
+43. **空袭投弹序列按进场方向镜像**：飞机 `dir=-1` 从右往左飞，投弹点必须 `n-1-dropped` 倒序对位——固定从 dropStart 递增的写法会让向左标定只投 1 枚（先经过的 dropEnd 对不上计数器 0 的点）。改投弹逻辑左右各测一遍（`spawnAirstrikeBomb` 包计数器即可）。
+
+44. **AI 走位探测必须把 fakeOwner 站到候选点再评分**：`probeMoveSpot` 里 clone 出的 fakeOwner 若不写 `x/y`，四个候选与 `quickScoreHere` 的模拟输入完全相同、得分逐位自等，`bestScore > s0 + 8` 恒 false——走位探测整体失效且每回合白烧 ~36 次 `simulateShot`。物理细节：虫虫空中积分是单点落地检测 + 线扫描防薄平台穿透（`Worm.step` 与 `planner.settleWorm` 两侧要同步改）；钻地弹的瓦片重传走 `_drillPend` 同列累积节流（掩码实时、纹理滞后 ≤4 帧，`carve()` 开头兜底 flush）。
 
 ## 发布
 

@@ -34,7 +34,7 @@ body { position: fixed; inset: 0; }
 #hud { position: fixed; top: 0; left: 0; width: var(--vvw); height: var(--vvh); z-index: 10; pointer-events: none; }
 /* 只有真正可交互的元素接收指针事件；信息类 HUD 元素绝不能吞掉画布拖拽 */
 #hud > * { pointer-events: none; }
-#btn-pause, #weapon-bar, #btn-skip { pointer-events: auto; }
+#btn-pause, #weapon-bar, #btn-skip, #btn-ai-fast { pointer-events: auto; }
 #hud-top, #msg-feed, #team-pips, #fuel-wrap, #power-wrap, #banner,
 #controls-hint, #wind-box, #round-box, #timer, #round-label { pointer-events: none; }
 

@@ -22,6 +22,7 @@ export class Worm {
     this.x = cfg.x; this.y = cfg.y;      // 脚底中心
     this.vx = 0; this.vy = 0;
     this.hp = cfg.hp ?? 100;
+    this.maxHp = this.hp;                // 血条/pip 归一基准（>100HP 的 BOSS 用）
     this.alive = true;
     this.onGround = true;
     this.jumpsUsed = 0;
@@ -341,14 +342,25 @@ export class Worm {
         this.vx = 0;
       }
       this.vx *= Math.pow(0.35, dt);
+      const y0 = this.y; // 扫描起点：高速下落单步位移可达 22px，12~13px 薄平台会被整步跳过
       this.y += this.vy * dt;
 
       // 头顶碰撞
       if (this.vy < 0 && terrain.isSolid(this.x, this.y - BODY_H - 2)) {
         this.vy = 0;
       }
-      // 落地
-      if (this.vy > 0 && terrain.isSolid(this.x, this.y)) {
+      // 落地：先查终点，终点在空气里再线扫描「上一帧 y → 当前 y」扫过的行（防薄平台穿透）
+      let landY = null;
+      if (this.vy > 0) {
+        if (terrain.isSolid(this.x, this.y)) landY = this.y;
+        else {
+          for (let sy = Math.ceil(y0); sy <= Math.floor(this.y); sy++) {
+            if (terrain.isSolid(this.x, sy)) { landY = sy; break; }
+          }
+        }
+      }
+      if (landY !== null) {
+        this.y = landY;
         let gy = this.findStandY(terrain, this.x, this.y - 2);
         if (gy === null) {
           // 高速下落单帧可穿透超过 STEP_UP（~22px）：向上搜真实地表，避免半截埋土走不动
@@ -502,7 +514,7 @@ export class Worm {
     const hpKey = `${Math.round(this.hp)}`;
     if (hpKey !== this._hpKey) {
       this._hpKey = hpKey;
-      const pct = Math.max(0, this.hp) / 100;
+      const pct = Math.max(0, this.hp) / (this.maxHp || 100); // >100HP 的 BOSS 归一，条不溢出
       this.hpBar.clear();
       this.hpBar.roundRect(-17, 0, 34, 7, 3.5).fill({ color: 0x181826, alpha: 0.9 });
       this.hpBar.roundRect(-17, 0, 34, 7, 3.5).stroke({ width: 1.6, color: this.teamColorHex, alpha: 0.95 });

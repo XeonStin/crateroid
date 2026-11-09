@@ -25,6 +25,12 @@ export class AIBrain {
     this.retreatDir = 0; this.retreatT = 0;
     this.sim = null;
     this.finished = false;
+    // 以下字段在流程中后置赋值，构造器定全保持单一隐藏类（同坑 38 纪律）
+    this.movedOnce = false;      // 本回合是否已走位过
+    this.bestSoFar = null;       // 搜索阶段当前最优候选
+    this.weaponIds = [];         // 本回合可用武器
+    this.chosen = null;          // 选定的发射方案
+    this.searchDeadline = 0;
   }
 
   // 每帧驱动，返回 true 表示回合动作已完成（已发射/放弃）
@@ -112,6 +118,9 @@ export class AIBrain {
         worms: sim.worms.map(w => w.clone()),
       };
       const fakeOwner = probeSim.worms.find(w => w.id === me.id);
+      // 必须把 fakeOwner 站到候选点再评分：否则四个候选与 quickScoreHere 的
+      // 输入完全相同、得分逐位自等，bestScore > s0 + 8 恒 false，走位探测永远失效
+      fakeOwner.x = nx; fakeOwner.y = gy;
       for (const a of [40, 140]) {
         for (const p of [0.45, 0.9]) {
           const r = simulateShot(probeSim, fakeOwner, 'bazooka', a, p);
